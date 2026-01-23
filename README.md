@@ -42,8 +42,10 @@ tests/             # unit / integration / e2e
 - Guardar, listar y favoritos
 - Presets de tamaño (Standard / Massive)
 
+## Documentación
+- Despliegue: [docs/deploy/runbook.md](docs/deploy/runbook.md)
+- Seguridad: [docs/security/threat-model.md](docs/security/threat-model.md)
+- Slides: [slides/README.md](slides/README.md)
+
 ## Despliegue
 Pendiente de URL pública. Ver [docs/deploy/runbook.md](docs/deploy/runbook.md).
-
-## Slides
-Ver [slides/README.md](slides/README.md).
