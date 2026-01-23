@@ -1,7 +1,7 @@
 # MESBG Scenario Card Generator
 
 Generador de cartas de escenario para Middle-earth Strategy Battle Game (MESBG) con modos `casual`, `narrative` y `matched`.
-Incluye generación determinista por `seed` y renderizado de layouts en SVG.
+Incluye generación determinista por `seed` y renderizado de **board layouts** en **SVG**.
 
 ## Stack
 - Python 3.11
@@ -11,41 +11,35 @@ Incluye generación determinista por `seed` y renderizado de layouts en SVG.
 - Docker / Docker Compose
 
 ## Instalación
-```bash
-python -m pip install -r requirements.txt
-```
+    python -m pip install -r requirements.txt
 
 ## Ejecución
-```bash
-docker compose up
-```
+    docker compose up
 
-API: http://localhost:8000
-UI: http://localhost:7860
+- API: http://localhost:8000  
+- UI: http://localhost:7860
 
 ## Estructura
-```
-src/
-  domain/          # reglas puras
-  application/     # casos de uso + puertos
-  infrastructure/  # detalles técnicos
-  adapters/        # Flask + Gradio
-content/           # JSON editable
-docs/              # documentación de evaluación
-context/           # conocimiento para IA
-tests/             # unit / integration / e2e
-```
+    src/
+      domain/          # reglas puras
+      application/     # casos de uso + puertos
+      infrastructure/  # detalles técnicos
+      adapters/        # Flask + Gradio
+    content/           # JSON editable
+    docs/              # documentación de evaluación
+    context/           # conocimiento para IA
+    tests/             # unit / integration / e2e
 
 ## Funcionalidades (MVP)
 - Generación de cartas por modo y seed
-- SVG de mapa desde map_spec
+- SVG de mapa desde `map_spec`
 - Guardar, listar y favoritos
 - Presets de tamaño (Standard / Massive)
 
 ## Documentación
-- Despliegue: [docs/deploy/runbook.md](docs/deploy/runbook.md)
-- Seguridad: [docs/security/threat-model.md](docs/security/threat-model.md)
-- Slides: [slides/README.md](slides/README.md)
+- Runbook: docs/deploy/runbook.md
+- Seguridad: docs/security/threat-model.md
+- Slides: slides/README.md
 
 ## Despliegue
-Pendiente de URL pública. Ver [docs/deploy/runbook.md](docs/deploy/runbook.md).
+Pendiente de URL pública. Ver `docs/deploy/runbook.md`.

@@ -2,41 +2,39 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-scenario}
+      POSTGRES_USER: ${POSTGRES_USER:-scenario}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scenario}
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scenario} -d ${POSTGRES_DB:-scenario}"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+
   api:
     build: .
     env_file:
-      - .env
+      - .env.example
     command: ["python", "-m", "src.adapters.http_flask.app"]
     ports:
       - "8000:8000"
-    healthcheck:
-      test:
-        - "CMD"
-        - "python"
-        - "-c"
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-      interval: 5s
-      timeout: 3s
-      retries: 5
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   ui:
     build: .
     env_file:
-      - .env
+      - .env.example
     command: ["python", "-m", "src.adapters.ui_gradio.app"]
     ports:
       - "7860:7860"
@@ -45,4 +43,4 @@ services:
         condition: service_healthy
 
 volumes:
-  db_data:
+  pgdata:
