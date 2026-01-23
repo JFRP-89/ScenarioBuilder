@@ -1,0 +1,18 @@
+[
+  {
+    "id": "deploy-opposite-edges",
+    "title": "Opposite Edges",
+    "description": "Despliegue en bordes opuestos.",
+    "tags": ["deploy", "opposite"],
+    "modes": ["casual", "narrative", "matched"],
+    "weights": {"casual": 3, "narrative": 2, "matched": 3}
+  },
+  {
+    "id": "deploy-corners",
+    "title": "Corners",
+    "description": "Despliegue en esquinas.",
+    "tags": ["deploy", "corner"],
+    "modes": ["casual", "matched"],
+    "weights": {"casual": 2, "matched": 2}
+  }
+]

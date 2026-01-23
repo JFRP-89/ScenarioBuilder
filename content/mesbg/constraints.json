@@ -1,0 +1,19 @@
+[
+  {
+    "id": "constraint-limited-shooting",
+    "title": "Limited Shooting",
+    "description": "Restringir número de disparos por turno.",
+    "tags": ["constraint", "shooting"],
+    "modes": ["casual", "matched"],
+    "weights": {"casual": 1, "matched": 2},
+    "risk_flags": ["balance"]
+  },
+  {
+    "id": "constraint-no-large-monsters",
+    "title": "No Large Monsters",
+    "description": "Prohibición de criaturas grandes.",
+    "tags": ["constraint", "unit"],
+    "modes": ["matched"],
+    "weights": {"matched": 3}
+  }
+]

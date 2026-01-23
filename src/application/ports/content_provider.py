@@ -1,0 +1,19 @@
+from __future__ import annotations
+
+from typing import Iterable, Protocol
+
+from src.domain.cards.models import CardItem
+
+
+class ContentProvider(Protocol):
+    def get_layouts(self) -> Iterable[CardItem]: ...
+
+    def get_deployments(self) -> Iterable[CardItem]: ...
+
+    def get_objectives(self) -> Iterable[CardItem]: ...
+
+    def get_twists(self) -> Iterable[CardItem]: ...
+
+    def get_story_hooks(self) -> Iterable[CardItem]: ...
+
+    def get_constraints(self) -> Iterable[CardItem]: ...

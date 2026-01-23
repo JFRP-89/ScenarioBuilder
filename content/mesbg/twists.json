@@ -1,0 +1,20 @@
+[
+  {
+    "id": "twist-fog",
+    "title": "Low Visibility",
+    "description": "Visibilidad reducida en los primeros turnos.",
+    "tags": ["twist", "fog"],
+    "modes": ["narrative", "matched"],
+    "weights": {"narrative": 3, "matched": 1},
+    "risk_flags": ["visibility"]
+  },
+  {
+    "id": "twist-supply-shortage",
+    "title": "Supply Shortage",
+    "description": "Recursos limitados para ambos bandos.",
+    "tags": ["twist", "resource"],
+    "modes": ["casual", "matched"],
+    "weights": {"casual": 2, "matched": 2},
+    "risk_flags": ["attrition"]
+  }
+]

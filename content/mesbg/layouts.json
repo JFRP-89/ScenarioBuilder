@@ -1,0 +1,25 @@
+[
+  {
+    "id": "layout-central-ruin",
+    "title": "Central Ruin",
+    "description": "Un gran elemento central que bloquea líneas de visión.",
+    "tags": ["terrain", "central"],
+    "modes": ["casual", "narrative", "matched"],
+    "weights": {"casual": 3, "narrative": 3, "matched": 2},
+    "map_spec": {
+      "width": 120,
+      "height": 120,
+      "shapes": [
+        {"type": "rect", "x": 50, "y": 50, "w": 20, "h": 20}
+      ]
+    }
+  },
+  {
+    "id": "layout-open-edges",
+    "title": "Open Edges",
+    "description": "Bordes despejados para flanqueos.",
+    "tags": ["open", "flank"],
+    "modes": ["casual", "matched"],
+    "weights": {"casual": 2, "matched": 3}
+  }
+]

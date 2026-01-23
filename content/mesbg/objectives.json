@@ -1,0 +1,33 @@
+[
+  {
+    "id": "obj-hold-center",
+    "title": "Hold the Center",
+    "description": "Controlar la zona central.",
+    "tags": ["objective", "control"],
+    "modes": ["casual", "narrative", "matched"],
+    "weights": {"casual": 3, "narrative": 3, "matched": 3},
+    "map_spec": {
+      "width": 120,
+      "height": 120,
+      "shapes": [
+        {"type": "circle", "cx": 60, "cy": 60, "r": 10}
+      ]
+    }
+  },
+  {
+    "id": "obj-secure-supplies",
+    "title": "Secure Supplies",
+    "description": "Asegurar dos objetivos laterales.",
+    "tags": ["objective", "multi"],
+    "modes": ["casual", "matched"],
+    "weights": {"casual": 2, "matched": 2},
+    "map_spec": {
+      "width": 120,
+      "height": 120,
+      "shapes": [
+        {"type": "circle", "cx": 20, "cy": 60, "r": 6},
+        {"type": "circle", "cx": 100, "cy": 60, "r": 6}
+      ]
+    }
+  }
+]

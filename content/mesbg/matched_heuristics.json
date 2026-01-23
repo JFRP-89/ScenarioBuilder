@@ -1,0 +1,19 @@
+[
+  {
+    "id": "heuristic-avoid-visibility",
+    "title": "Avoid Visibility Penalty",
+    "description": "Penaliza combinaciones con baja visibilidad.",
+    "tags": ["matched", "heuristic"],
+    "modes": ["matched"],
+    "weights": {"matched": 3},
+    "risk_flags": ["visibility"]
+  },
+  {
+    "id": "heuristic-table-size",
+    "title": "Scale With Table Size",
+    "description": "Ajusta el score según tamaño de mesa.",
+    "tags": ["matched", "table-size"],
+    "modes": ["matched"],
+    "weights": {"matched": 2}
+  }
+]

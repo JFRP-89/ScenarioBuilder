@@ -1,0 +1,19 @@
+[
+  {
+    "id": "hook-rescue",
+    "title": "Rescue Mission",
+    "description": "Rescatar a un mensajero capturado.",
+    "tags": ["story", "rescue"],
+    "modes": ["narrative", "casual"],
+    "weights": {"narrative": 3, "casual": 1}
+  },
+  {
+    "id": "hook-ambush",
+    "title": "Ambush",
+    "description": "Emboscada en un camino estrecho.",
+    "tags": ["story", "ambush"],
+    "modes": ["narrative", "matched"],
+    "weights": {"narrative": 3, "matched": 1},
+    "risk_flags": ["alpha-strike"]
+  }
+]
