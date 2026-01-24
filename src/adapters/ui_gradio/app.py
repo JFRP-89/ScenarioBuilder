@@ -5,7 +5,7 @@ import requests
 import gradio as gr
 
 
-API_URL = os.getenv("API_URL", "http://api:8000")
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 
 def generate(mode: str, seed: int):
