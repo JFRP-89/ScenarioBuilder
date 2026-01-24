@@ -6,5 +6,5 @@ El formato está basado en [Keep a Changelog 1.1.0](https://keepachangelog.com/e
 y este proyecto sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
-### Added
-- Estructura inicial del repositorio y esqueleto de componentes.
+### Changed
+- Añadir/enriquecer documentación operativa en context/* y políticas de trabajo.
