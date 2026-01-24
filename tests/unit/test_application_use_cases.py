@@ -1,5 +1,10 @@
 import src.application
-from src.application.ports import content_provider, current_user_provider, map_renderer, repositories
+from src.application.ports import (
+    content_provider,
+    current_user_provider,
+    map_renderer,
+    repositories,
+)
 from src.application.use_cases.generate_card import execute as generate
 from src.application.use_cases.list_cards import execute as list_cards
 from src.application.use_cases.save_card import execute as save_card

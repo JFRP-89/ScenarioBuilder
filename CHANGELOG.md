@@ -8,3 +8,4 @@ y este proyecto sigue [SemVer](https://semver.org/lang/es/).
 ## [Unreleased]
 ### Changed
 - Añadir/enriquecer documentación operativa en context/* y políticas de trabajo.
+- Reformat de codigo y tests para cumplir limites de longitud de linea.
