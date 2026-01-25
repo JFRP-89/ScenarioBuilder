@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import List
 
-from src.domain.seed import get_rng
-from src.domain.cards.models import CardItem, ScenarioCard
+from domain.seed import get_rng
+from domain.cards.models import CardItem, ScenarioCard
 
 
 def _pick(rng, items: List[CardItem]) -> CardItem:

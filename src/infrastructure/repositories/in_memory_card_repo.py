@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from src.domain.cards.models import ScenarioCard
+from domain.cards.models import ScenarioCard
 
 
 class InMemoryCardRepository:

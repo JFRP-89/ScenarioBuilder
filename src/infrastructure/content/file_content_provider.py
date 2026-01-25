@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from src.domain.cards.models import CardItem
+from domain.cards.models import CardItem
 
 
 class FileContentProvider:

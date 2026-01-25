@@ -1,4 +1,4 @@
-from src.domain.cards.constraints import incompatible_pairs_ok
+from domain.cards.constraints import incompatible_pairs_ok
 
 
 def test_incompatible_pairs():

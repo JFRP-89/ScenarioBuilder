@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, Protocol
 
-from src.domain.cards.models import ScenarioCard
+from domain.cards.models import ScenarioCard
 
 
 class CardRepository(Protocol):

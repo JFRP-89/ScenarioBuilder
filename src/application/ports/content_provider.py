@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, Protocol
 
-from src.domain.cards.models import CardItem
+from domain.cards.models import CardItem
 
 
 class ContentProvider(Protocol):

@@ -1,4 +1,4 @@
-from src.domain.maps.spec import TABLE_PRESETS, validate_table_size
+from domain.maps.spec import TABLE_PRESETS, validate_table_size
 
 
 def test_table_presets_standard_massive():

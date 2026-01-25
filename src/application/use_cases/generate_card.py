@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.application.ports.content_provider import ContentProvider
-from src.domain.cards.generator import generate_card
+from domain.cards.generator import generate_card
 
 
 def execute(mode: str, seed: int, content: ContentProvider):
