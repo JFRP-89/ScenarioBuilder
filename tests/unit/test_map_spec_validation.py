@@ -1,4 +1,4 @@
-from src.domain.maps.spec import validate_map_spec
+from domain.maps.spec import validate_map_spec
 
 
 def test_map_spec_shapes_inside_bounds():

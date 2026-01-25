@@ -19,7 +19,7 @@ with gr.Blocks() as demo:
     seed = gr.Number(value=1, precision=0)
     out = gr.JSON()
     btn = gr.Button("Generate")
-    btn.click(generate, inputs=[mode, seed], outputs=out)
+    # btn.click(generate, inputs=[mode, seed], outputs=out)
 
 
 if __name__ == "__main__":

@@ -8,3 +8,4 @@ y este proyecto sigue [SemVer](https://semver.org/lang/es/).
 ## [Unreleased]
 ### Added
 - Estructura inicial del repositorio y esqueleto de componentes.
+- domain core models + tests

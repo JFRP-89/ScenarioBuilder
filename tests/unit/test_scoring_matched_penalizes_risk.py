@@ -1,4 +1,4 @@
-from src.domain.cards.scoring import matched_score
+from domain.cards.scoring import matched_score
 
 
 def test_matched_penalizes_risk_flags():
