@@ -1,6 +1,7 @@
 .vscode/
 .env
 venv/
+docs/legacy_/
 __pycache__/
 __PYCACHE__/
 *.pyc
