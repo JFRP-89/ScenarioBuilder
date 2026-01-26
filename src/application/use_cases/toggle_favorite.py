@@ -1,9 +1,7 @@
-"""RenderMapSvg use case.
+"""ToggleFavorite use case.
 
-Renders a Card's map to SVG format:
-- Delegates rendering to a renderer port (does NOT render directly)
-- Security: actor must be able to read the card (anti-IDOR)
-- Returns SVG string
+Marks or unmarks a card as favorite for an actor.
+Security: actor can only favorite cards they can read.
 """
 
 from __future__ import annotations
@@ -13,26 +11,24 @@ from typing import Any, Optional
 
 from domain.errors import ValidationError
 
-# Legacy import for backwards compatibility
-from application.ports.map_renderer import MapRenderer
-
 
 # =============================================================================
 # REQUEST / RESPONSE DTOs
 # =============================================================================
-@dataclass(frozen=True)
-class RenderMapSvgRequest:
-    """Request DTO for RenderMapSvg use case."""
+@dataclass
+class ToggleFavoriteRequest:
+    """Request DTO for ToggleFavorite use case."""
 
     actor_id: Optional[str]
     card_id: Optional[str]
 
 
-@dataclass(frozen=True)
-class RenderMapSvgResponse:
-    """Response DTO for RenderMapSvg use case."""
+@dataclass
+class ToggleFavoriteResponse:
+    """Response DTO for ToggleFavorite use case."""
 
-    svg: str
+    card_id: str
+    is_favorite: bool
 
 
 # =============================================================================
@@ -65,60 +61,47 @@ def _validate_card_id(card_id: object) -> str:
 # =============================================================================
 # USE CASE
 # =============================================================================
-class RenderMapSvg:
-    """Use case for rendering a card's map to SVG."""
+class ToggleFavorite:
+    """Use case for toggling a card as favorite."""
 
     def __init__(
         self,
-        repository: Any,
-        renderer: Any,
+        card_repository: Any,
+        favorites_repository: Any,
     ) -> None:
-        self._repository = repository
-        self._renderer = renderer
+        self._card_repository = card_repository
+        self._favorites_repository = favorites_repository
 
-    def execute(self, request: RenderMapSvgRequest) -> RenderMapSvgResponse:
+    def execute(self, request: ToggleFavoriteRequest) -> ToggleFavoriteResponse:
         """Execute the use case.
 
         Args:
             request: Request DTO with actor_id and card_id.
 
         Returns:
-            Response DTO with SVG string.
+            Response DTO with new favorite state.
 
         Raises:
-            ValidationError: If inputs are invalid.
+            ValidationError: If actor_id or card_id is invalid.
             Exception: If card not found or access forbidden.
         """
         # 1) Validate inputs
         actor_id = _validate_actor_id(request.actor_id)
         card_id = _validate_card_id(request.card_id)
 
-        # 2) Load card
-        card = self._repository.get_by_id(card_id)
+        # 2) Get card from repository
+        card = self._card_repository.get_by_id(card_id)
         if card is None:
             raise Exception(f"Card not found: {card_id}")
 
-        # 3) Authorization: actor must be able to read card (anti-IDOR)
+        # 3) Check read access (anti-IDOR)
         if not card.can_user_read(actor_id):
-            raise Exception("Forbidden: access denied")
+            raise Exception("Forbidden: user does not have access to this card")
 
-        # 4) Prepare data for renderer
-        table_mm = {
-            "width_mm": card.table.width_mm,
-            "height_mm": card.table.height_mm,
-        }
-        shapes = card.map_spec.shapes
+        # 4) Toggle favorite state
+        current = self._favorites_repository.is_favorite(actor_id, card_id)
+        new_value = not current
+        self._favorites_repository.set_favorite(actor_id, card_id, new_value)
 
-        # 5) Delegate rendering to renderer port
-        svg = self._renderer.render(table_mm=table_mm, shapes=shapes)
-
-        # 6) Return response
-        return RenderMapSvgResponse(svg=svg)
-
-
-# =============================================================================
-# LEGACY API (for backwards compatibility)
-# =============================================================================
-def execute(renderer: MapRenderer, map_spec: dict) -> str:
-    """Legacy functional API - delegates to renderer directly."""
-    return renderer.render_svg(map_spec)
+        # 5) Return response
+        return ToggleFavoriteResponse(card_id=card_id, is_favorite=new_value)
