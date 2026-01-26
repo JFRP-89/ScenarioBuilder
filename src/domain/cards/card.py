@@ -24,6 +24,40 @@ class GameMode(Enum):
     MATCHED = "matched"
 
 
+_VALID_GAME_MODES = frozenset(m.value for m in GameMode)
+
+
+def parse_game_mode(value: object) -> GameMode:
+    """Parse a game mode string into a GameMode enum.
+
+    Args:
+        value: String value to parse (case-insensitive, whitespace-trimmed).
+
+    Returns:
+        GameMode enum member.
+
+    Raises:
+        ValidationError: If value is None, not a string, empty, or unknown.
+    """
+    if value is None:
+        raise ValidationError("mode cannot be None")
+    if not isinstance(value, str):
+        raise ValidationError("mode must be a string")
+
+    normalized = value.strip().lower()
+
+    if not normalized:
+        raise ValidationError("mode cannot be empty or whitespace-only")
+
+    if normalized not in _VALID_GAME_MODES:
+        raise ValidationError(
+            f"unknown mode '{normalized}', "
+            f"must be one of: {', '.join(sorted(_VALID_GAME_MODES))}"
+        )
+
+    return GameMode(normalized)
+
+
 def _validate_non_empty_str(name: str, value: Any) -> str:
     """Validate that value is a non-empty string after strip."""
     if not isinstance(value, str):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.application.ports.content_provider import ContentProvider
+from application.ports.content_provider import ContentProvider
 from domain.cards.generator import generate_card
 
 
