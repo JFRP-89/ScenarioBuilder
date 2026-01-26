@@ -1,3 +1,13 @@
-# Docker Policy
+# Docker policy
 
-Compose debe levantar API, UI y DB.
+Objetivo: entorno reproducible.
+
+- `docker compose up` levanta:
+  - API (Flask)
+  - UI (Gradio) consumiendo la API
+  - DB (Postgres) cuando aplique
+
+Reglas:
+- Variables vía env (`.env`)
+- Volúmenes solo si facilitan desarrollo
+- No meter secretos en imágenes
