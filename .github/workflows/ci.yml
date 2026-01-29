@@ -16,6 +16,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11"
+  RUFF_VERSION: "0.5.6"
 
 jobs:
   lint:
@@ -34,7 +35,7 @@ jobs:
       - name: Install ruff only
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff
+          python -m pip install ruff==${{ env.RUFF_VERSION }}
 
       - name: Run ruff check
         run: ruff check .
