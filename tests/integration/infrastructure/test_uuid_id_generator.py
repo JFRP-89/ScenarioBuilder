@@ -6,8 +6,6 @@ This generator produces unique card_ids using UUID4.
 
 from __future__ import annotations
 
-import pytest
-
 
 # =============================================================================
 # UNIQUENESS AND FORMAT TESTS

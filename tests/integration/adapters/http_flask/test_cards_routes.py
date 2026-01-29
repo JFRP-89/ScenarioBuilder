@@ -16,7 +16,6 @@ from typing import Optional
 import pytest
 
 from adapters.http_flask.app import create_app
-from domain.errors import ValidationError
 
 
 # =============================================================================

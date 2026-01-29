@@ -6,7 +6,6 @@ Tests for GetCard have been migrated to tests/unit/application/test_get_card.py
 Tests for GenerateScenarioCard exist in tests/unit/application/test_generate_scenario_card.py
 """
 
-import pytest
 import src.application
 from src.application.ports import content_provider, current_user_provider, map_renderer, repositories
 from src.application.use_cases.generate_card import execute as generate

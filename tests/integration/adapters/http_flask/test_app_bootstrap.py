@@ -12,8 +12,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
-import pytest
-
 from adapters.http_flask.app import create_app
 from domain.errors import ValidationError
 

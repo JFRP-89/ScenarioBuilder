@@ -6,8 +6,6 @@ This repository stores favorite (actor_id, card_id) pairs.
 
 from __future__ import annotations
 
-import pytest
-
 
 # =============================================================================
 # SET_FAVORITE + IS_FAVORITE TESTS
