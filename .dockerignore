@@ -1,0 +1,45 @@
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing/coverage artifacts (local)
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Git
+.git/
+
+# Environment files (never bake secrets)
+.env
+.env.local
+.env.*.local
+
+# Docs (optional to exclude from image)
+docs/
+slides/
+*.md
+!README.md
+CHANGELOG.md
+
+# Logs
+*.log

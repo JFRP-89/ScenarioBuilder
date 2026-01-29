@@ -1,12 +1,23 @@
+# =============================================================================
+# Docker Compose for ScenarioBuilder
+# Stack: PostgreSQL 16 + Flask API + Gradio UI
+# =============================================================================
+
 services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: scenariobuilder-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-scenario}
       POSTGRES_USER: ${POSTGRES_USER:-scenario}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scenario}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,33 +25,103 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
+    networks:
+      - scenariobuilder
 
+  # ===========================================================================
+  # Flask API (REST)
+  # ===========================================================================
   api:
-    build: .
-    env_file:
-      - .env.example
-    command: ["python", "-m", "src.adapters.http_flask.app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    container_name: scenariobuilder-api
+    restart: unless-stopped
+    environment:
+      # Flask configuration
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      
+      # Server configuration
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      
+      # Database connection
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scenario}:${POSTGRES_PASSWORD:-scenario}@db:5432/${POSTGRES_DB:-scenario}
+      
+      # Application defaults
+      DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
+    command: [
+      "python", "-m", "flask",
+      "--app", "adapters.http_flask.app:create_app",
+      "run",
+      "--host=0.0.0.0",
+      "--port=8000"
+    ]
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - scenariobuilder
 
+  # ===========================================================================
+  # Gradio UI (Interactive Web Interface)
+  # ===========================================================================
   ui:
-    build: .
-    env_file:
-      - .env.example
-    command: ["python", "-m", "src.adapters.ui_gradio.app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    container_name: scenariobuilder-ui
+    restart: unless-stopped
+    environment:
+      # API connection (internal Docker network)
+      API_BASE_URL: http://api:8000
+      
+      # Server configuration
+      UI_HOST: 0.0.0.0
+      UI_PORT: 7860
+      
+      # Application defaults
+      DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
+    command: ["python", "-m", "adapters.ui_gradio.app"]
     ports:
-      - "7860:7860"
+      - "${UI_PORT:-7860}:7860"
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7860/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - scenariobuilder
 
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  scenariobuilder:
+    driver: bridge
+    name: scenariobuilder-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
   pgdata:
+    name: scenariobuilder-pgdata
+    driver: local
