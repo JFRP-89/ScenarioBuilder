@@ -1,0 +1,1 @@
+# Flask adapter integration tests

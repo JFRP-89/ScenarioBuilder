@@ -23,8 +23,8 @@ class SvgMapRenderer:
         Returns:
             SVG string with rendered shapes.
         """
-        width = table_mm["width_mm"]
-        height = table_mm["height_mm"]
+        width = int(table_mm["width_mm"])
+        height = int(table_mm["height_mm"])
 
         parts: list[str] = []
 
@@ -40,21 +40,21 @@ class SvgMapRenderer:
             shape_type = shape.get("type")
 
             if shape_type == "rect":
-                x = shape["x"]
-                y = shape["y"]
-                w = shape["width"]
-                h = shape["height"]
+                x = int(shape["x"])
+                y = int(shape["y"])
+                w = int(shape["width"])
+                h = int(shape["height"])
                 parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" />')
 
             elif shape_type == "circle":
-                cx = shape["cx"]
-                cy = shape["cy"]
-                r = shape["r"]
+                cx = int(shape["cx"])
+                cy = int(shape["cy"])
+                r = int(shape["r"])
                 parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" />')
 
             elif shape_type == "polygon":
                 points = shape["points"]
-                points_str = " ".join(f'{p["x"]},{p["y"]}' for p in points)
+                points_str = " ".join(f'{int(p["x"])},{int(p["y"])}' for p in points)
                 parts.append(f'<polygon points="{points_str}" />')
 
         # SVG footer
@@ -72,8 +72,8 @@ class SvgMapRenderer:
             SVG string with rendered map.
         """
         # Support both width_mm and width keys
-        width_mm = map_spec.get("width_mm") or map_spec.get("width", 1100)
-        height_mm = map_spec.get("height_mm") or map_spec.get("height", 700)
+        width_mm = int(map_spec.get("width_mm") or map_spec.get("width", 1100))
+        height_mm = int(map_spec.get("height_mm") or map_spec.get("height", 700))
         shapes = map_spec.get("shapes", [])
 
         table_mm = {"width_mm": width_mm, "height_mm": height_mm}
