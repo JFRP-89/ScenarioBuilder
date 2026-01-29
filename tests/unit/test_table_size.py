@@ -12,6 +12,8 @@ Limits: min 60.0 cm (600 mm), max 300.0 cm (3000 mm)
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 
 # TODO: Update import once TableSize is implemented
@@ -274,7 +276,32 @@ class TestLimits:
 
 
 # =============================================================================
-# 6) INVALID TYPES / INVALID INPUTS
+# 6) PROPERTY ACCESSORS
+# =============================================================================
+class TestProperties:
+    """Test property accessors (area_mm2, width_cm, height_cm)."""
+
+    def test_area_mm2_property(self) -> None:
+        """Test area calculation property (width_mm * height_mm)."""
+        table = TableSize.from_cm("100", "80")
+        expected_area = 1000 * 800  # mm²
+        assert table.area_mm2 == expected_area
+
+    def test_width_cm_property(self) -> None:
+        """Test width_cm property returns Decimal."""
+        table = TableSize.from_cm("100", "80")
+        assert table.width_cm == Decimal("100.0")
+        assert isinstance(table.width_cm, Decimal)
+
+    def test_height_cm_property(self) -> None:
+        """Test height_cm property returns Decimal."""
+        table = TableSize.from_cm("100", "80")
+        assert table.height_cm == Decimal("80.0")
+        assert isinstance(table.height_cm, Decimal)
+
+
+# =============================================================================
+# 7) INVALID TYPES / INVALID INPUTS
 # =============================================================================
 class TestInvalidInputs:
     """Reject invalid types and malformed inputs."""
@@ -366,7 +393,89 @@ class TestInvalidInputs:
         with pytest.raises(Exception):
             TableSize.from_in("-48", "48")
 
+    def test_rejects_negative_height_in_from_in(self):
+        """Test that negative height is rejected in from_in."""
+        with pytest.raises(Exception):
+            TableSize.from_in("48", "-48")
+
     def test_rejects_negative_in_from_ft(self):
         # TODO: Replace Exception with specific DomainError once implemented
         with pytest.raises(Exception):
             TableSize.from_ft("-4", "4")
+
+    def test_rejects_negative_height_in_from_ft(self):
+        """Test that negative height is rejected in from_ft."""
+        with pytest.raises(Exception):
+            TableSize.from_ft("4", "-4")
+
+    def test_rejects_float_type(self):
+        """Float type should be rejected for precision reasons."""
+        with pytest.raises(Exception):
+            TableSize.from_cm(100.5, "100")
+        with pytest.raises(Exception):
+            TableSize.from_cm("100", 100.5)
+
+    def test_accepts_decimal_type_directly(self):
+        """Decimal type should be accepted directly."""
+        from decimal import Decimal
+
+        ts = TableSize.from_cm(Decimal("120"), Decimal("120"))
+        assert ts.width_mm == 1200
+        assert ts.height_mm == 1200
+
+    def test_accepts_int_type_directly(self):
+        """Int type should be accepted directly."""
+        ts = TableSize.from_cm(120, 120)
+        assert ts.width_mm == 1200
+        assert ts.height_mm == 1200
+
+    def test_rejects_list_type(self):
+        """List type should be rejected."""
+        with pytest.raises(Exception):
+            TableSize.from_cm([100], "100")
+
+    def test_accepts_scientific_notation_lowercase_e(self):
+        """Scientific notation with lowercase 'e' should work."""
+        ts = TableSize.from_cm("1e2", "1.2e2")
+        assert ts.width_mm == 1000
+        assert ts.height_mm == 1200
+
+    def test_rejects_decimal_with_exponent_less_than_minus_2(self):
+        """Decimal with exponent < -2 should be rejected."""
+        from decimal import Decimal
+
+        # Decimal('100.001') has exponent -3
+        with pytest.raises(Exception):
+            TableSize.from_cm(Decimal("100.001"), "100")
+
+    def test_rejects_below_minimum_in_from_in(self):
+        """from_in should reject dimensions below minimum after conversion."""
+        # 23.96 inches = 59.9 cm (below 60 cm minimum)
+        with pytest.raises(Exception):
+            TableSize.from_in("23.96", "24")
+        with pytest.raises(Exception):
+            TableSize.from_in("24", "23.96")
+
+    def test_rejects_above_maximum_in_from_in(self):
+        """from_in should reject dimensions above maximum after conversion."""
+        # 120.03 inches = 300.1 cm (above 300 cm maximum)
+        with pytest.raises(Exception):
+            TableSize.from_in("120.03", "120")
+        with pytest.raises(Exception):
+            TableSize.from_in("120", "120.03")
+
+    def test_rejects_below_minimum_in_from_ft(self):
+        """from_ft should reject dimensions below minimum after conversion."""
+        # 1.98 feet = 59.4 cm (below 60 cm minimum)
+        with pytest.raises(Exception):
+            TableSize.from_ft("1.98", "2")
+        with pytest.raises(Exception):
+            TableSize.from_ft("2", "1.98")
+
+    def test_rejects_above_maximum_in_from_ft(self):
+        """from_ft should reject dimensions above maximum after conversion."""
+        # 10.01 feet = 300.3 cm (above 300 cm maximum)
+        with pytest.raises(Exception):
+            TableSize.from_ft("10.01", "10")
+        with pytest.raises(Exception):
+            TableSize.from_ft("10", "10.01")

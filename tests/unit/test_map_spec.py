@@ -129,3 +129,101 @@ def test_rejects_non_int_coordinates_or_sizes(table: TableSize, shape: dict):
 
 
 # TODO(hardening): añadir tests de missing fields, payload shape strictness y edge cases adicionales.
+
+
+# =============================================================================
+# ADDITIONAL COVERAGE TESTS
+# =============================================================================
+def test_requires_type_field_in_shape(table: TableSize):
+    shape_no_type = {"cx": 600, "cy": 600, "r": 100}
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=[shape_no_type])
+
+
+def test_requires_type_to_be_string(table: TableSize):
+    shape_bad_type = {"type": 123, "cx": 600, "cy": 600, "r": 100}
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=[shape_bad_type])
+
+
+def test_circle_requires_all_fields(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=[{"type": "circle", "cx": 600, "cy": 600}])
+
+
+def test_rect_requires_all_fields(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table, shapes=[{"type": "rect", "x": 100, "y": 100, "width": 200}]
+        )
+
+
+def test_polygon_requires_points_field(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=[{"type": "polygon"}])
+
+
+def test_polygon_points_must_be_list(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=[{"type": "polygon", "points": "not_a_list"}])
+
+
+def test_polygon_point_must_be_dict(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table,
+            shapes=[{"type": "polygon", "points": [(0, 0), (10, 10), (10, 0)]}],
+        )
+
+
+def test_polygon_point_requires_x_and_y(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table,
+            shapes=[
+                {
+                    "type": "polygon",
+                    "points": [{"x": 0}, {"x": 10, "y": 10}, {"x": 10, "y": 0}],
+                }
+            ],
+        )
+
+
+def test_circle_with_bool_coordinate_is_rejected(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table, shapes=[{"type": "circle", "cx": True, "cy": 600, "r": 100}]
+        )
+
+
+def test_rect_with_bool_dimension_is_rejected(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table,
+            shapes=[
+                {"type": "rect", "x": 100, "y": 100, "width": False, "height": 200}
+            ],
+        )
+
+
+def test_shapes_none_is_rejected(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=None)
+
+
+def test_shape_not_dict_is_rejected(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(table=table, shapes=["not_a_dict"])
+
+
+def test_rect_with_negative_x_or_y_is_rejected(table: TableSize):
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table,
+            shapes=[{"type": "rect", "x": -10, "y": 100, "width": 200, "height": 200}],
+        )
+    with pytest.raises(ValidationError):
+        MapSpec(
+            table=table,
+            shapes=[{"type": "rect", "x": 100, "y": -10, "width": 200, "height": 200}],
+        )

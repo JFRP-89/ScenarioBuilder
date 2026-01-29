@@ -23,8 +23,10 @@ import pytest
 from domain.maps.table_size import TableSize
 from domain.maps.map_spec import MapSpec
 from domain.security.authz import Visibility
-from domain.cards.card import Card, GameMode
+from domain.cards.card import Card, GameMode, parse_game_mode
 from domain.errors import ValidationError
+from domain.cards.generator import _pick
+from domain.seed import get_rng
 
 
 # =============================================================================
@@ -251,6 +253,109 @@ def test_card_access_public_allows_anyone_read_but_not_write(
 
 
 # =============================================================================
+# 9) PARSE GAME MODE
+# =============================================================================
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("matched", GameMode.MATCHED),
+        ("MATCHED", GameMode.MATCHED),
+        ("  casual ", GameMode.CASUAL),
+        ("narrative", GameMode.NARRATIVE),
+    ],
+)
+def test_parse_game_mode_accepts_valid_strings(raw: str, expected: GameMode):
+    assert parse_game_mode(raw) == expected
+
+
+@pytest.mark.parametrize("invalid", [None, 123, 1.5, True])
+def test_parse_game_mode_rejects_non_string(invalid):
+    with pytest.raises(ValidationError):
+        parse_game_mode(invalid)
+
+
+@pytest.mark.parametrize("invalid", ["", "   "])
+def test_parse_game_mode_rejects_empty_or_whitespace(invalid: str):
+    with pytest.raises(ValidationError):
+        parse_game_mode(invalid)
+
+
+def test_parse_game_mode_rejects_unknown_value():
+    with pytest.raises(ValidationError):
+        parse_game_mode("unknown")
+
+
+# =============================================================================
+# 10) INVALID TYPES - IDS, VISIBILITY, MODE
+# =============================================================================
+def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
+    with pytest.raises(ValidationError):
+        Card(
+            card_id=123,
+            owner_id="owner",
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            mode=GameMode.MATCHED,
+            seed=123,
+            table=table,
+            map_spec=map_spec,
+        )
+
+    with pytest.raises(ValidationError):
+        Card(
+            card_id="card-001",
+            owner_id=456,
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            mode=GameMode.MATCHED,
+            seed=123,
+            table=table,
+            map_spec=map_spec,
+        )
+
+
+def test_card_rejects_invalid_visibility_type(
+    table: TableSize, map_spec: MapSpec, owner: str
+):
+    with pytest.raises(ValidationError):
+        Card(
+            card_id="card-001",
+            owner_id=owner,
+            visibility="private",
+            shared_with=None,
+            mode=GameMode.MATCHED,
+            seed=123,
+            table=table,
+            map_spec=map_spec,
+        )
+
+
+def test_card_rejects_invalid_mode_type(
+    table: TableSize, map_spec: MapSpec, owner: str
+):
+    with pytest.raises(ValidationError):
+        Card(
+            card_id="card-001",
+            owner_id=owner,
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            mode="matched",
+            seed=123,
+            table=table,
+            map_spec=map_spec,
+        )
+
+
+# =============================================================================
 # TODO(hardening): Add parse_game_mode(), shared_with hardening, and advanced
 # table coherence/relaxation tests in a separate hardening PR.
 # =============================================================================
+
+
+# =============================================================================
+# 11) GENERATOR _PICK COVERAGE
+# =============================================================================
+def test_generator_pick_raises_when_items_empty():
+    rng = get_rng(123)
+    with pytest.raises(ValueError):
+        _pick(rng, [])
