@@ -140,9 +140,7 @@ class TestGetCardHappyPath:
 class TestGetCardNotFound:
     """Non-existent card raises NotFound error."""
 
-    def test_card_not_found_raises_error(
-        self, empty_repository: FakeCardRepository
-    ):
+    def test_card_not_found_raises_error(self, empty_repository: FakeCardRepository):
         from application.use_cases.get_card import GetCard, GetCardRequest
 
         use_case = GetCard(repository=empty_repository)

@@ -1,4 +1,5 @@
 """Gradio UI adapter for ScenarioBuilder."""
+
 from __future__ import annotations
 
 import os

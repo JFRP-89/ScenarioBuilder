@@ -166,7 +166,9 @@ class TestToggleFavoriteHappyPath:
         )
 
         assert response.status_code == 200
-        assert fake_toggle.call_count == 1, "toggle_favorite.execute() should be called once"
+        assert (
+            fake_toggle.call_count == 1
+        ), "toggle_favorite.execute() should be called once"
         assert fake_toggle.last_request is not None, "Request should be captured"
 
         # Validate request DTO fields
@@ -249,7 +251,9 @@ class TestListFavoritesHappyPath:
         )
 
         assert response.status_code == 200
-        assert fake_list.call_count == 1, "list_favorites.execute() should be called once"
+        assert (
+            fake_list.call_count == 1
+        ), "list_favorites.execute() should be called once"
         assert fake_list.last_request is not None, "Request should be captured"
 
         # Validate request DTO fields

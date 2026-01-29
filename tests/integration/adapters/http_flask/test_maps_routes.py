@@ -136,10 +136,14 @@ class TestGetMapSvgHappyPath:
         assert "<svg" in body, "Response body should contain SVG markup"
 
         # Assert: use case was called
-        assert fake_render.call_count == 1, "render_map_svg.execute() should be called once"
+        assert (
+            fake_render.call_count == 1
+        ), "render_map_svg.execute() should be called once"
         assert fake_render.last_request is not None, "Request should be captured"
         assert fake_render.last_request.actor_id == "u1", "actor_id should be passed"
-        assert fake_render.last_request.card_id == "card-001", "card_id should be passed"
+        assert (
+            fake_render.last_request.card_id == "card-001"
+        ), "card_id should be passed"
 
 
 # =============================================================================

@@ -60,7 +60,9 @@ class TestCreateAppCallsBuildServicesOnce:
         app = create_app()
 
         # Assert: called exactly once
-        assert call_count["count"] == 1, "build_services() should be called exactly once"
+        assert (
+            call_count["count"] == 1
+        ), "build_services() should be called exactly once"
 
         # Assert: services stored in config
         assert "services" in app.config, "services should be stored in app.config"
@@ -91,7 +93,9 @@ class TestCreateAppRegistersBlueprintsCorrectly:
         assert "health" in registered_bp_names, "health blueprint should be registered"
         assert "cards" in registered_bp_names, "cards blueprint should be registered"
         assert "maps" in registered_bp_names, "maps blueprint should be registered"
-        assert "presets" in registered_bp_names, "presets blueprint should be registered"
+        assert (
+            "presets" in registered_bp_names
+        ), "presets blueprint should be registered"
 
     def test_health_endpoint_exists(self, monkeypatch):
         """Health endpoint should be accessible."""
@@ -127,9 +131,7 @@ class TestCreateAppExposesGetActorIdHelper:
 
         # Assert
         assert "get_actor_id" in app.config, "get_actor_id should be in app.config"
-        assert callable(
-            app.config["get_actor_id"]
-        ), "get_actor_id should be callable"
+        assert callable(app.config["get_actor_id"]), "get_actor_id should be callable"
 
 
 # =============================================================================

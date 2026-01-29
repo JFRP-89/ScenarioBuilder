@@ -30,7 +30,9 @@ class FakeGenerateResponse:
     seed: int = 123
     mode: str = "matched"
     visibility: str = "private"
-    table_mm: dict = field(default_factory=lambda: {"width_mm": 1200, "height_mm": 1200})
+    table_mm: dict = field(
+        default_factory=lambda: {"width_mm": 1200, "height_mm": 1200}
+    )
     shapes: list = field(default_factory=list)
 
 
@@ -192,9 +194,7 @@ def fake_services(fake_generate, fake_save, fake_get, fake_list):
 def client(fake_services, monkeypatch):
     """Create test client with fake services injected."""
     # Patch build_services to avoid real infra during app creation
-    monkeypatch.setattr(
-        "adapters.http_flask.app.build_services", lambda: fake_services
-    )
+    monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: fake_services)
     app = create_app()
     # Override with our fake services (belt and suspenders)
     app.config["services"] = fake_services
@@ -258,9 +258,13 @@ class TestPostCardsHappyPath:
         assert "visibility" in json_data, "Response should contain visibility"
 
         # Assert: use case was called
-        assert fake_generate.call_count == 1, "generate_scenario_card.execute() should be called once"
+        assert (
+            fake_generate.call_count == 1
+        ), "generate_scenario_card.execute() should be called once"
         assert fake_generate.last_request is not None, "Request should be captured"
-        assert fake_generate.last_request.actor_id == "u1", "actor_id should be passed from header"
+        assert (
+            fake_generate.last_request.actor_id == "u1"
+        ), "actor_id should be passed from header"
         assert fake_save.call_count == 1
         assert fake_save.last_request is not None
         assert fake_save.last_request.actor_id == "u1"

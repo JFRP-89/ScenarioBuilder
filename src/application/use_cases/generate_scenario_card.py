@@ -84,7 +84,9 @@ class GenerateScenarioCard:
         self._seed_generator = seed_generator
         self._scenario_generator = scenario_generator
 
-    def execute(self, request: GenerateScenarioCardRequest) -> GenerateScenarioCardResponse:
+    def execute(
+        self, request: GenerateScenarioCardRequest
+    ) -> GenerateScenarioCardResponse:
         """Execute the use case.
 
         Args:

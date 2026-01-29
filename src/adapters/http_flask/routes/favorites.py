@@ -1,4 +1,5 @@
 """Favorites routes blueprint for Flask adapter."""
+
 from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify

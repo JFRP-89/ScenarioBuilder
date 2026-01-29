@@ -191,7 +191,9 @@ def test_card_requires_mapspec_matches_table(owner: str):
 # =============================================================================
 # 6) ACCESS - PRIVATE
 # =============================================================================
-def test_card_access_private(table: TableSize, map_spec: MapSpec, owner: str, other: str):
+def test_card_access_private(
+    table: TableSize, map_spec: MapSpec, owner: str, other: str
+):
     card = Card(
         card_id="card-001",
         owner_id=owner,

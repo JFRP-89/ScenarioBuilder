@@ -81,15 +81,20 @@ def create_card():
     services.save_card.execute(save_request)
 
     # 7) Return response
-    return jsonify({
-        "card_id": gen_response.card_id,
-        "owner_id": gen_response.owner_id,
-        "seed": gen_response.seed,
-        "mode": gen_response.mode,
-        "visibility": gen_response.visibility,
-        "table_mm": gen_response.table_mm,
-        "shapes": gen_response.shapes,
-    }), 201
+    return (
+        jsonify(
+            {
+                "card_id": gen_response.card_id,
+                "owner_id": gen_response.owner_id,
+                "seed": gen_response.seed,
+                "mode": gen_response.mode,
+                "visibility": gen_response.visibility,
+                "table_mm": gen_response.table_mm,
+                "shapes": gen_response.shapes,
+            }
+        ),
+        201,
+    )
 
 
 @cards_bp.get("/<card_id>")
@@ -106,13 +111,18 @@ def get_card(card_id: str):
     response = services.get_card.execute(get_request)
 
     # 4) Return response
-    return jsonify({
-        "card_id": response.card_id,
-        "owner_id": response.owner_id,
-        "seed": response.seed,
-        "mode": response.mode,
-        "visibility": response.visibility,
-    }), 200
+    return (
+        jsonify(
+            {
+                "card_id": response.card_id,
+                "owner_id": response.owner_id,
+                "seed": response.seed,
+                "mode": response.mode,
+                "visibility": response.visibility,
+            }
+        ),
+        200,
+    )
 
 
 @cards_bp.get("")
@@ -174,7 +184,7 @@ def get_card_map_svg(card_id: str):
         svg_bytes,
         mimetype="image/svg+xml",
         as_attachment=False,  # Display inline, not download
-        download_name="map.svg"
+        download_name="map.svg",
     )
 
     # Add security headers (defense in depth)
@@ -312,18 +322,26 @@ def _validate_svg_allowlist(element: ET.Element) -> None:
 
         # Block event handlers always
         if clean_attr.lower().startswith("on"):
-            raise ValidationError(f"SVG contains forbidden event handler attribute: {clean_attr}")
+            raise ValidationError(
+                f"SVG contains forbidden event handler attribute: {clean_attr}"
+            )
 
         # Disallow any linking/external content attributes entirely
         if clean_attr.lower() in {"href", "xlink:href", "src"}:
-            raise ValidationError(f"SVG must not contain external reference attribute: {clean_attr}")
+            raise ValidationError(
+                f"SVG must not contain external reference attribute: {clean_attr}"
+            )
 
         # Disallow style-like / CSS injection surfaces (keep minimal)
         if clean_attr.lower() in {"style", "class"}:
-            raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
+            raise ValidationError(
+                f"SVG must not contain styling attribute: {clean_attr}"
+            )
 
         if clean_attr not in allowed_for_tag:
-            raise ValidationError(f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>")
+            raise ValidationError(
+                f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
+            )
 
         # Optional: basic type checks (keeps things tight and scanner-friendly)
         if tag in {"svg", "rect", "circle"} and clean_attr != "xmlns":
@@ -334,14 +352,18 @@ def _validate_svg_allowlist(element: ET.Element) -> None:
                     raise ValidationError("SVG viewBox must be 4 integers")
             else:
                 if not attr_value.strip().lstrip("-").isdigit():
-                    raise ValidationError(f"SVG attribute '{clean_attr}' must be an integer")
+                    raise ValidationError(
+                        f"SVG attribute '{clean_attr}' must be an integer"
+                    )
 
         if tag == "polygon" and clean_attr == "points":
             # points like "10,10 20,20 30,10"
             # Keep it simple: only digits, spaces, commas, minus
             for ch in attr_value:
                 if not (ch.isdigit() or ch in {" ", ",", "-"}):
-                    raise ValidationError("SVG polygon points contain invalid characters")
+                    raise ValidationError(
+                        "SVG polygon points contain invalid characters"
+                    )
 
     # 3) Recurse into children
     for child in list(element):
