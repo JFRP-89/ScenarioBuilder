@@ -7,7 +7,12 @@ Tests for GenerateScenarioCard exist in tests/unit/application/test_generate_sce
 """
 
 import src.application
-from src.application.ports import content_provider, current_user_provider, map_renderer, repositories
+from src.application.ports import (
+    content_provider,
+    current_user_provider,
+    map_renderer,
+    repositories,
+)
 from src.application.use_cases.generate_card import execute as generate
 from src.application.use_cases.list_cards import execute as list_cards
 from src.application.use_cases.create_variant import execute as create_variant
@@ -27,6 +32,7 @@ from domain.security.authz import Visibility
 
 class DummyRepo:
     """Legacy repository for old functional API tests."""
+
     def __init__(self) -> None:
         self.saved = []
 
@@ -56,7 +62,7 @@ def test_save_and_list_cards_new_api():
     table = TableSize.standard()
     shapes = [{"type": "rect", "x": 100, "y": 100, "width": 200, "height": 200}]
     map_spec = MapSpec(table=table, shapes=shapes)
-    
+
     card = Card(
         card_id="card-test",
         owner_id="u1",
@@ -67,17 +73,17 @@ def test_save_and_list_cards_new_api():
         table=table,
         map_spec=map_spec,
     )
-    
+
     # Use new SaveCard API
     repo = DummyRepo()
     save_use_case = SaveCard(repository=repo)
     request = SaveCardRequest(actor_id="u1", card=card)
     response = save_use_case.execute(request)
-    
+
     assert response.card_id == "card-test"
     assert len(repo.saved) == 1
     assert repo.saved[0].owner_id == "u1"
-    
+
     # List cards still uses legacy API
     assert len(list_cards(repo, "u1")) == 1
 

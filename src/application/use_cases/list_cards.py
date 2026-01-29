@@ -114,7 +114,8 @@ class ListCards:
             filtered = [c for c in all_cards if c.visibility == Visibility.PUBLIC]
         elif filter_value == "shared_with_me":
             filtered = [
-                c for c in all_cards
+                c
+                for c in all_cards
                 if c.visibility == Visibility.SHARED
                 and c.shared_with is not None
                 and actor_id in c.shared_with

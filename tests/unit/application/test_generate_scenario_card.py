@@ -126,7 +126,9 @@ class TestHappyPath:
     """Happy path: preset 'standard' + explicit seed + mode enum + visibility None."""
 
     def test_generates_card_with_explicit_seed_and_mode_enum(
-        self, use_case: GenerateScenarioCard, spy_scenario_generator: SpyScenarioGenerator
+        self,
+        use_case: GenerateScenarioCard,
+        spy_scenario_generator: SpyScenarioGenerator,
     ):
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
@@ -165,7 +167,10 @@ class TestSeedGeneration:
     """Seed None uses SeedGenerator port."""
 
     def test_uses_seed_generator_when_seed_is_none(
-        self, use_case: GenerateScenarioCard, spy_scenario_generator: SpyScenarioGenerator, fake_seed_generator: FakeSeedGenerator
+        self,
+        use_case: GenerateScenarioCard,
+        spy_scenario_generator: SpyScenarioGenerator,
+        fake_seed_generator: FakeSeedGenerator,
     ):
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
@@ -305,7 +310,9 @@ class TestVisibilityAsString:
             seed=42,
             table_preset="standard",
             visibility=visibility_str,
-            shared_with=["user-456"] if expected_visibility == Visibility.SHARED else None,
+            shared_with=(
+                ["user-456"] if expected_visibility == Visibility.SHARED else None
+            ),
         )
 
         response = use_case.execute(request)

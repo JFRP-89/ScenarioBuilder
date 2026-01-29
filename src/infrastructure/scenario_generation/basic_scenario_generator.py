@@ -52,13 +52,15 @@ class BasicScenarioGenerator:
                 height = rng.randint(50, max_height)
                 x = rng.randint(0, w - width)
                 y = rng.randint(0, h - height)
-                shapes.append({
-                    "type": "rect",
-                    "x": x,
-                    "y": y,
-                    "width": width,
-                    "height": height,
-                })
+                shapes.append(
+                    {
+                        "type": "rect",
+                        "x": x,
+                        "y": y,
+                        "width": width,
+                        "height": height,
+                    }
+                )
 
             elif kind == "circle":
                 # Generate circle within bounds
@@ -66,23 +68,26 @@ class BasicScenarioGenerator:
                 r = rng.randint(30, max_r)
                 cx = rng.randint(r, w - r)
                 cy = rng.randint(r, h - r)
-                shapes.append({
-                    "type": "circle",
-                    "cx": cx,
-                    "cy": cy,
-                    "r": r,
-                })
+                shapes.append(
+                    {
+                        "type": "circle",
+                        "cx": cx,
+                        "cy": cy,
+                        "r": r,
+                    }
+                )
 
             else:  # polygon
                 # Generate simple polygon with 3-6 points
                 n = rng.randint(3, 6)
                 points = [
-                    {"x": rng.randint(0, w), "y": rng.randint(0, h)}
-                    for _ in range(n)
+                    {"x": rng.randint(0, w), "y": rng.randint(0, h)} for _ in range(n)
                 ]
-                shapes.append({
-                    "type": "polygon",
-                    "points": points,
-                })
+                shapes.append(
+                    {
+                        "type": "polygon",
+                        "points": points,
+                    }
+                )
 
         return shapes

@@ -12,7 +12,16 @@ def _pick(rng, items: List[CardItem]) -> CardItem:
     return rng.choice(items)
 
 
-def generate_card(mode: str, seed: int, layouts, deployments, objectives, twists, story_hooks, constraints) -> ScenarioCard:
+def generate_card(
+    mode: str,
+    seed: int,
+    layouts,
+    deployments,
+    objectives,
+    twists,
+    story_hooks,
+    constraints,
+) -> ScenarioCard:
     rng = get_rng(seed)
     return ScenarioCard(
         id=f"card-{seed}",

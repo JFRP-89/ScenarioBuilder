@@ -95,21 +95,15 @@ class FakeCardRepository:
 class TestListCardsMine:
     """filter='mine' returns only cards owned by actor."""
 
-    def test_mine_returns_only_actors_cards(
-        self, table: TableSize, map_spec: MapSpec
-    ):
+    def test_mine_returns_only_actors_cards(self, table: TableSize, map_spec: MapSpec):
         from application.use_cases.list_cards import ListCards, ListCardsRequest
 
         # Arrange: u1 owns 2 cards, u2 owns 1 card
         card_u1_private = make_card(
             "card-001", "u1", Visibility.PRIVATE, table, map_spec
         )
-        card_u1_public = make_card(
-            "card-002", "u1", Visibility.PUBLIC, table, map_spec
-        )
-        card_u2_public = make_card(
-            "card-003", "u2", Visibility.PUBLIC, table, map_spec
-        )
+        card_u1_public = make_card("card-002", "u1", Visibility.PUBLIC, table, map_spec)
+        card_u2_public = make_card("card-003", "u2", Visibility.PUBLIC, table, map_spec)
 
         repo = FakeCardRepository([card_u1_private, card_u1_public, card_u2_public])
         use_case = ListCards(repository=repo)
@@ -141,17 +135,15 @@ class TestListCardsPublic:
         card_u1_private = make_card(
             "card-001", "u1", Visibility.PRIVATE, table, map_spec
         )
-        card_u1_public = make_card(
-            "card-002", "u1", Visibility.PUBLIC, table, map_spec
-        )
-        card_u2_public = make_card(
-            "card-003", "u2", Visibility.PUBLIC, table, map_spec
-        )
+        card_u1_public = make_card("card-002", "u1", Visibility.PUBLIC, table, map_spec)
+        card_u2_public = make_card("card-003", "u2", Visibility.PUBLIC, table, map_spec)
         card_u2_shared = make_card(
             "card-004", "u2", Visibility.SHARED, table, map_spec, shared_with=["u3"]
         )
 
-        repo = FakeCardRepository([card_u1_private, card_u1_public, card_u2_public, card_u2_shared])
+        repo = FakeCardRepository(
+            [card_u1_private, card_u1_public, card_u2_public, card_u2_shared]
+        )
         use_case = ListCards(repository=repo)
 
         # Act
@@ -185,16 +177,23 @@ class TestListCardsSharedWithMe:
             "card-002", "u1", Visibility.SHARED, table, map_spec, shared_with=["u3"]
         )
         card_shared_with_u2_and_u3 = make_card(
-            "card-003", "u1", Visibility.SHARED, table, map_spec, shared_with=["u2", "u3"]
+            "card-003",
+            "u1",
+            Visibility.SHARED,
+            table,
+            map_spec,
+            shared_with=["u2", "u3"],
         )
-        card_public = make_card(
-            "card-004", "u1", Visibility.PUBLIC, table, map_spec
-        )
+        card_public = make_card("card-004", "u1", Visibility.PUBLIC, table, map_spec)
 
-        repo = FakeCardRepository([
-            card_shared_with_u2, card_shared_with_u3, 
-            card_shared_with_u2_and_u3, card_public
-        ])
+        repo = FakeCardRepository(
+            [
+                card_shared_with_u2,
+                card_shared_with_u3,
+                card_shared_with_u2_and_u3,
+                card_public,
+            ]
+        )
         use_case = ListCards(repository=repo)
 
         # Act: u2 asks for shared_with_me
@@ -224,9 +223,7 @@ class TestListCardsSecurityPrivate:
         card_u1_private = make_card(
             "card-001", "u1", Visibility.PRIVATE, table, map_spec
         )
-        card_u1_public = make_card(
-            "card-002", "u1", Visibility.PUBLIC, table, map_spec
-        )
+        card_u1_public = make_card("card-002", "u1", Visibility.PUBLIC, table, map_spec)
 
         repo = FakeCardRepository([card_u1_private, card_u1_public])
         use_case = ListCards(repository=repo)
