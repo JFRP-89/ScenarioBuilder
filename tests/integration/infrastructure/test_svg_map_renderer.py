@@ -6,8 +6,6 @@ This renderer produces SVG strings from table dimensions and shape data.
 
 from __future__ import annotations
 
-import pytest
-
 
 # =============================================================================
 # BASIC CONTRACT TESTS

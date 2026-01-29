@@ -13,8 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from domain.errors import ValidationError
-from domain.cards.card import Card, GameMode
-from domain.security.authz import Visibility
+from domain.cards.card import Card
 from domain.maps.map_spec import MapSpec
 
 

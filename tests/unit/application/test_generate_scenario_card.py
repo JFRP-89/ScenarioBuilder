@@ -28,7 +28,7 @@ from typing import Optional
 import pytest
 
 # Domain imports
-from domain.cards.card import Card, GameMode
+from domain.cards.card import GameMode
 from domain.errors import ValidationError
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
@@ -37,12 +37,6 @@ from domain.security.authz import Visibility
 from application.use_cases.generate_scenario_card import (
     GenerateScenarioCard,
     GenerateScenarioCardRequest,
-    GenerateScenarioCardResponse,
-)
-from application.ports.scenario_generation import (
-    IdGenerator,
-    SeedGenerator,
-    ScenarioGenerator,
 )
 
 

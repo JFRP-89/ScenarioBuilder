@@ -302,11 +302,6 @@ def _validate_svg_allowlist(element: ET.Element) -> None:
 
     tag = _local_name(element.tag)
 
-    # Root must be <svg>
-    if element is not None and element.getroottree is None:
-        # (ElementTree stdlib doesn't give easy root check; ignore)
-        pass
-
     if tag not in ALLOWED_TAGS:
         raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
 

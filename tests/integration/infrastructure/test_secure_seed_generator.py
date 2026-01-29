@@ -6,8 +6,6 @@ This generator produces random seeds for scenario generation.
 
 from __future__ import annotations
 
-import pytest
-
 
 # =============================================================================
 # BASIC CONTRACT TESTS
