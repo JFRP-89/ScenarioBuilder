@@ -119,6 +119,15 @@ class TestParseVisibility:
         with pytest.raises(ValidationError):
             parse_visibility(None)
 
+    def test_parse_rejects_non_string_types(self):
+        """Non-string types should raise ValidationError."""
+        with pytest.raises(ValidationError, match="visibility must be a string"):
+            parse_visibility(123)
+        with pytest.raises(ValidationError, match="visibility must be a string"):
+            parse_visibility(["private"])
+        with pytest.raises(ValidationError, match="visibility must be a string"):
+            parse_visibility({"visibility": "private"})
+
     @pytest.mark.parametrize(
         "input_with_spaces,expected",
         [
@@ -866,3 +875,112 @@ class TestVisibilityEnum:
         # This ensures we don't accidentally add/remove visibility levels
         members = [m for m in Visibility]
         assert len(members) == 3
+
+
+class TestHardeningTypeValidation:
+    """Additional type validation tests for complete coverage."""
+
+    def test_validate_user_id_rejects_non_string_types(self, owner: str):
+        """_validate_user_id should reject non-string types."""
+        with pytest.raises(ValidationError):
+            can_read(
+                owner_id=123,
+                visibility=Visibility.PRIVATE,
+                current_user_id=owner,
+                shared_with=None,
+            )
+
+    def test_shared_with_rejects_non_iterable(self, owner: str, other: str):
+        """shared_with must be iterable."""
+        with pytest.raises(ValidationError):
+            can_read(
+                owner_id=owner,
+                visibility=Visibility.SHARED,
+                current_user_id=other,
+                shared_with=12345,
+            )
+
+    def test_shared_with_rejects_non_string_items(self, owner: str, other: str):
+        """shared_with items must be strings."""
+        with pytest.raises(ValidationError):
+            can_read(
+                owner_id=owner,
+                visibility=Visibility.SHARED,
+                current_user_id=other,
+                shared_with=[123, 456],
+            )
+
+
+class TestDenyByDefaultDefensiveCode:
+    """Test that unknown visibility values are denied by default (defensive code).
+
+    This tests the 'return False' safety net at the end of can_read(),
+    which should be unreachable with a proper Visibility enum but exists
+    as defense-in-depth.
+    """
+
+    def test_unknown_visibility_denies_access(self):
+        """Test that an unknown visibility value triggers deny-by-default.
+
+        This test temporarily adds a new member to the Visibility enum,
+        verifying that the defensive 'return False' at the end of can_read()
+        works correctly.
+        """
+        # Dynamically add a new enum member to Visibility
+        # This simulates a future scenario where a new visibility level is
+        # added but not yet handled in can_read()
+        unknown_visibility = object.__new__(Visibility)
+        unknown_visibility._name_ = "UNKNOWN"
+        unknown_visibility._value_ = "unknown"
+
+        # Register it in the enum's internal structures
+        Visibility._value2member_map_["unknown"] = unknown_visibility
+        Visibility._member_map_["UNKNOWN"] = unknown_visibility
+
+        try:
+            # Non-owner with unknown visibility should be denied by default
+            result = can_read(
+                owner_id="owner_a",
+                visibility=unknown_visibility,
+                current_user_id="user_b",
+            )
+
+            # Deny by default should return False
+            assert result is False
+        finally:
+            # Clean up the temporary enum member
+            Visibility._value2member_map_.pop("unknown", None)
+            Visibility._member_map_.pop("UNKNOWN", None)
+
+    def test_unknown_visibility_owner_bypasses_but_others_denied(self):
+        """Test that owner can read but non-owners are denied by default.
+
+        This verifies the defensive code triggers after the owner check.
+        """
+        restricted_visibility = object.__new__(Visibility)
+        restricted_visibility._name_ = "RESTRICTED"
+        restricted_visibility._value_ = "restricted"
+
+        Visibility._value2member_map_["restricted"] = restricted_visibility
+        Visibility._member_map_["RESTRICTED"] = restricted_visibility
+
+        try:
+            # Owner can still read (owner check comes first)
+            result_owner = can_read(
+                owner_id="owner_a",
+                visibility=restricted_visibility,
+                current_user_id="owner_a",
+            )
+            assert result_owner is True  # Owner bypass works
+
+            # Non-owner gets denied by default
+            result_other = can_read(
+                owner_id="owner_a",
+                visibility=restricted_visibility,
+                current_user_id="user_b",
+            )
+            assert result_other is False  # Deny by default for unknown visibility
+        finally:
+            # Clean up the temporary enum member
+            Visibility._value2member_map_.pop("restricted", None)
+            Visibility._member_map_.pop("RESTRICTED", None)
