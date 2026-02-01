@@ -7,5 +7,6 @@ y este proyecto sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 ### Added
+- adapters + CI/Docker wiring + E2E (manual)
 - Estructura inicial del repositorio y esqueleto de componentes.
 - domain core models + tests

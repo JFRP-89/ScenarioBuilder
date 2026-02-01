@@ -3,35 +3,25 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
+
+# Add src to path if running as script (not as module)
+if __name__ == "__main__":
+    src_path = Path(__file__).parent.parent.parent
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
 
 import gradio as gr
+
+from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
+from domain.errors import ValidationError
+from infrastructure.bootstrap import build_services
 
 
 # =============================================================================
 # Helper functions
 # =============================================================================
-def _get_api_base_url() -> str:
-    """Get API base URL from environment, with normalization.
-
-    Returns:
-        URL string without trailing slash, defaults to http://localhost:5000
-    """
-    url = os.environ.get("API_BASE_URL", "http://localhost:5000")
-    return url.rstrip("/")
-
-
-def _build_headers(actor_id: str) -> dict[str, str]:
-    """Build HTTP headers with actor identification.
-
-    Args:
-        actor_id: The actor/user identifier
-
-    Returns:
-        Dict with X-Actor-Id header
-    """
-    return {"X-Actor-Id": actor_id}
-
-
 def _get_default_actor_id() -> str:
     """Get default actor ID from environment."""
     return os.environ.get("DEFAULT_ACTOR_ID", "demo-user")
@@ -70,19 +60,45 @@ def build_app() -> gr.Blocks:
         generate_btn = gr.Button("Generate Card", variant="primary")
         output = gr.JSON(label="Generated Card")
 
-        # Placeholder handler - actual HTTP logic to be added later
-        def _placeholder_generate(actor: str, m: str, s: int) -> dict:
-            """Placeholder that returns local data without HTTP calls."""
-            return {
-                "status": "placeholder",
-                "actor_id": actor,
-                "mode": m,
-                "seed": int(s),
-                "message": "Real generation requires API connection",
-            }
+        # Initialize services once at app creation
+        services = build_services()
+
+        def _handle_generate(actor: str, m: str, s: int) -> dict:
+            """Generate a scenario card using the real use case."""
+            try:
+                # Build request DTO with all required fields
+                request = GenerateScenarioCardRequest(
+                    actor_id=actor.strip(),
+                    mode=m,
+                    seed=int(s) if s else None,
+                    visibility="private",
+                    table_preset="standard",
+                    shared_with=[],
+                )
+
+                # Execute use case
+                response = services.generate_scenario_card.execute(request)
+
+                # GenerateScenarioCardResponse only has: card_id, mode, seed, table_mm
+                return {
+                    "card_id": response.card_id,
+                    "mode": response.mode,
+                    "seed": response.seed,
+                    "table_mm": response.table_mm,
+                }
+            except ValidationError as e:
+                return {
+                    "status": "error",
+                    "error": str(e),
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "error": f"Unexpected error: {str(e)}",
+                }
 
         generate_btn.click(
-            fn=_placeholder_generate,
+            fn=_handle_generate,
             inputs=[actor_id, mode, seed],
             outputs=output,
         )
