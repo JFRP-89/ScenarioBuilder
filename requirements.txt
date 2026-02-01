@@ -6,6 +6,7 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 pydantic==2.8.2
 defusedxml==0.7.1
+playwright==1.49.0
 
 pytest==8.2.0
 pytest-cov==5.0.0
