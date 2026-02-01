@@ -6,3 +6,8 @@ __pycache__/
 __PYCACHE__/
 *.pyc
 *.PYC
+
+# E2E test artifacts
+tests/e2e/artifacts/*.html
+tests/e2e/artifacts/*.png
+tests/e2e/artifacts/*.jpg
