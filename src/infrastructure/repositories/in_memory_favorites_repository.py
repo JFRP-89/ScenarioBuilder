@@ -18,6 +18,23 @@ class InMemoryFavoritesRepository:
         """Initialize empty repository."""
         self._favorites: set[tuple[str, str]] = set()
 
+    def _get_actor_favorites(self, actor_id: str) -> list[str]:
+        """Extract all favorite card_ids for an actor, sorted.
+
+        Args:
+            actor_id: The actor id.
+
+        Returns:
+            List of card_ids sorted lexicographically.
+        """
+        return sorted(
+            [
+                card_id
+                for stored_actor_id, card_id in self._favorites
+                if stored_actor_id == actor_id
+            ]
+        )
+
     def is_favorite(self, actor_id: str, card_id: str) -> bool:
         """Check if a card is favorited by an actor.
 
@@ -28,7 +45,8 @@ class InMemoryFavoritesRepository:
         Returns:
             True if the card is a favorite, False otherwise.
         """
-        return (actor_id, card_id) in self._favorites
+        key = (actor_id, card_id)
+        return key in self._favorites
 
     def set_favorite(self, actor_id: str, card_id: str, value: bool) -> None:
         """Set or unset a card as favorite for an actor.
@@ -39,10 +57,12 @@ class InMemoryFavoritesRepository:
             value: True to add favorite, False to remove.
         """
         key = (actor_id, card_id)
-        if value:
-            self._favorites.add(key)
-        else:
+
+        if not value:
             self._favorites.discard(key)
+            return
+
+        self._favorites.add(key)
 
     def list_favorites(self, actor_id: str) -> list[str]:
         """List all favorite card_ids for an actor.
@@ -53,4 +73,4 @@ class InMemoryFavoritesRepository:
         Returns:
             List of card_ids sorted lexicographically.
         """
-        return sorted([cid for (uid, cid) in self._favorites if uid == actor_id])
+        return self._get_actor_favorites(actor_id)

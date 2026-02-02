@@ -13,6 +13,41 @@ class SvgMapRenderer:
     Renders table dimensions and shapes to SVG format.
     """
 
+    def _svg_header(self, width: int, height: int) -> str:
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}">'
+        )
+
+    def _rect_svg(self, shape: dict) -> str:
+        x = int(shape["x"])
+        y = int(shape["y"])
+        w = int(shape["width"])
+        h = int(shape["height"])
+        return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" />'
+
+    def _circle_svg(self, shape: dict) -> str:
+        cx = int(shape["cx"])
+        cy = int(shape["cy"])
+        r = int(shape["r"])
+        return f'<circle cx="{cx}" cy="{cy}" r="{r}" />'
+
+    def _polygon_svg(self, shape: dict) -> str:
+        points = shape["points"]
+        points_str = " ".join(f'{int(p["x"])},{int(p["y"])}' for p in points)
+        return f'<polygon points="{points_str}" />'
+
+    def _shape_svg(self, shape: dict) -> str | None:
+        shape_type = shape.get("type")
+        if shape_type == "rect":
+            return self._rect_svg(shape)
+        if shape_type == "circle":
+            return self._circle_svg(shape)
+        if shape_type == "polygon":
+            return self._polygon_svg(shape)
+        return None
+
     def render(self, table_mm: dict, shapes: list[dict]) -> str:
         """Render table and shapes to SVG.
 
@@ -29,33 +64,13 @@ class SvgMapRenderer:
         parts: list[str] = []
 
         # SVG header
-        parts.append(
-            f'<svg xmlns="http://www.w3.org/2000/svg" '
-            f'width="{width}" height="{height}" '
-            f'viewBox="0 0 {width} {height}">'
-        )
+        parts.append(self._svg_header(width, height))
 
         # Render shapes
         for shape in shapes:
-            shape_type = shape.get("type")
-
-            if shape_type == "rect":
-                x = int(shape["x"])
-                y = int(shape["y"])
-                w = int(shape["width"])
-                h = int(shape["height"])
-                parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" />')
-
-            elif shape_type == "circle":
-                cx = int(shape["cx"])
-                cy = int(shape["cy"])
-                r = int(shape["r"])
-                parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" />')
-
-            elif shape_type == "polygon":
-                points = shape["points"]
-                points_str = " ".join(f'{int(p["x"])},{int(p["y"])}' for p in points)
-                parts.append(f'<polygon points="{points_str}" />')
+            svg = self._shape_svg(shape)
+            if svg:
+                parts.append(svg)
 
         # SVG footer
         parts.append("</svg>")
