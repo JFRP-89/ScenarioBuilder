@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
-from domain.errors import ValidationError
+from application.use_cases._validation import validate_actor_id
 
 
 # =============================================================================
@@ -27,21 +27,6 @@ class ListFavoritesResponse:
     """Response DTO for ListFavorites use case."""
 
     card_ids: List[str]
-
-
-# =============================================================================
-# VALIDATION HELPERS
-# =============================================================================
-def _validate_actor_id(actor_id: object) -> str:
-    """Validate actor_id is non-empty string."""
-    if actor_id is None:
-        raise ValidationError("actor_id cannot be None")
-    if not isinstance(actor_id, str):
-        raise ValidationError("actor_id must be a string")
-    stripped = actor_id.strip()
-    if not stripped:
-        raise ValidationError("actor_id cannot be empty or whitespace-only")
-    return stripped
 
 
 # =============================================================================
@@ -71,7 +56,7 @@ class ListFavorites:
             ValidationError: If actor_id is invalid.
         """
         # 1) Validate inputs
-        actor_id = _validate_actor_id(request.actor_id)
+        actor_id = validate_actor_id(request.actor_id)
 
         # 2) Get favorite card_ids from repository
         favorite_ids = self._favorites_repository.list_favorites(actor_id)

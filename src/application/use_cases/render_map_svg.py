@@ -11,10 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from domain.errors import ValidationError
-
 # Legacy import for backwards compatibility
 from application.ports.map_renderer import MapRenderer
+from application.use_cases._validation import validate_actor_id, validate_card_id
 
 
 # =============================================================================
@@ -33,33 +32,6 @@ class RenderMapSvgResponse:
     """Response DTO for RenderMapSvg use case."""
 
     svg: str
-
-
-# =============================================================================
-# VALIDATION HELPERS
-# =============================================================================
-def _validate_actor_id(actor_id: object) -> str:
-    """Validate actor_id is non-empty string."""
-    if actor_id is None:
-        raise ValidationError("actor_id cannot be None")
-    if not isinstance(actor_id, str):
-        raise ValidationError("actor_id must be a string")
-    stripped = actor_id.strip()
-    if not stripped:
-        raise ValidationError("actor_id cannot be empty or whitespace-only")
-    return stripped
-
-
-def _validate_card_id(card_id: object) -> str:
-    """Validate card_id is non-empty string."""
-    if card_id is None:
-        raise ValidationError("card_id cannot be None")
-    if not isinstance(card_id, str):
-        raise ValidationError("card_id must be a string")
-    stripped = card_id.strip()
-    if not stripped:
-        raise ValidationError("card_id cannot be empty or whitespace-only")
-    return stripped
 
 
 # =============================================================================
@@ -90,8 +62,8 @@ class RenderMapSvg:
             Exception: If card not found or access forbidden.
         """
         # 1) Validate inputs
-        actor_id = _validate_actor_id(request.actor_id)
-        card_id = _validate_card_id(request.card_id)
+        actor_id = validate_actor_id(request.actor_id)
+        card_id = validate_card_id(request.card_id)
 
         # 2) Load card
         card = self._repository.get_by_id(card_id)
@@ -121,4 +93,5 @@ class RenderMapSvg:
 # =============================================================================
 def execute(renderer: MapRenderer, map_spec: dict) -> str:
     """Legacy functional API - delegates to renderer directly."""
-    return renderer.render_svg(map_spec)
+    svg: str = renderer.render_svg(map_spec)
+    return svg

@@ -12,8 +12,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from domain.errors import ValidationError
+from application.use_cases._validation import validate_actor_id, validate_card_id
 from domain.cards.card import Card
+from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 
 
@@ -38,33 +39,6 @@ class CreateVariantResponse:
     seed: int
     mode: str
     visibility: str
-
-
-# =============================================================================
-# VALIDATION HELPERS
-# =============================================================================
-def _validate_actor_id(actor_id: object) -> str:
-    """Validate actor_id is non-empty string."""
-    if actor_id is None:
-        raise ValidationError("actor_id cannot be None")
-    if not isinstance(actor_id, str):
-        raise ValidationError("actor_id must be a string")
-    stripped = actor_id.strip()
-    if not stripped:
-        raise ValidationError("actor_id cannot be empty or whitespace-only")
-    return stripped
-
-
-def _validate_base_card_id(base_card_id: object) -> str:
-    """Validate base_card_id is non-empty string."""
-    if base_card_id is None:
-        raise ValidationError("base_card_id cannot be None")
-    if not isinstance(base_card_id, str):
-        raise ValidationError("base_card_id must be a string")
-    stripped = base_card_id.strip()
-    if not stripped:
-        raise ValidationError("base_card_id cannot be empty or whitespace-only")
-    return stripped
 
 
 # =============================================================================
@@ -99,8 +73,10 @@ class CreateVariant:
             Exception: If base card not found or access forbidden.
         """
         # 1) Validate inputs
-        actor_id = _validate_actor_id(request.actor_id)
-        base_card_id = _validate_base_card_id(request.base_card_id)
+        actor_id = validate_actor_id(request.actor_id)
+        base_card_id = validate_card_id(
+            request.base_card_id
+        )  # Renamed from _validate_base_card_id
 
         # 2) Load base card
         base = self._repository.get_by_id(base_card_id)
@@ -112,10 +88,11 @@ class CreateVariant:
             raise Exception("Forbidden: only owner can create variant")
 
         # 4) Determine seed
-        if request.seed is None:
-            seed = self._seed_generator.generate_seed()
-        else:
-            seed = request.seed
+        seed = (
+            self._seed_generator.generate_seed()
+            if request.seed is None
+            else request.seed
+        )
 
         # 5) Generate new shapes
         shapes = self._scenario_generator.generate_shapes(
@@ -130,7 +107,7 @@ class CreateVariant:
         except ValidationError:
             raise
         except Exception as e:
-            raise ValidationError(f"Invalid shapes for map: {e}")
+            raise ValidationError(f"Invalid shapes for map: {e}") from e
 
         # 7) Generate new card_id
         new_id = self._id_generator.generate_card_id()
