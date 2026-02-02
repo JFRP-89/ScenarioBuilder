@@ -7,7 +7,7 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_favorites_toggle_and_list_flow(docker_compose_up, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
     """
     E2E flujo de favoritos reutilizando card_id generado:
     1) Toggle favorite ON -> is_favorite=true
@@ -87,3 +87,4 @@ def test_favorites_toggle_and_list_flow(docker_compose_up, wait_for_health, gene
         f"card_id {card_id} SIGUE en favoritos después de toggle OFF. "
         f"Favoritos: {card_ids_in_favorites_2}"
     )
+

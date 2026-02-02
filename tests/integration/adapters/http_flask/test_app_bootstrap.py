@@ -242,3 +242,156 @@ class TestForbiddenExceptionMappedTo403:
 
         # Assert
         assert response.status_code == 403, "'forbidden' in message should map to 403"
+
+
+# =============================================================================
+# TEST: Internal Server Error -> 500 with GENERIC message (no internal leak)
+# =============================================================================
+class TestInternalServerErrorReturnsGenericMessage:
+    """Test that 500 errors always return generic message, never leak internals."""
+
+    def test_generic_exception_is_mapped_to_500_with_generic_message(
+        self, monkeypatch
+    ):
+        """Unexpected exception should map to 500 with generic 'internal error' message."""
+        # Arrange
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
+        app = create_app()
+
+        @app.route("/__boom_internal")
+        def boom_internal():
+            raise ValueError("Database connection failed: password=secret123")
+
+        client = app.test_client()
+
+        # Act
+        response = client.get("/__boom_internal")
+
+        # Assert: 500 status
+        assert response.status_code == 500, "Unhandled exception should map to 500"
+
+        # Assert: JSON response
+        json_data = response.get_json()
+        assert json_data is not None, "Response should be JSON"
+        assert "error" in json_data, "JSON should contain 'error' key"
+        assert "message" in json_data, "JSON should contain 'message' key"
+
+        # CRITICAL: Message must be GENERIC, not leak internal details
+        assert (
+            json_data["message"] == "An internal error occurred"
+        ), f"Expected generic message, got: {json_data['message']}"
+        assert (
+            "Database" not in json_data["message"]
+        ), "500 message should never leak internal error details"
+        assert (
+            "password" not in json_data["message"]
+        ), "500 message should never leak credentials or secrets"
+        assert (
+            "secret" not in json_data["message"].lower()
+        ), "500 message must not contain 'secret'"
+
+    def test_500_error_code_is_internalerror(self, monkeypatch):
+        """500 error response should use 'InternalError' code."""
+        # Arrange
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
+        app = create_app()
+
+        @app.route("/__boom_runtime")
+        def boom_runtime():
+            raise RuntimeError("Something went wrong internally")
+
+        client = app.test_client()
+
+        # Act
+        response = client.get("/__boom_runtime")
+
+        # Assert
+        json_data = response.get_json()
+        assert (
+            json_data["error"] == "InternalError"
+        ), "500 errors should use 'InternalError' code"
+
+
+# =============================================================================
+# TEST: Error Response JSON Structure
+# =============================================================================
+class TestErrorResponseJsonStructure:
+    """Test that all error responses have consistent JSON structure."""
+
+    def test_validation_error_json_structure(self, monkeypatch):
+        """ValidationError response should have error, message keys."""
+        # Arrange
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
+        app = create_app()
+
+        @app.route("/__test_structure")
+        def test_structure():
+            raise ValidationError("Invalid field: age")
+
+        client = app.test_client()
+
+        # Act
+        response = client.get("/__test_structure")
+
+        # Assert: 400 status and proper structure
+        assert response.status_code == 400
+        json_data = response.get_json()
+        assert set(json_data.keys()) >= {
+            "error",
+            "message",
+        }, f"Expected at least 'error' and 'message' keys, got: {json_data.keys()}"
+
+    def test_not_found_error_has_notfound_code(self, monkeypatch):
+        """Not Found error response should use NotFound error code."""
+        # Arrange
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
+        app = create_app()
+
+        @app.route("/__test_notfound")
+        def test_notfound():
+            raise Exception("Item not found")
+
+        client = app.test_client()
+
+        # Act
+        response = client.get("/__test_notfound")
+
+        # Assert
+        json_data = response.get_json()
+        assert json_data["error"] == "NotFound", "Should use 'NotFound' error code"
+        assert json_data["message"] == "Resource not found", (
+            "404 should return standard 'Resource not found' message"
+        )
+
+    def test_forbidden_error_has_forbidden_code(self, monkeypatch):
+        """Forbidden error response should use Forbidden error code."""
+        # Arrange
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
+        app = create_app()
+
+        @app.route("/__test_forbidden")
+        def test_forbidden():
+            raise Exception("forbidden action")
+
+        client = app.test_client()
+
+        # Act
+        response = client.get("/__test_forbidden")
+
+        # Assert
+        json_data = response.get_json()
+        assert json_data["error"] == "Forbidden", "Should use 'Forbidden' error code"
+        assert json_data["message"] == "Access denied", (
+            "403 should return standard 'Access denied' message"
+        )
+

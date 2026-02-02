@@ -1,6 +1,11 @@
 # =============================================================================
 # Docker Compose for ScenarioBuilder
 # Stack: PostgreSQL 16 + Flask API + Gradio UI
+#
+# NOTE: Quality analysis tools (pylint, radon, vulture, mypy, bandit) are
+#       NOT included in production images to minimize size. For development:
+#       - Local: pip install -r requirements-dev.txt
+#       - CI/CD: docker build --target quality-check
 # =============================================================================
 
 services:

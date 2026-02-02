@@ -5,7 +5,7 @@ import requests
 
 
 @pytest.mark.e2e
-def test_post_cards_missing_actor_id(docker_compose_up, wait_for_health):  # noqa: ARG001
+def test_post_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
     """POST /cards sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 
@@ -37,7 +37,7 @@ def test_post_cards_missing_actor_id(docker_compose_up, wait_for_health):  # noq
 
 
 @pytest.mark.e2e
-def test_get_cards_missing_actor_id(docker_compose_up, wait_for_health):  # noqa: ARG001
+def test_get_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
     """GET /cards sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 
@@ -62,7 +62,7 @@ def test_get_cards_missing_actor_id(docker_compose_up, wait_for_health):  # noqa
 
 
 @pytest.mark.e2e
-def test_get_favorites_missing_actor_id(docker_compose_up, wait_for_health):  # noqa: ARG001
+def test_get_favorites_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
     """GET /favorites sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 
@@ -84,3 +84,4 @@ def test_get_favorites_missing_actor_id(docker_compose_up, wait_for_health):  # 
     assert "error" in error_data or "message" in error_data, (
         f"Response debe contener 'error' o 'message': {error_data}"
     )
+

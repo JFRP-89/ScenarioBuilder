@@ -1,13 +1,26 @@
 from __future__ import annotations
 
-from flask import Flask, jsonify, request
-
+from adapters.http_flask.error_contract import (
+    ERROR_FORBIDDEN,
+    ERROR_INTERNAL,
+    ERROR_NOT_FOUND,
+    ERROR_VALIDATION,
+    MSG_FORBIDDEN,
+    MSG_INTERNAL_ERROR,
+    MSG_NOT_FOUND,
+    STATUS_BAD_REQUEST,
+    STATUS_FORBIDDEN,
+    STATUS_INTERNAL_ERROR,
+    STATUS_NOT_FOUND,
+    error_response,
+)
 from adapters.http_flask.routes.cards import cards_bp
 from adapters.http_flask.routes.favorites import favorites_bp
 from adapters.http_flask.routes.health import health_bp
 from adapters.http_flask.routes.maps import maps_bp
 from adapters.http_flask.routes.presets import presets_bp
 from domain.errors import ValidationError
+from flask import Flask, jsonify, request
 from infrastructure.bootstrap import build_services
 
 
@@ -39,19 +52,51 @@ def create_app() -> Flask:
     # --- Error handlers ---
     @app.errorhandler(ValidationError)
     def handle_validation_error(exc: ValidationError):
-        return jsonify({"error": "ValidationError", "message": str(exc)}), 400
+        """Map domain ValidationError to 400 Bad Request."""
+        body, status = error_response(
+            ERROR_VALIDATION,
+            str(exc),
+            STATUS_BAD_REQUEST,
+        )
+        return jsonify(body), status
 
     @app.errorhandler(Exception)
     def handle_generic_exception(exc: Exception):
-        message = str(exc).lower()
-        if "not found" in message:
-            return jsonify({"error": "NotFound", "message": str(exc)}), 404
-        if "forbidden" in message:
-            return jsonify({"error": "Forbidden", "message": str(exc)}), 403
-        return jsonify({"error": "InternalError", "message": str(exc)}), 500
+        """Catch-all for unhandled exceptions.
+
+        IMPORTANT: For 500 errors, always return a generic message.
+        Never expose internal error details to the client.
+        """
+        exc_type = type(exc).__name__
+        exc_message = str(exc).lower()
+
+        # Map specific exception types to appropriate HTTP status codes
+        if exc_type == "NotFound" or "not found" in exc_message:
+            body, status = error_response(
+                ERROR_NOT_FOUND,
+                MSG_NOT_FOUND,
+                STATUS_NOT_FOUND,
+            )
+            return jsonify(body), status
+
+        if exc_type == "Forbidden" or "forbidden" in exc_message:
+            body, status = error_response(
+                ERROR_FORBIDDEN,
+                MSG_FORBIDDEN,
+                STATUS_FORBIDDEN,
+            )
+            return jsonify(body), status
+
+        # Default: 500 Internal Server Error with GENERIC message (never leak internals)
+        body, status = error_response(
+            ERROR_INTERNAL,
+            MSG_INTERNAL_ERROR,
+            STATUS_INTERNAL_ERROR,
+        )
+        return jsonify(body), status
 
     return app
 
 
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=8000)
+    create_app().run(host="0.0.0.0", port=8000)  # nosec B104 - container/local dev

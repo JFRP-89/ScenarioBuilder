@@ -1,6 +1,10 @@
 .vscode/
 .env
 venv/
+venv311/
+tests_legacy/
+scripts/
+reports/
 docs/legacy_/
 __pycache__/
 __PYCACHE__/

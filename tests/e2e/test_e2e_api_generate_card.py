@@ -7,7 +7,7 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_api_generate_card_post(docker_compose_up, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
     """
     E2E API: generar carta vía POST /cards y validar respuesta.
     
@@ -100,7 +100,7 @@ def test_api_generate_card_post(docker_compose_up, wait_for_health, generated_ca
 
 
 @pytest.mark.e2e
-def test_api_get_generated_card(docker_compose_up, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_generated_card(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
     """
     E2E API: recuperar card generado previamente por card_id.
     
@@ -137,3 +137,4 @@ def test_api_get_generated_card(docker_compose_up, wait_for_health, generated_ca
     assert retrieved_card["mode"] == "matched"
 
     print(f"✅ Card recuperado exitosamente: {card_id}")
+

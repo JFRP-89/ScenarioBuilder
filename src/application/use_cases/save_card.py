@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from application.use_cases._validation import validate_actor_id
 from domain.cards.card import Card
-from domain.errors import ValidationError
 
 
 # =============================================================================
@@ -54,7 +54,7 @@ class SaveCard:
             Exception: If actor is not the owner (forbidden).
         """
         # 1) Validate actor_id
-        actor_id = self._validate_actor_id(request.actor_id)
+        actor_id = validate_actor_id(request.actor_id)
 
         # 2) Enforce write access: actor must be owner
         if request.card.owner_id != actor_id:
@@ -65,14 +65,3 @@ class SaveCard:
 
         # 4) Return response
         return SaveCardResponse(card_id=request.card.card_id)
-
-    def _validate_actor_id(self, actor_id: Optional[str]) -> str:
-        """Validate actor_id is non-empty string."""
-        if actor_id is None:
-            raise ValidationError("actor_id cannot be None")
-        if not isinstance(actor_id, str):
-            raise ValidationError("actor_id must be a string")
-        stripped = actor_id.strip()
-        if not stripped:
-            raise ValidationError("actor_id cannot be empty or whitespace-only")
-        return stripped

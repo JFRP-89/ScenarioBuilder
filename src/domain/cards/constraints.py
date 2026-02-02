@@ -7,7 +7,4 @@ def incompatible_pairs_ok(
     selected_ids: Iterable[str], pairs: Iterable[Tuple[str, str]]
 ) -> bool:
     selected = set(selected_ids)
-    for a, b in pairs:
-        if a in selected and b in selected:
-            return False
-    return True
+    return not any(a in selected and b in selected for a, b in pairs)

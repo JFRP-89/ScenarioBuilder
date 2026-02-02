@@ -8,18 +8,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Collection, Optional, Union
 
+from application.ports.scenario_generation import (
+    IdGenerator,
+    ScenarioGenerator,
+    SeedGenerator,
+)
+from application.use_cases._validation import validate_actor_id
 from domain.cards.card import Card, GameMode, parse_game_mode
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility, parse_visibility
-
-from application.ports.scenario_generation import (
-    IdGenerator,
-    SeedGenerator,
-    ScenarioGenerator,
-)
-
 
 # =============================================================================
 # TABLE PRESETS
@@ -99,7 +98,7 @@ class GenerateScenarioCard:
             ValidationError: If any input validation fails.
         """
         # 1) Validate actor_id
-        actor_id = self._validate_actor_id(request.actor_id)
+        actor_id = validate_actor_id(request.actor_id)
 
         # 2) Resolve table from preset
         table = _resolve_table(request.table_preset)
@@ -141,26 +140,36 @@ class GenerateScenarioCard:
         )
 
         # 10) Build response DTO
-        return GenerateScenarioCardResponse(
+        return self._build_response(
             card_id=card_id,
             owner_id=actor_id,
+            seed=seed,
+            mode=mode,
+            visibility=visibility,
+            table=table,
+            shapes=shapes,
+        )
+
+    def _build_response(
+        self,
+        card_id: str,
+        owner_id: str,
+        seed: int,
+        mode: GameMode,
+        visibility: Visibility,
+        table: TableSize,
+        shapes: list[dict],
+    ) -> GenerateScenarioCardResponse:
+        """Build response DTO from components."""
+        return GenerateScenarioCardResponse(
+            card_id=card_id,
+            owner_id=owner_id,
             seed=seed,
             mode=mode.value,
             visibility=visibility.value,
             table_mm={"width_mm": table.width_mm, "height_mm": table.height_mm},
             shapes=shapes,
         )
-
-    def _validate_actor_id(self, actor_id: Optional[str]) -> str:
-        """Validate actor_id is non-empty string."""
-        if actor_id is None:
-            raise ValidationError("actor_id cannot be None")
-        if not isinstance(actor_id, str):
-            raise ValidationError("actor_id must be a string")
-        stripped = actor_id.strip()
-        if not stripped:
-            raise ValidationError("actor_id cannot be empty or whitespace-only")
-        return stripped
 
     def _resolve_mode(self, mode: Union[str, GameMode]) -> GameMode:
         """Resolve mode to GameMode enum."""

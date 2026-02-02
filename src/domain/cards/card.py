@@ -8,8 +8,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Collection, Optional
+from typing import Collection, Optional, cast
 
+from domain.cards.card_validation import (
+    validate_ids,
+    validate_seed,
+    validate_table_coherence,
+    validate_types,
+)
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
@@ -58,25 +64,6 @@ def parse_game_mode(value: object) -> GameMode:
     return GameMode(normalized)
 
 
-def _validate_non_empty_str(name: str, value: Any) -> str:
-    """Validate that value is a non-empty string after strip."""
-    if not isinstance(value, str):
-        raise ValidationError(f"{name} must be a string")
-    stripped = value.strip()
-    if not stripped:
-        raise ValidationError(f"{name} cannot be empty or whitespace-only")
-    return stripped
-
-
-def _validate_seed(value: Any) -> int:
-    """Validate seed is int >= 0, rejecting bool."""
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValidationError("seed must be int")
-    if value < 0:
-        raise ValidationError("seed must be >= 0")
-    return value
-
-
 @dataclass(frozen=True)
 class Card:
     """Scenario card with ownership and visibility rules.
@@ -104,38 +91,32 @@ class Card:
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
         # Validate IDs
-        _validate_non_empty_str("card_id", self.card_id)
-        _validate_non_empty_str("owner_id", self.owner_id)
+        validate_ids(self.card_id, self.owner_id)
 
         # Validate seed
-        _validate_seed(self.seed)
+        validate_seed(self.seed)
 
         # Validate types
-        if not isinstance(self.table, TableSize):
-            raise ValidationError("table must be TableSize")
-        if not isinstance(self.map_spec, MapSpec):
-            raise ValidationError("map_spec must be MapSpec")
-        if not isinstance(self.visibility, Visibility):
-            raise ValidationError("visibility must be Visibility")
-        if not isinstance(self.mode, GameMode):
-            raise ValidationError("mode must be GameMode")
+        validate_types(self.table, self.map_spec, self.visibility, self.mode, GameMode)
 
         # Validate table coherence
-        if (
-            self.map_spec.table.width_mm != self.table.width_mm
-            or self.map_spec.table.height_mm != self.table.height_mm
-        ):
-            raise ValidationError("map_spec.table dimensions must match table")
+        validate_table_coherence(self.table, self.map_spec)
 
     def can_user_read(self, user_id: str) -> bool:
         """Check if user can read this card."""
-        return can_read(
-            owner_id=self.owner_id,
-            visibility=self.visibility,
-            current_user_id=user_id,
-            shared_with=self.shared_with,
+        return cast(
+            bool,
+            can_read(
+                owner_id=self.owner_id,
+                visibility=self.visibility,
+                current_user_id=user_id,
+                shared_with=self.shared_with,
+            ),
         )
 
     def can_user_write(self, user_id: str) -> bool:
         """Check if user can write this card."""
-        return can_write(owner_id=self.owner_id, current_user_id=user_id)
+        return cast(
+            bool,
+            can_write(owner_id=self.owner_id, current_user_id=user_id),
+        )

@@ -2,9 +2,9 @@
 
 from domain.security.authz import (
     Visibility,
-    parse_visibility,
     can_read,
     can_write,
+    parse_visibility,
 )
 
 __all__ = [

@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from domain.errors import ValidationError
+from application.use_cases._validation import validate_actor_id, validate_card_id
 
 
 # =============================================================================
@@ -56,10 +56,10 @@ class GetCard:
             Exception: If card not found or access forbidden.
         """
         # 1) Validate actor_id
-        actor_id = self._validate_actor_id(request.actor_id)
+        actor_id = validate_actor_id(request.actor_id)
 
         # 2) Validate card_id
-        card_id = self._validate_card_id(request.card_id)
+        card_id = validate_card_id(request.card_id)
 
         # 3) Fetch card from repository
         card = self._repository.get_by_id(card_id)
@@ -78,25 +78,3 @@ class GetCard:
             mode=card.mode.value,
             visibility=card.visibility.value,
         )
-
-    def _validate_actor_id(self, actor_id: Optional[str]) -> str:
-        """Validate actor_id is non-empty string."""
-        if actor_id is None:
-            raise ValidationError("actor_id cannot be None")
-        if not isinstance(actor_id, str):
-            raise ValidationError("actor_id must be a string")
-        stripped = actor_id.strip()
-        if not stripped:
-            raise ValidationError("actor_id cannot be empty or whitespace-only")
-        return stripped
-
-    def _validate_card_id(self, card_id: Optional[str]) -> str:
-        """Validate card_id is non-empty string."""
-        if card_id is None:
-            raise ValidationError("card_id cannot be None")
-        if not isinstance(card_id, str):
-            raise ValidationError("card_id must be a string")
-        stripped = card_id.strip()
-        if not stripped:
-            raise ValidationError("card_id cannot be empty or whitespace-only")
-        return stripped

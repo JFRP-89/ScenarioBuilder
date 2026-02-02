@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Iterable
 
 from domain.errors import ValidationError
+from domain.validation import validate_non_empty_str
 
 
 class Visibility(Enum):
@@ -26,29 +27,6 @@ class Visibility(Enum):
 
 
 _VALID_VISIBILITY_VALUES = {v.value for v in Visibility}
-
-
-def _validate_user_id(name: str, value: object) -> str:
-    """Validate and normalize a user ID.
-
-    Args:
-        name: Parameter name for error messages.
-        value: The value to validate.
-
-    Returns:
-        Stripped string value.
-
-    Raises:
-        ValidationError: If value is None, not a string, or empty after strip.
-    """
-    if value is None:
-        raise ValidationError(f"{name} cannot be None")
-    if not isinstance(value, str):
-        raise ValidationError(f"{name} must be a string")
-    stripped = value.strip()
-    if not stripped:
-        raise ValidationError(f"{name} cannot be empty or whitespace-only")
-    return stripped
 
 
 def _validate_shared_with(shared_with: object) -> set[str]:
@@ -149,8 +127,8 @@ def can_read(
     if not isinstance(visibility, Visibility):
         raise ValidationError("visibility must be Visibility")
 
-    owner = _validate_user_id("owner_id", owner_id)
-    current = _validate_user_id("current_user_id", current_user_id)
+    owner = validate_non_empty_str("owner_id", owner_id)
+    current = validate_non_empty_str("current_user_id", current_user_id)
 
     # Owner can always read their own resource
     if owner == current:
@@ -190,7 +168,7 @@ def can_write(
     Raises:
         ValidationError: If any input is invalid.
     """
-    owner = _validate_user_id("owner_id", owner_id)
-    current = _validate_user_id("current_user_id", current_user_id)
+    owner = validate_non_empty_str("owner_id", owner_id)
+    current = validate_non_empty_str("current_user_id", current_user_id)
 
-    return owner == current
+    return bool(owner == current)
