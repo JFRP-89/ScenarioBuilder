@@ -1,0 +1,11 @@
+# Development & Quality Analysis
+# Includes all production requirements + dev tools
+
+-r requirements.txt
+
+# Quality / Code Analysis (dev only)
+pylint==3.0.3
+radon==6.0.1
+vulture==2.10
+mypy==1.8.0
+bandit==1.7.6

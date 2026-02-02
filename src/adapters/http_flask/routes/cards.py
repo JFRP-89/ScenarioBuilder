@@ -7,30 +7,51 @@ delegates to use cases via app.config["services"], and returns JSON responses.
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
+from typing import cast
 from io import BytesIO
 
-from defusedxml.ElementTree import fromstring as defused_fromstring
-from flask import Blueprint, current_app, jsonify, request, send_file
-
+from adapters.http_flask.constants import (
+    DEFAULT_FILTER,
+    DEFAULT_MODE,
+    DEFAULT_TABLE_PRESET,
+    DEFAULT_VISIBILITY,
+    KEY_CARD_ID,
+    KEY_CARDS,
+    KEY_FILTER,
+    KEY_MODE,
+    KEY_OWNER_ID,
+    KEY_SEED,
+    KEY_SHAPES,
+    KEY_SHARED_WITH,
+    KEY_TABLE_MM,
+    KEY_TABLE_PRESET,
+    KEY_VISIBILITY,
+    TABLE_PRESET_MASSIVE,
+    TABLE_PRESET_STANDARD,
+)
+from adapters.http_flask.context import get_actor_id, get_services
 from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
 from application.use_cases.get_card import GetCardRequest
 from application.use_cases.list_cards import ListCardsRequest
 from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.save_card import SaveCardRequest
+from defusedxml import ElementTree as DET
+from defusedxml.ElementTree import fromstring as defused_fromstring
 from domain.cards.card import Card, parse_game_mode
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import parse_visibility
-
+from flask import Blueprint, jsonify, request, send_file
 
 cards_bp = Blueprint("cards", __name__)
 
 
 def _resolve_table(preset: str) -> TableSize:
     """Resolve table preset string to TableSize."""
-    if preset == "massive":
+    if preset == TABLE_PRESET_MASSIVE:
         return TableSize.massive()
+    if preset == TABLE_PRESET_STANDARD:
+        return TableSize.standard()
     # Default to standard
     return TableSize.standard()
 
@@ -39,18 +60,18 @@ def _resolve_table(preset: str) -> TableSize:
 def create_card():
     """POST /cards - Generate and save a new scenario card."""
     # 1) Get actor_id from header (raises ValidationError if missing)
-    actor_id = current_app.config["get_actor_id"]()
+    actor_id = get_actor_id()
 
     # 2) Parse request body
     payload = request.get_json(force=True) or {}
-    mode = payload.get("mode", "casual")
-    seed = payload.get("seed")
-    table_preset = payload.get("table_preset", "standard")
-    visibility = payload.get("visibility", "private")
-    shared_with = payload.get("shared_with")
+    mode = payload.get(KEY_MODE, DEFAULT_MODE)
+    seed = payload.get(KEY_SEED)
+    table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
+    visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
+    shared_with = payload.get(KEY_SHARED_WITH)
 
-    # 3) Get services from config
-    services = current_app.config["services"]
+    # 3) Get services
+    services = get_services()
 
     # 4) Call generate use case
     gen_request = GenerateScenarioCardRequest(
@@ -84,13 +105,13 @@ def create_card():
     return (
         jsonify(
             {
-                "card_id": gen_response.card_id,
-                "owner_id": gen_response.owner_id,
-                "seed": gen_response.seed,
-                "mode": gen_response.mode,
-                "visibility": gen_response.visibility,
-                "table_mm": gen_response.table_mm,
-                "shapes": gen_response.shapes,
+                KEY_CARD_ID: gen_response.card_id,
+                KEY_OWNER_ID: gen_response.owner_id,
+                KEY_SEED: gen_response.seed,
+                KEY_MODE: gen_response.mode,
+                KEY_VISIBILITY: gen_response.visibility,
+                KEY_TABLE_MM: gen_response.table_mm,
+                KEY_SHAPES: gen_response.shapes,
             }
         ),
         201,
@@ -101,10 +122,10 @@ def create_card():
 def get_card(card_id: str):
     """GET /cards/<card_id> - Retrieve a card by ID."""
     # 1) Get actor_id from header
-    actor_id = current_app.config["get_actor_id"]()
+    actor_id = get_actor_id()
 
-    # 2) Get services from config
-    services = current_app.config["services"]
+    # 2) Get services
+    services = get_services()
 
     # 3) Call get_card use case
     get_request = GetCardRequest(actor_id=actor_id, card_id=card_id)
@@ -114,11 +135,11 @@ def get_card(card_id: str):
     return (
         jsonify(
             {
-                "card_id": response.card_id,
-                "owner_id": response.owner_id,
-                "seed": response.seed,
-                "mode": response.mode,
-                "visibility": response.visibility,
+                KEY_CARD_ID: response.card_id,
+                KEY_OWNER_ID: response.owner_id,
+                KEY_SEED: response.seed,
+                KEY_MODE: response.mode,
+                KEY_VISIBILITY: response.visibility,
             }
         ),
         200,
@@ -129,13 +150,13 @@ def get_card(card_id: str):
 def list_cards():
     """GET /cards?filter=... - List cards for the actor."""
     # 1) Get actor_id from header
-    actor_id = current_app.config["get_actor_id"]()
+    actor_id = get_actor_id()
 
     # 2) Get filter from query params
-    filter_param = request.args.get("filter", "mine")
+    filter_param = request.args.get(KEY_FILTER, DEFAULT_FILTER)
 
-    # 3) Get services from config
-    services = current_app.config["services"]
+    # 3) Get services
+    services = get_services()
 
     # 4) Call list_cards use case
     list_request = ListCardsRequest(actor_id=actor_id, filter=filter_param)
@@ -144,26 +165,26 @@ def list_cards():
     # 5) Map cards to JSON
     cards_json = [
         {
-            "card_id": c.card_id,
-            "owner_id": c.owner_id,
-            "seed": c.seed,
-            "mode": c.mode,
-            "visibility": c.visibility,
+            KEY_CARD_ID: c.card_id,
+            KEY_OWNER_ID: c.owner_id,
+            KEY_SEED: c.seed,
+            KEY_MODE: c.mode,
+            KEY_VISIBILITY: c.visibility,
         }
         for c in response.cards
     ]
 
-    return jsonify({"cards": cards_json}), 200
+    return jsonify({KEY_CARDS: cards_json}), 200
 
 
 @cards_bp.get("/<card_id>/map.svg")
 def get_card_map_svg(card_id: str):
     """GET /cards/<card_id>/map.svg - Render a card's map as SVG."""
     # 1) Get actor_id from header (raises ValidationError if missing)
-    actor_id = current_app.config["get_actor_id"]()
+    actor_id = get_actor_id()
 
-    # 2) Get services from config
-    services = current_app.config["services"]
+    # 2) Get services
+    services = get_services()
 
     # 3) Call render_map_svg use case
     uc_request = RenderMapSvgRequest(actor_id=actor_id, card_id=card_id)
@@ -251,9 +272,9 @@ def _normalize_svg_xml(svg: str) -> str:
         _strip_svg_namespaces_inplace(root)
 
         # 5) Re-serialize to normalized XML
-        return ET.tostring(root, encoding="unicode", method="xml")
+        return cast(str, DET.tostring(root, encoding="unicode", method="xml"))
 
-    except ET.ParseError as e:
+    except DET.ParseError as e:
         raise ValidationError(f"Invalid SVG XML: {e}") from e
     except Exception as e:
         # Catch defusedxml exceptions (EntitiesForbidden, etc.) and other parsing errors
@@ -262,7 +283,7 @@ def _normalize_svg_xml(svg: str) -> str:
         raise ValidationError(f"SVG parsing failed: {e}") from e
 
 
-def _strip_svg_namespaces_inplace(element: ET.Element) -> None:
+def _strip_svg_namespaces_inplace(element: DET.Element) -> None:
     """Strip namespaces from SVG element tree (in-place modification).
 
     Converts tags like "{http://www.w3.org/2000/svg}rect" to "rect".
@@ -287,84 +308,105 @@ def _strip_svg_namespaces_inplace(element: ET.Element) -> None:
         _strip_svg_namespaces_inplace(child)
 
 
-def _validate_svg_allowlist(element: ET.Element) -> None:
-    """Strict SVG allowlist validation (XSS prevention).
+def _local_svg_name(name: str) -> str:
+    """Strip SVG namespace from tag/attribute name."""
+    return name.split("}")[-1] if "}" in name else name
 
-    Allows only the minimal SVG subset we generate (svg/rect/circle/polygon)
-    and only safe attributes. Everything else is rejected.
-    """
-    from domain.errors import ValidationError
 
-    # 1) Allowed tags (minimal subset)
-    ALLOWED_TAGS = {"svg", "rect", "circle", "polygon"}
-
-    # 2) Allowed attributes per tag (minimal subset)
-    ALLOWED_ATTRS: dict[str, set[str]] = {
+def _allowed_svg_attrs() -> dict[str, set[str]]:
+    """Return allowed attributes per tag (minimal subset)."""
+    return {
         "svg": {"xmlns", "width", "height", "viewBox"},
         "rect": {"x", "y", "width", "height"},
         "circle": {"cx", "cy", "r"},
         "polygon": {"points"},
     }
 
-    # Helper: strip namespace
-    def _local_name(name: str) -> str:
-        return name.split("}")[-1] if "}" in name else name
 
-    tag = _local_name(element.tag)
+def _enforce_svg_tag_allowed(tag: str) -> None:
+    """Enforce allowlist for SVG tags."""
+    from domain.errors import ValidationError
 
-    if tag not in ALLOWED_TAGS:
+    allowed_tags = {"svg", "rect", "circle", "polygon"}
+    if tag not in allowed_tags:
         raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
 
-    # Reject any attribute not in the allowed set for that tag
-    allowed_for_tag = ALLOWED_ATTRS.get(tag, set())
+
+def _validate_svg_numeric_attr(tag: str, attr_name: str, attr_value: str) -> None:
+    """Validate numeric SVG attribute values for specific tags."""
+    from domain.errors import ValidationError
+
+    if tag not in {"svg", "rect", "circle"} or attr_name == "xmlns":
+        return
+
+    if attr_name == "viewBox":
+        parts = attr_value.strip().split()
+        if len(parts) != 4 or any(not p.lstrip("-").isdigit() for p in parts):
+            raise ValidationError("SVG viewBox must be 4 integers")
+        return
+
+    if not attr_value.strip().lstrip("-").isdigit():
+        raise ValidationError(f"SVG attribute '{attr_name}' must be an integer")
+
+
+def _validate_svg_polygon_points(attr_value: str) -> None:
+    """Validate polygon points characters (digits, spaces, commas, minus only)."""
+    from domain.errors import ValidationError
+
+    for ch in attr_value:
+        if ch.isdigit() or ch in {" ", ",", "-"}:
+            continue
+        raise ValidationError("SVG polygon points contain invalid characters")
+
+
+def _validate_svg_attribute(
+    tag: str,
+    attr_name: str,
+    attr_value: str,
+    allowed_for_tag: set[str],
+) -> None:
+    """Validate a single SVG attribute against allowlist rules."""
+    from domain.errors import ValidationError
+
+    clean_attr = _local_svg_name(attr_name)
+    lower_attr = clean_attr.lower()
+
+    if lower_attr.startswith("on"):
+        raise ValidationError(
+            f"SVG contains forbidden event handler attribute: {clean_attr}"
+        )
+
+    if lower_attr in {"href", "xlink:href", "src"}:
+        raise ValidationError(
+            f"SVG must not contain external reference attribute: {clean_attr}"
+        )
+
+    if lower_attr in {"style", "class"}:
+        raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
+
+    if clean_attr not in allowed_for_tag:
+        raise ValidationError(
+            f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
+        )
+
+    _validate_svg_numeric_attr(tag, clean_attr, attr_value)
+
+    if tag == "polygon" and clean_attr == "points":
+        _validate_svg_polygon_points(attr_value)
+
+
+def _validate_svg_allowlist(element: DET.Element) -> None:
+    """Strict SVG allowlist validation (XSS prevention).
+
+    Allows only the minimal SVG subset we generate (svg/rect/circle/polygon)
+    and only safe attributes. Everything else is rejected.
+    """
+    tag = _local_svg_name(element.tag)
+    _enforce_svg_tag_allowed(tag)
+
+    allowed_for_tag = _allowed_svg_attrs().get(tag, set())
     for attr_name, attr_value in element.attrib.items():
-        clean_attr = _local_name(attr_name)
+        _validate_svg_attribute(tag, attr_name, attr_value, allowed_for_tag)
 
-        # Block event handlers always
-        if clean_attr.lower().startswith("on"):
-            raise ValidationError(
-                f"SVG contains forbidden event handler attribute: {clean_attr}"
-            )
-
-        # Disallow any linking/external content attributes entirely
-        if clean_attr.lower() in {"href", "xlink:href", "src"}:
-            raise ValidationError(
-                f"SVG must not contain external reference attribute: {clean_attr}"
-            )
-
-        # Disallow style-like / CSS injection surfaces (keep minimal)
-        if clean_attr.lower() in {"style", "class"}:
-            raise ValidationError(
-                f"SVG must not contain styling attribute: {clean_attr}"
-            )
-
-        if clean_attr not in allowed_for_tag:
-            raise ValidationError(
-                f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
-            )
-
-        # Optional: basic type checks (keeps things tight and scanner-friendly)
-        if tag in {"svg", "rect", "circle"} and clean_attr != "xmlns":
-            # allow viewBox like "0 0 1200 700"
-            if clean_attr == "viewBox":
-                parts = attr_value.strip().split()
-                if len(parts) != 4 or any(not p.lstrip("-").isdigit() for p in parts):
-                    raise ValidationError("SVG viewBox must be 4 integers")
-            else:
-                if not attr_value.strip().lstrip("-").isdigit():
-                    raise ValidationError(
-                        f"SVG attribute '{clean_attr}' must be an integer"
-                    )
-
-        if tag == "polygon" and clean_attr == "points":
-            # points like "10,10 20,20 30,10"
-            # Keep it simple: only digits, spaces, commas, minus
-            for ch in attr_value:
-                if not (ch.isdigit() or ch in {" ", ",", "-"}):
-                    raise ValidationError(
-                        "SVG polygon points contain invalid characters"
-                    )
-
-    # 3) Recurse into children
     for child in list(element):
         _validate_svg_allowlist(child)

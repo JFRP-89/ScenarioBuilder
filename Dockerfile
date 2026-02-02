@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Dependencies stage
+# Dependencies stage (production)
 # =============================================================================
 FROM base AS deps
 
@@ -28,7 +28,17 @@ RUN python -m pip install --upgrade pip && \
     python -m pip install --no-cache-dir -r requirements.txt
 
 # =============================================================================
-# Final stage
+# Dependencies stage (development - includes quality tools)
+# Optional: Use for CI/CD quality checks
+# =============================================================================
+FROM base AS deps-dev
+
+COPY requirements.txt requirements-dev.txt ./
+RUN python -m pip install --upgrade pip && \
+    python -m pip install --no-cache-dir -r requirements-dev.txt
+
+# =============================================================================
+# Final stage (production)
 # =============================================================================
 FROM base AS final
 
@@ -52,3 +62,26 @@ EXPOSE 8000 7860
 # Default command (Flask API)
 # Override in docker-compose for different services
 CMD ["python", "-m", "flask", "--app", "adapters.http_flask.app:create_app", "run", "--host=0.0.0.0", "--port=8000"]
+
+# =============================================================================
+# Quality check stage (for CI/CD pipelines)
+# Usage: docker build --target quality-check -t scenariobuilder:quality .
+# =============================================================================
+FROM base AS quality-check
+
+# Copy installed packages from deps-dev stage (includes quality tools)
+COPY --from=deps-dev /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=deps-dev /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY src/ /app/src/
+COPY scripts/ /app/scripts/
+COPY pytest.ini /app/
+
+# Run quality checks (for CI/CD)
+RUN useradd -m -u 1000 -s /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Default: run quality gate
+CMD ["python", "scripts/quality/run_quality.py", "--layer", "all"]
