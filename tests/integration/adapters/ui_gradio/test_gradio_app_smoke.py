@@ -115,12 +115,8 @@ class TestGetApiBaseUrl:
         result = _get_api_base_url()
 
         assert result, "_get_api_base_url() returned empty string"
-        assert result.startswith(
-            "http"
-        ), f"Expected URL starting with 'http', got '{result}'"
-        assert not result.endswith(
-            "/"
-        ), f"URL should not have trailing slash: '{result}'"
+        assert result.startswith("http"), f"Expected URL starting with 'http', got '{result}'"
+        assert not result.endswith("/"), f"URL should not have trailing slash: '{result}'"
 
 
 # =============================================================================
@@ -137,6 +133,4 @@ class TestBuildHeaders:
 
         assert isinstance(headers, dict), f"Expected dict, got {type(headers)}"
         assert "X-Actor-Id" in headers, "X-Actor-Id header missing"
-        assert (
-            headers["X-Actor-Id"] == "u1"
-        ), f"Expected 'u1', got '{headers.get('X-Actor-Id')}'"
+        assert headers["X-Actor-Id"] == "u1", f"Expected 'u1', got '{headers.get('X-Actor-Id')}'"

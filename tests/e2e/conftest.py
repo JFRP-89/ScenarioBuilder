@@ -3,6 +3,7 @@ Fixtures comunes para tests E2E con Playwright.
 
 Levanta docker-compose o servidor local, espera health checks, y provee browser/page.
 """
+
 from __future__ import annotations
 
 import os
@@ -188,8 +189,7 @@ def _wait_for_health(
 
     # Timeout
     raise TimeoutError(
-        f"Health checks timeout después de {timeout_s}s. "
-        f"API OK={api_ok}, UI OK={ui_ok}"
+        f"Health checks timeout después de {timeout_s}s. " f"API OK={api_ok}, UI OK={ui_ok}"
     )
 
 
@@ -199,6 +199,7 @@ def wait_for_health(
     e2e_mode: str,
 ) -> Generator[Callable[[], None], None, None]:
     """Fixture callable para esperar health checks de API/UI."""
+
     def _wait() -> None:
         _wait_for_health(e2e_base_urls, check_ui=e2e_mode == "docker")
 

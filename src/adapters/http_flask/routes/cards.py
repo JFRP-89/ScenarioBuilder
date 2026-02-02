@@ -372,22 +372,16 @@ def _validate_svg_attribute(
     lower_attr = clean_attr.lower()
 
     if lower_attr.startswith("on"):
-        raise ValidationError(
-            f"SVG contains forbidden event handler attribute: {clean_attr}"
-        )
+        raise ValidationError(f"SVG contains forbidden event handler attribute: {clean_attr}")
 
     if lower_attr in {"href", "xlink:href", "src"}:
-        raise ValidationError(
-            f"SVG must not contain external reference attribute: {clean_attr}"
-        )
+        raise ValidationError(f"SVG must not contain external reference attribute: {clean_attr}")
 
     if lower_attr in {"style", "class"}:
         raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
 
     if clean_attr not in allowed_for_tag:
-        raise ValidationError(
-            f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
-        )
+        raise ValidationError(f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>")
 
     _validate_svg_numeric_attr(tag, clean_attr, attr_value)
 

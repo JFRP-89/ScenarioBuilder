@@ -54,9 +54,7 @@ class BasicScenarioGenerator:
             "points": points,
         }
 
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
+    def generate_shapes(self, seed: int, table: TableSize, mode: GameMode) -> list[dict]:
         """Generate shapes for a scenario map.
 
         Args:

@@ -207,4 +207,3 @@ def _visible_texts(page) -> list[str]:
                 texts.append(text)
     # Limitar tamaño para no explotar el mensaje
     return texts[:50]
-

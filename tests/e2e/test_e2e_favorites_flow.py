@@ -23,7 +23,9 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
     # Obtener card_id generado en test anterior
     card_id = generated_card_id.get("card_id")
     if not card_id:
-        pytest.skip("No hay card_id generado previamente (ejecutar test_api_generate_card_post primero)")
+        pytest.skip(
+            "No hay card_id generado previamente (ejecutar test_api_generate_card_post primero)"
+        )
 
     api_url = get_api_base_url()
     actor_id = "u1"  # Mismo actor que generó la card
@@ -35,15 +37,15 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
         headers=headers,
         timeout=30,
     )
-    assert toggle_response.status_code == 200, (
-        f"POST /favorites/{card_id}/toggle falló: {toggle_response.status_code} - {toggle_response.text}"
-    )
+    assert (
+        toggle_response.status_code == 200
+    ), f"POST /favorites/{card_id}/toggle falló: {toggle_response.status_code} - {toggle_response.text}"
 
     toggle_data = toggle_response.json()
     assert toggle_data.get("card_id") == card_id
-    assert toggle_data.get("is_favorite") is True, (
-        f"Esperado is_favorite=true, pero fue: {toggle_data}"
-    )
+    assert (
+        toggle_data.get("is_favorite") is True
+    ), f"Esperado is_favorite=true, pero fue: {toggle_data}"
 
     # 3) GET /favorites -> card_id está en lista
     list_response = requests.get(
@@ -51,15 +53,14 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
         headers=headers,
         timeout=30,
     )
-    assert list_response.status_code == 200, (
-        f"GET /favorites falló: {list_response.status_code} - {list_response.text}"
-    )
+    assert (
+        list_response.status_code == 200
+    ), f"GET /favorites falló: {list_response.status_code} - {list_response.text}"
 
     list_data = list_response.json()
     card_ids_in_favorites = list_data.get("card_ids", [])
     assert card_id in card_ids_in_favorites, (
-        f"card_id {card_id} NO está en favoritos. "
-        f"Favoritos: {card_ids_in_favorites}"
+        f"card_id {card_id} NO está en favoritos. " f"Favoritos: {card_ids_in_favorites}"
     )
 
     # 4) Toggle OFF
@@ -70,9 +71,9 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
     )
     assert toggle_response_2.status_code == 200
     toggle_data_2 = toggle_response_2.json()
-    assert toggle_data_2.get("is_favorite") is False, (
-        f"Esperado is_favorite=false, pero fue: {toggle_data_2}"
-    )
+    assert (
+        toggle_data_2.get("is_favorite") is False
+    ), f"Esperado is_favorite=false, pero fue: {toggle_data_2}"
 
     # 5) GET /favorites -> card_id NO está en lista
     list_response_2 = requests.get(
@@ -87,4 +88,3 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
         f"card_id {card_id} SIGUE en favoritos después de toggle OFF. "
         f"Favoritos: {card_ids_in_favorites_2}"
     )
-

@@ -40,9 +40,7 @@ class SeedGenerator(Protocol):
 class ScenarioGenerator(Protocol):
     """Port for generating scenario shapes based on game rules."""
 
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
+    def generate_shapes(self, seed: int, table: TableSize, mode: GameMode) -> list[dict]:
         """Generate scenario shapes for given parameters.
 
         Args:

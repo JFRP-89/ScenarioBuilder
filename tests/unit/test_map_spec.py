@@ -152,9 +152,7 @@ def test_circle_requires_all_fields(table: TableSize):
 
 def test_rect_requires_all_fields(table: TableSize):
     with pytest.raises(ValidationError):
-        MapSpec(
-            table=table, shapes=[{"type": "rect", "x": 100, "y": 100, "width": 200}]
-        )
+        MapSpec(table=table, shapes=[{"type": "rect", "x": 100, "y": 100, "width": 200}])
 
 
 def test_polygon_requires_points_field(table: TableSize):
@@ -190,18 +188,14 @@ def test_polygon_point_requires_x_and_y(table: TableSize):
 
 def test_circle_with_bool_coordinate_is_rejected(table: TableSize):
     with pytest.raises(ValidationError):
-        MapSpec(
-            table=table, shapes=[{"type": "circle", "cx": True, "cy": 600, "r": 100}]
-        )
+        MapSpec(table=table, shapes=[{"type": "circle", "cx": True, "cy": 600, "r": 100}])
 
 
 def test_rect_with_bool_dimension_is_rejected(table: TableSize):
     with pytest.raises(ValidationError):
         MapSpec(
             table=table,
-            shapes=[
-                {"type": "rect", "x": 100, "y": 100, "width": False, "height": 200}
-            ],
+            shapes=[{"type": "rect", "x": 100, "y": 100, "width": False, "height": 200}],
         )
 
 

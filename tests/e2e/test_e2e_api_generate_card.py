@@ -38,8 +38,7 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
     # Validar status
     assert response.status_code == 201, (
-        f"POST /cards falló con status {response.status_code}. "
-        f"Response: {response.text}"
+        f"POST /cards falló con status {response.status_code}. " f"Response: {response.text}"
     )
 
     # Validar JSON
@@ -51,42 +50,37 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
     missing_keys = required_keys - actual_keys
     assert not missing_keys, (
-        f"Faltan keys en respuesta: {missing_keys}. "
-        f"Keys presentes: {actual_keys}"
+        f"Faltan keys en respuesta: {missing_keys}. " f"Keys presentes: {actual_keys}"
     )
 
     # Validar tipos y valores
     card_id = card_data["card_id"]
     assert isinstance(card_id, str) and card_id, "card_id debe ser string no vacío"
 
-    assert card_data["owner_id"] == "u1", (
-        f"owner_id esperado 'u1', recibido '{card_data['owner_id']}'"
-    )
+    assert (
+        card_data["owner_id"] == "u1"
+    ), f"owner_id esperado 'u1', recibido '{card_data['owner_id']}'"
 
-    assert card_data["seed"] == 123, (
-        f"seed esperado 123, recibido {card_data['seed']}"
-    )
+    assert card_data["seed"] == 123, f"seed esperado 123, recibido {card_data['seed']}"
 
-    assert card_data["mode"] == "matched", (
-        f"mode esperado 'matched', recibido '{card_data['mode']}'"
-    )
+    assert (
+        card_data["mode"] == "matched"
+    ), f"mode esperado 'matched', recibido '{card_data['mode']}'"
 
-    assert card_data["visibility"] == "private", (
-        f"visibility esperado 'private', recibido '{card_data['visibility']}'"
-    )
+    assert (
+        card_data["visibility"] == "private"
+    ), f"visibility esperado 'private', recibido '{card_data['visibility']}'"
 
     # Validar table_mm es dict con width_mm y height_mm
     table_mm = card_data["table_mm"]
     assert isinstance(table_mm, dict), "table_mm debe ser dict"
-    assert "width_mm" in table_mm and "height_mm" in table_mm, (
-        f"table_mm debe tener width_mm y height_mm. Recibido: {table_mm}"
-    )
+    assert (
+        "width_mm" in table_mm and "height_mm" in table_mm
+    ), f"table_mm debe tener width_mm y height_mm. Recibido: {table_mm}"
 
     # Validar shapes es lista (aunque sea vacía)
     shapes = card_data["shapes"]
-    assert isinstance(shapes, list), (
-        f"shapes debe ser lista, recibido {type(shapes).__name__}"
-    )
+    assert isinstance(shapes, list), f"shapes debe ser lista, recibido {type(shapes).__name__}"
 
     # Guardar card_id en fixture para reuso en otros tests
     generated_card_id["card_id"] = card_id
@@ -111,7 +105,9 @@ def test_api_get_generated_card(e2e_services, wait_for_health, generated_card_id
     # Verificar que hay card_id del test anterior
     card_id = generated_card_id.get("card_id")
     if not card_id:
-        pytest.skip("No hay card_id generado previamente (ejecutar test_api_generate_card_post primero)")
+        pytest.skip(
+            "No hay card_id generado previamente (ejecutar test_api_generate_card_post primero)"
+        )
 
     api_url = get_api_base_url()
     headers = {"X-Actor-Id": "u1"}
@@ -137,4 +133,3 @@ def test_api_get_generated_card(e2e_services, wait_for_health, generated_card_id
     assert retrieved_card["mode"] == "matched"
 
     print(f"✅ Card recuperado exitosamente: {card_id}")
-

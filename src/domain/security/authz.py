@@ -64,9 +64,7 @@ def _validate_shared_with(shared_with: object) -> set[str]:
             raise ValidationError("shared_with must contain only strings")
         stripped = item.strip()
         if not stripped:
-            raise ValidationError(
-                "shared_with cannot contain empty or whitespace-only strings"
-            )
+            raise ValidationError("shared_with cannot contain empty or whitespace-only strings")
         result.add(stripped)
 
     return result

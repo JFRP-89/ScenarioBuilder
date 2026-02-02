@@ -139,9 +139,7 @@ class TestParseVisibility:
             ("\n shared \n", Visibility.SHARED),
         ],
     )
-    def test_parse_strips_whitespace(
-        self, input_with_spaces: str, expected: Visibility
-    ):
+    def test_parse_strips_whitespace(self, input_with_spaces: str, expected: Visibility):
         """Leading/trailing whitespace should be stripped before parsing."""
         result = parse_visibility(input_with_spaces)
         assert result == expected
@@ -208,9 +206,7 @@ class TestCanReadPrivate:
         )
         assert result is False
 
-    def test_private_resource_not_readable_by_shared_with_users(
-        self, owner: str, friend: str
-    ):
+    def test_private_resource_not_readable_by_shared_with_users(self, owner: str, friend: str):
         """Even if user is in shared_with, they cannot read PRIVATE resources."""
         result = can_read(
             owner_id=owner,
@@ -264,9 +260,7 @@ class TestCanReadShared:
         )
         assert result is True
 
-    def test_user_not_in_shared_with_cannot_read(
-        self, owner: str, other: str, friend: str
-    ):
+    def test_user_not_in_shared_with_cannot_read(self, owner: str, other: str, friend: str):
         """User not in shared_with list cannot read."""
         result = can_read(
             owner_id=owner,
@@ -392,9 +386,7 @@ class TestCanReadParametrized:
 class TestCanReadSharedWithIgnored:
     """Explicit tests: shared_with is IGNORED for PUBLIC and PRIVATE visibility."""
 
-    def test_private_ignores_shared_with_even_if_user_in_list(
-        self, owner: str, other: str
-    ):
+    def test_private_ignores_shared_with_even_if_user_in_list(self, owner: str, other: str):
         """PRIVATE ignores shared_with: user in list still cannot read."""
         result = can_read(
             owner_id=owner,
@@ -404,9 +396,7 @@ class TestCanReadSharedWithIgnored:
         )
         assert result is False
 
-    def test_private_ignores_shared_with_owner_always_can_read(
-        self, owner: str, other: str
-    ):
+    def test_private_ignores_shared_with_owner_always_can_read(self, owner: str, other: str):
         """PRIVATE: owner can read regardless of shared_with content."""
         result = can_read(
             owner_id=owner,
@@ -624,9 +614,7 @@ class TestHardeningSharedWithTypeValidation:
                 shared_with=friend,  # "user_c" string, NOT a list!
             )
 
-    def test_rejects_shared_with_as_string_even_if_would_match(
-        self, owner: str, friend: str
-    ):
+    def test_rejects_shared_with_as_string_even_if_would_match(self, owner: str, friend: str):
         """Even if string contains user chars, must reject (security hardening)."""
         # If we accidentally iterated "user_c", we'd check for 'u', 's', 'e', etc.
         with pytest.raises(ValidationError):
@@ -794,9 +782,7 @@ class TestInvalidInputsParametrized:
             "\n",
         ],
     )
-    def test_can_write_rejects_invalid_owner_id(
-        self, invalid_owner_id: str, owner: str
-    ):
+    def test_can_write_rejects_invalid_owner_id(self, invalid_owner_id: str, owner: str):
         """can_write should reject various invalid owner_id values."""
         with pytest.raises(ValidationError):
             can_write(owner_id=invalid_owner_id, current_user_id=owner)

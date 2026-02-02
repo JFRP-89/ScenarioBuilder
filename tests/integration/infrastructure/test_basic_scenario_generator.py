@@ -99,9 +99,7 @@ class TestBasicScenarioGeneratorDeterminism:
         seeds = [1, 10, 100, 123, 124, 200, 500, 999, 1234, 9999]
 
         # Act - generate shapes for multiple seeds
-        shapes_list = [
-            gen.generate_shapes(seed=s, table=table, mode=mode) for s in seeds
-        ]
+        shapes_list = [gen.generate_shapes(seed=s, table=table, mode=mode) for s in seeds]
 
         # Assert - there should be variation across different seeds
         # Using repr() to get string representation for set deduplication

@@ -75,9 +75,7 @@ class SpyScenarioGenerator:
     def __post_init__(self) -> None:
         self.calls = []
 
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
+    def generate_shapes(self, seed: int, table: TableSize, mode: GameMode) -> list[dict]:
         self.calls.append((seed, table, mode))
         return self.shapes
 
@@ -197,9 +195,7 @@ class TestSeedGeneration:
 class TestInvalidPreset:
     """Invalid table preset raises ValidationError."""
 
-    def test_invalid_preset_raises_validation_error(
-        self, use_case: GenerateScenarioCard
-    ):
+    def test_invalid_preset_raises_validation_error(self, use_case: GenerateScenarioCard):
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.MATCHED,
@@ -310,9 +306,7 @@ class TestVisibilityAsString:
             seed=42,
             table_preset="standard",
             visibility=visibility_str,
-            shared_with=(
-                ["user-456"] if expected_visibility == Visibility.SHARED else None
-            ),
+            shared_with=(["user-456"] if expected_visibility == Visibility.SHARED else None),
         )
 
         response = use_case.execute(request)

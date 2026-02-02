@@ -43,12 +43,7 @@ def _validate_circle(shape: dict, width_mm: int, height_mm: int) -> None:
 
 
 def _validate_rect(shape: dict, width_mm: int, height_mm: int) -> None:
-    if (
-        "x" not in shape
-        or "y" not in shape
-        or "width" not in shape
-        or "height" not in shape
-    ):
+    if "x" not in shape or "y" not in shape or "width" not in shape or "height" not in shape:
         raise ValidationError("rect requires x, y, width, height")
 
     x = _require_int("x", shape["x"])

@@ -31,9 +31,9 @@ def test_post_cards_missing_actor_id(e2e_services, wait_for_health):
 
     # Validar JSON de error
     error_data = response.json()
-    assert "error" in error_data or "message" in error_data, (
-        f"Response debe contener 'error' o 'message': {error_data}"
-    )
+    assert (
+        "error" in error_data or "message" in error_data
+    ), f"Response debe contener 'error' o 'message': {error_data}"
 
 
 @pytest.mark.e2e
@@ -56,9 +56,9 @@ def test_get_cards_missing_actor_id(e2e_services, wait_for_health):
 
     # Validar JSON de error
     error_data = response.json()
-    assert "error" in error_data or "message" in error_data, (
-        f"Response debe contener 'error' o 'message': {error_data}"
-    )
+    assert (
+        "error" in error_data or "message" in error_data
+    ), f"Response debe contener 'error' o 'message': {error_data}"
 
 
 @pytest.mark.e2e
@@ -81,7 +81,6 @@ def test_get_favorites_missing_actor_id(e2e_services, wait_for_health):
 
     # Validar JSON de error
     error_data = response.json()
-    assert "error" in error_data or "message" in error_data, (
-        f"Response debe contener 'error' o 'message': {error_data}"
-    )
-
+    assert (
+        "error" in error_data or "message" in error_data
+    ), f"Response debe contener 'error' o 'message': {error_data}"

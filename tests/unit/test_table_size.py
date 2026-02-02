@@ -152,9 +152,7 @@ class TestConversionInches:
             ("48.123", "48"),  # 3 decimals
         ],
     )
-    def test_rejects_more_than_2_decimals_in_inches(
-        self, invalid_width, invalid_height
-    ):
+    def test_rejects_more_than_2_decimals_in_inches(self, invalid_width, invalid_height):
         with pytest.raises(ValidationError):
             TableSize.from_in(invalid_width, invalid_height)
 
@@ -187,9 +185,7 @@ class TestConversionFeet:
             ("10", "10", 3000, 3000),  # Maximum: 300 cm
         ],
     )
-    def test_conversion_from_feet(
-        self, width_ft, height_ft, expected_width_mm, expected_height_mm
-    ):
+    def test_conversion_from_feet(self, width_ft, height_ft, expected_width_mm, expected_height_mm):
         ts = TableSize.from_ft(width_ft, height_ft)
         assert ts.width_mm == expected_width_mm
         assert ts.height_mm == expected_height_mm

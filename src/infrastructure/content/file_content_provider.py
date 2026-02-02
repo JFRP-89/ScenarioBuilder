@@ -25,9 +25,7 @@ class FileContentProvider:
         return self.base_path / name
 
     def _read_json(self, path: Path) -> list[dict[str, Any]]:
-        return cast(
-            list[dict[str, Any]], json.loads(path.read_text(encoding=ENCODING_UTF8))
-        )
+        return cast(list[dict[str, Any]], json.loads(path.read_text(encoding=ENCODING_UTF8)))
 
     def _parse_items(self, data: list[dict[str, Any]]) -> Iterable[CardItem]:
         return [CardItem(**item) for item in data]

@@ -39,8 +39,7 @@ def test_seed_determinism_api(e2e_services, wait_for_health, page):
 
     try:
         assert hash_1 == hash_2, (
-            f"SVGs no son deterministas con seed=123. "
-            f"hash_1={hash_1}, hash_2={hash_2}"
+            f"SVGs no son deterministas con seed=123. " f"hash_1={hash_1}, hash_2={hash_2}"
         )
     except AssertionError:
         # Debug: guardar SVGs para análisis
@@ -63,9 +62,9 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
         json=payload,
         timeout=30,
     )
-    assert response.status_code == 201, (
-        f"POST /cards falló: {response.status_code} - {response.text}"
-    )
+    assert (
+        response.status_code == 201
+    ), f"POST /cards falló: {response.status_code} - {response.text}"
 
     card_data = response.json()
     card_id = card_data.get("card_id")
@@ -77,12 +76,12 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
         headers=headers,
         timeout=30,
     )
-    assert svg_response.status_code == 200, (
-        f"GET /cards/{card_id}/map.svg falló: {svg_response.status_code} - {svg_response.text}"
-    )
-    assert "image/svg+xml" in svg_response.headers.get("Content-Type", ""), (
-        f"Content-Type incorrecto: {svg_response.headers.get('Content-Type')}"
-    )
+    assert (
+        svg_response.status_code == 200
+    ), f"GET /cards/{card_id}/map.svg falló: {svg_response.status_code} - {svg_response.text}"
+    assert "image/svg+xml" in svg_response.headers.get(
+        "Content-Type", ""
+    ), f"Content-Type incorrecto: {svg_response.headers.get('Content-Type')}"
 
     return svg_response.text
 
@@ -96,4 +95,3 @@ def _save_artifact(content: str, filename: str) -> None:
     artifact_path = artifacts_dir / filename
     artifact_path.write_text(content, encoding="utf-8")
     print(f"  💾 Artifact guardado: {artifact_path}")
-
