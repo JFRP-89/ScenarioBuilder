@@ -7,10 +7,9 @@ This generator produces random shapes for scenario maps.
 from __future__ import annotations
 
 import pytest
-
 from domain.cards.card import GameMode
-from domain.maps.table_size import TableSize
 from domain.maps.map_spec import MapSpec
+from domain.maps.table_size import TableSize
 
 
 # =============================================================================
@@ -155,9 +154,13 @@ class TestBasicScenarioGeneratorLimits:
 
         # Assert - check polygon point limits only for polygons with points
         for shape in shapes:
-            if isinstance(shape, dict) and shape.get("type") == "polygon":
-                if "points" in shape and isinstance(shape["points"], list):
-                    assert len(shape["points"]) <= 200
+            if (
+                isinstance(shape, dict)
+                and shape.get("type") == "polygon"
+                and "points" in shape
+                and isinstance(shape["points"], list)
+            ):
+                assert len(shape["points"]) <= 200
 
     def test_multiple_seeds_produce_valid_shapes(
         self,

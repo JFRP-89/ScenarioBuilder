@@ -17,6 +17,7 @@ from decimal import Decimal
 import pytest
 
 # TODO: Update import once TableSize is implemented
+from domain.errors import ValidationError
 from domain.maps.table_size import TableSize
 
 
@@ -111,8 +112,7 @@ class TestRoundingCm:
         ],
     )
     def test_rejects_more_than_2_decimals_in_cm(self, invalid_width, invalid_height):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
 
@@ -155,8 +155,7 @@ class TestConversionInches:
     def test_rejects_more_than_2_decimals_in_inches(
         self, invalid_width, invalid_height
     ):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in(invalid_width, invalid_height)
 
 
@@ -196,7 +195,7 @@ class TestConversionFeet:
         assert ts.height_mm == expected_height_mm
 
     def test_maximum_10x10_ft_is_allowed(self):
-        """10×10 ft = 300×300 cm should be allowed (max limit)."""
+        """10x10 ft = 300x300 cm should be allowed (max limit)."""
         ts = TableSize.from_ft("10", "10")
         assert ts.width_mm == 3000
         assert ts.height_mm == 3000
@@ -237,8 +236,7 @@ class TestLimits:
         ],
     )
     def test_rejects_below_minimum_post_rounding(self, width_cm, height_cm):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(width_cm, height_cm)
 
     # --- Maximum limit (300 cm = 3000 mm) ---
@@ -270,8 +268,7 @@ class TestLimits:
         ],
     )
     def test_rejects_above_maximum_post_rounding(self, width_cm, height_cm):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(width_cm, height_cm)
 
 
@@ -315,8 +312,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_none_values(self, invalid_width, invalid_height):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -332,8 +328,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_non_numeric_strings(self, invalid_width, invalid_height):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -346,8 +341,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_negative_values(self, invalid_width, invalid_height):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -360,8 +354,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_zero_values(self, invalid_width, invalid_height):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -374,45 +367,40 @@ class TestInvalidInputs:
     )
     def test_rejects_comma_as_decimal_separator(self, invalid_width, invalid_height):
         """Domain requires dot as decimal separator, not comma."""
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(invalid_width, invalid_height)
 
     def test_rejects_none_in_from_in(self):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in(None, "48")
 
     def test_rejects_none_in_from_ft(self):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft(None, "4")
 
     def test_rejects_negative_in_from_in(self):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("-48", "48")
 
     def test_rejects_negative_height_in_from_in(self):
         """Test that negative height is rejected in from_in."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("48", "-48")
 
     def test_rejects_negative_in_from_ft(self):
-        # TODO: Replace Exception with specific DomainError once implemented
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("-4", "4")
 
     def test_rejects_negative_height_in_from_ft(self):
         """Test that negative height is rejected in from_ft."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("4", "-4")
 
     def test_rejects_float_type(self):
         """Float type should be rejected for precision reasons."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(100.5, "100")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm("100", 100.5)
 
     def test_accepts_decimal_type_directly(self):
@@ -431,7 +419,7 @@ class TestInvalidInputs:
 
     def test_rejects_list_type(self):
         """List type should be rejected."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm([100], "100")
 
     def test_accepts_scientific_notation_lowercase_e(self):
@@ -445,37 +433,37 @@ class TestInvalidInputs:
         from decimal import Decimal
 
         # Decimal('100.001') has exponent -3
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_cm(Decimal("100.001"), "100")
 
     def test_rejects_below_minimum_in_from_in(self):
         """from_in should reject dimensions below minimum after conversion."""
         # 23.96 inches = 59.9 cm (below 60 cm minimum)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("23.96", "24")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("24", "23.96")
 
     def test_rejects_above_maximum_in_from_in(self):
         """from_in should reject dimensions above maximum after conversion."""
         # 120.03 inches = 300.1 cm (above 300 cm maximum)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("120.03", "120")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_in("120", "120.03")
 
     def test_rejects_below_minimum_in_from_ft(self):
         """from_ft should reject dimensions below minimum after conversion."""
         # 1.98 feet = 59.4 cm (below 60 cm minimum)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("1.98", "2")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("2", "1.98")
 
     def test_rejects_above_maximum_in_from_ft(self):
         """from_ft should reject dimensions above maximum after conversion."""
         # 10.01 feet = 300.3 cm (above 300 cm maximum)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("10.01", "10")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TableSize.from_ft("10", "10.01")

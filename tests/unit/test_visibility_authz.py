@@ -15,14 +15,13 @@ Authorization rules:
 from __future__ import annotations
 
 import pytest
-
+from domain.errors import ValidationError
 from domain.security.authz import (
     Visibility,
-    parse_visibility,
     can_read,
     can_write,
+    parse_visibility,
 )
-from domain.errors import ValidationError
 
 
 # =============================================================================
@@ -873,7 +872,7 @@ class TestVisibilityEnum:
     def test_visibility_count(self):
         """Visibility should have exactly 3 members."""
         # This ensures we don't accidentally add/remove visibility levels
-        members = [m for m in Visibility]
+        members = list(Visibility)
         assert len(members) == 3
 
 

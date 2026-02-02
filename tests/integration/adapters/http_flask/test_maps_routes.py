@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from adapters.http_flask.app import create_app
 
 

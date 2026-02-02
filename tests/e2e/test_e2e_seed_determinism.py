@@ -7,10 +7,10 @@ import requests
 
 
 @pytest.mark.e2e
-def test_seed_determinism_api(e2e_services, wait_for_health, page):  # noqa: ARG001
+def test_seed_determinism_api(e2e_services, wait_for_health, page):
     """
     Prueba que con la misma seed, el SVG del mapa es determinista.
-    
+
     Genera dos cartas con seed=123, obtiene sus mapas SVG,
     y verifica que los hashes SHA256 son idénticos.
     """
@@ -52,7 +52,7 @@ def test_seed_determinism_api(e2e_services, wait_for_health, page):  # noqa: ARG
 def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
     """
     Genera una carta y obtiene su SVG del mapa.
-    
+
     Returns:
         SVG content como string
     """

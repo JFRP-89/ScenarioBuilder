@@ -1,4 +1,5 @@
 from domain.cards.generator import generate_card
+
 from src.infrastructure.content.file_content_provider import FileContentProvider
 
 

@@ -27,17 +27,17 @@ from typing import Optional
 
 import pytest
 
-# Domain imports
-from domain.cards.card import GameMode
-from domain.errors import ValidationError
-from domain.maps.table_size import TableSize
-from domain.security.authz import Visibility
-
 # Application layer imports (will fail - RED phase)
 from application.use_cases.generate_scenario_card import (
     GenerateScenarioCard,
     GenerateScenarioCardRequest,
 )
+
+# Domain imports
+from domain.cards.card import GameMode
+from domain.errors import ValidationError
+from domain.maps.table_size import TableSize
+from domain.security.authz import Visibility
 
 
 # =============================================================================

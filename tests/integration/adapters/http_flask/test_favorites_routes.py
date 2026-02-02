@@ -23,15 +23,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from adapters.http_flask.app import create_app
-from application.use_cases.toggle_favorite import (
-    ToggleFavoriteRequest,
-    ToggleFavoriteResponse,
-)
 from application.use_cases.list_favorites import (
     ListFavoritesRequest,
     ListFavoritesResponse,
+)
+from application.use_cases.toggle_favorite import (
+    ToggleFavoriteRequest,
+    ToggleFavoriteResponse,
 )
 
 

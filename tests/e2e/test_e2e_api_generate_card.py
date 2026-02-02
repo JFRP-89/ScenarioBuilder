@@ -7,10 +7,10 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id):
     """
     E2E API: generar carta vía POST /cards y validar respuesta.
-    
+
     Flujo:
     1. POST /cards con X-Actor-Id: u1
     2. Validar status 201
@@ -44,11 +44,11 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
     # Validar JSON
     card_data = response.json()
-    
+
     # Required keys
     required_keys = {"card_id", "owner_id", "seed", "mode", "visibility", "table_mm", "shapes"}
     actual_keys = set(card_data.keys())
-    
+
     missing_keys = required_keys - actual_keys
     assert not missing_keys, (
         f"Faltan keys en respuesta: {missing_keys}. "
@@ -58,19 +58,19 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
     # Validar tipos y valores
     card_id = card_data["card_id"]
     assert isinstance(card_id, str) and card_id, "card_id debe ser string no vacío"
-    
+
     assert card_data["owner_id"] == "u1", (
         f"owner_id esperado 'u1', recibido '{card_data['owner_id']}'"
     )
-    
+
     assert card_data["seed"] == 123, (
         f"seed esperado 123, recibido {card_data['seed']}"
     )
-    
+
     assert card_data["mode"] == "matched", (
         f"mode esperado 'matched', recibido '{card_data['mode']}'"
     )
-    
+
     assert card_data["visibility"] == "private", (
         f"visibility esperado 'private', recibido '{card_data['visibility']}'"
     )
@@ -100,10 +100,10 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
 
 @pytest.mark.e2e
-def test_api_get_generated_card(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_generated_card(e2e_services, wait_for_health, generated_card_id):
     """
     E2E API: recuperar card generado previamente por card_id.
-    
+
     Depende de test_api_generate_card_post (debe ejecutarse después).
     """
     wait_for_health()
