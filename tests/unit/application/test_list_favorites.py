@@ -129,9 +129,7 @@ class TestListFavoritesHappyPath:
         # Arrange: 2 PUBLIC cards, u2 favorites both
         card1 = make_card("c1", "u1", Visibility.PUBLIC, table, map_spec)
         card2 = make_card("c2", "u1", Visibility.PUBLIC, table, map_spec)
-        card3 = make_card(
-            "c3", "u1", Visibility.PUBLIC, table, map_spec
-        )  # not favorited
+        card3 = make_card("c3", "u1", Visibility.PUBLIC, table, map_spec)  # not favorited
         card_repo = FakeCardRepository({"c1": card1, "c2": card2, "c3": card3})
 
         favorites_repo.set_favorite("u2", "c1", True)

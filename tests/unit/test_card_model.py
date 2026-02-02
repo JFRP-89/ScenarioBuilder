@@ -59,9 +59,7 @@ def other() -> str:
 # =============================================================================
 # 1) HAPPY PATH
 # =============================================================================
-def test_card_can_be_created_with_valid_data(
-    table: TableSize, map_spec: MapSpec, owner: str
-):
+def test_card_can_be_created_with_valid_data(table: TableSize, map_spec: MapSpec, owner: str):
     card = Card(
         card_id="card-001",
         owner_id=owner,
@@ -85,9 +83,7 @@ def test_card_can_be_created_with_valid_data(
 # 2) INVALID IDS
 # =============================================================================
 @pytest.mark.parametrize("invalid_id", ["", "   "])
-def test_card_rejects_invalid_ids(
-    invalid_id: str, table: TableSize, map_spec: MapSpec, owner: str
-):
+def test_card_rejects_invalid_ids(invalid_id: str, table: TableSize, map_spec: MapSpec, owner: str):
     # Test invalid card_id
     with pytest.raises(ValidationError):
         Card(
@@ -119,9 +115,7 @@ def test_card_rejects_invalid_ids(
 # 3) INVALID SEED
 # =============================================================================
 @pytest.mark.parametrize("invalid_seed", [-1, "123", 1.5, True])
-def test_card_rejects_invalid_seed(
-    invalid_seed, table: TableSize, map_spec: MapSpec, owner: str
-):
+def test_card_rejects_invalid_seed(invalid_seed, table: TableSize, map_spec: MapSpec, owner: str):
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
@@ -192,9 +186,7 @@ def test_card_requires_mapspec_matches_table(owner: str):
 # =============================================================================
 # 6) ACCESS - PRIVATE
 # =============================================================================
-def test_card_access_private(
-    table: TableSize, map_spec: MapSpec, owner: str, other: str
-):
+def test_card_access_private(table: TableSize, map_spec: MapSpec, owner: str, other: str):
     card = Card(
         card_id="card-001",
         owner_id=owner,
@@ -313,9 +305,7 @@ def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
         )
 
 
-def test_card_rejects_invalid_visibility_type(
-    table: TableSize, map_spec: MapSpec, owner: str
-):
+def test_card_rejects_invalid_visibility_type(table: TableSize, map_spec: MapSpec, owner: str):
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
@@ -329,9 +319,7 @@ def test_card_rejects_invalid_visibility_type(
         )
 
 
-def test_card_rejects_invalid_mode_type(
-    table: TableSize, map_spec: MapSpec, owner: str
-):
+def test_card_rejects_invalid_mode_type(table: TableSize, map_spec: MapSpec, owner: str):
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",

@@ -111,9 +111,7 @@ class TestGetMapSvgMissingActorId:
 class TestGetMapSvgHappyPath:
     """Test GET /cards/<card_id>/map.svg with valid request."""
 
-    def test_get_map_svg_happy_path_returns_200_and_svg_content_type(
-        self, client, fake_render
-    ):
+    def test_get_map_svg_happy_path_returns_200_and_svg_content_type(self, client, fake_render):
         """GET /cards/<card_id>/map.svg should return 200 with SVG content."""
         # Act
         response = client.get(
@@ -135,14 +133,10 @@ class TestGetMapSvgHappyPath:
         assert "<svg" in body, "Response body should contain SVG markup"
 
         # Assert: use case was called
-        assert (
-            fake_render.call_count == 1
-        ), "render_map_svg.execute() should be called once"
+        assert fake_render.call_count == 1, "render_map_svg.execute() should be called once"
         assert fake_render.last_request is not None, "Request should be captured"
         assert fake_render.last_request.actor_id == "u1", "actor_id should be passed"
-        assert (
-            fake_render.last_request.card_id == "card-001"
-        ), "card_id should be passed"
+        assert fake_render.last_request.card_id == "card-001", "card_id should be passed"
 
 
 # =============================================================================

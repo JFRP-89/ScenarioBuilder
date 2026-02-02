@@ -74,9 +74,7 @@ class CreateVariant:
         """
         # 1) Validate inputs
         actor_id = validate_actor_id(request.actor_id)
-        base_card_id = validate_card_id(
-            request.base_card_id
-        )  # Renamed from _validate_base_card_id
+        base_card_id = validate_card_id(request.base_card_id)  # Renamed from _validate_base_card_id
 
         # 2) Load base card
         base = self._repository.get_by_id(base_card_id)
@@ -88,11 +86,7 @@ class CreateVariant:
             raise Exception("Forbidden: only owner can create variant")
 
         # 4) Determine seed
-        seed = (
-            self._seed_generator.generate_seed()
-            if request.seed is None
-            else request.seed
-        )
+        seed = self._seed_generator.generate_seed() if request.seed is None else request.seed
 
         # 5) Generate new shapes
         shapes = self._scenario_generator.generate_shapes(

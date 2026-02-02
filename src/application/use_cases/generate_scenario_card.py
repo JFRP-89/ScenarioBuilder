@@ -83,9 +83,7 @@ class GenerateScenarioCard:
         self._seed_generator = seed_generator
         self._scenario_generator = scenario_generator
 
-    def execute(
-        self, request: GenerateScenarioCardRequest
-    ) -> GenerateScenarioCardResponse:
+    def execute(self, request: GenerateScenarioCardRequest) -> GenerateScenarioCardResponse:
         """Execute the use case.
 
         Args:
@@ -104,11 +102,7 @@ class GenerateScenarioCard:
         table = _resolve_table(request.table_preset)
 
         # 3) Resolve seed
-        seed = (
-            request.seed
-            if request.seed is not None
-            else self._seed_generator.generate_seed()
-        )
+        seed = request.seed if request.seed is not None else self._seed_generator.generate_seed()
 
         # 4) Resolve mode
         mode = self._resolve_mode(request.mode)
@@ -117,9 +111,7 @@ class GenerateScenarioCard:
         visibility = self._resolve_visibility(request.visibility)
 
         # 6) Generate shapes via port
-        shapes = self._scenario_generator.generate_shapes(
-            seed=seed, table=table, mode=mode
-        )
+        shapes = self._scenario_generator.generate_shapes(seed=seed, table=table, mode=mode)
 
         # 7) Validate shapes with domain MapSpec
         map_spec = MapSpec(table=table, shapes=shapes)
@@ -177,9 +169,7 @@ class GenerateScenarioCard:
             return mode
         return parse_game_mode(mode)
 
-    def _resolve_visibility(
-        self, visibility: Optional[Union[str, Visibility]]
-    ) -> Visibility:
+    def _resolve_visibility(self, visibility: Optional[Union[str, Visibility]]) -> Visibility:
         """Resolve visibility to Visibility enum, defaulting to PRIVATE."""
         if visibility is None:
             return Visibility.PRIVATE

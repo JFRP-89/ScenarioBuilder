@@ -29,9 +29,7 @@ class FakeGenerateResponse:
     seed: int = 123
     mode: str = "matched"
     visibility: str = "private"
-    table_mm: dict = field(
-        default_factory=lambda: {"width_mm": 1200, "height_mm": 1200}
-    )
+    table_mm: dict = field(default_factory=lambda: {"width_mm": 1200, "height_mm": 1200})
     shapes: list = field(default_factory=list)
 
 
@@ -228,9 +226,7 @@ class TestPostCardsMissingActorId:
 class TestPostCardsHappyPath:
     """Test POST /cards with valid request."""
 
-    def test_post_cards_calls_generate_and_returns_201(
-        self, client, fake_generate, fake_save
-    ):
+    def test_post_cards_calls_generate_and_returns_201(self, client, fake_generate, fake_save):
         """POST /cards should call generate use case and return 201."""
         # Act
         response = client.post(
@@ -261,9 +257,7 @@ class TestPostCardsHappyPath:
             fake_generate.call_count == 1
         ), "generate_scenario_card.execute() should be called once"
         assert fake_generate.last_request is not None, "Request should be captured"
-        assert (
-            fake_generate.last_request.actor_id == "u1"
-        ), "actor_id should be passed from header"
+        assert fake_generate.last_request.actor_id == "u1", "actor_id should be passed from header"
         assert fake_save.call_count == 1
         assert fake_save.last_request is not None
         assert fake_save.last_request.actor_id == "u1"
@@ -341,9 +335,7 @@ class TestGetCardNotFound:
             get_card=fake_get_not_found,
             list_cards=FakeListCards(),
         )
-        monkeypatch.setattr(
-            "adapters.http_flask.app.build_services", lambda: fake_services
-        )
+        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: fake_services)
         app = create_app()
         app.config["services"] = fake_services
         client = app.test_client()

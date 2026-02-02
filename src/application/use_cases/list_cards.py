@@ -43,8 +43,7 @@ def _validate_filter(value: object) -> str:
         raise ValidationError("filter cannot be empty or whitespace-only")
     if stripped not in _VALID_FILTERS:
         raise ValidationError(
-            f"unknown filter '{stripped}', "
-            f"must be one of: {', '.join(sorted(_VALID_FILTERS))}"
+            f"unknown filter '{stripped}', " f"must be one of: {', '.join(sorted(_VALID_FILTERS))}"
         )
     return stripped
 
@@ -106,9 +105,7 @@ class ListCards:
 
         return ListCardsResponse(cards=items)
 
-    def _apply_filter(
-        self, cards: List[Any], filter_value: str, actor_id: str
-    ) -> List[Any]:
+    def _apply_filter(self, cards: List[Any], filter_value: str, actor_id: str) -> List[Any]:
         """Apply filter to cards based on filter type."""
         if filter_value == "mine":
             return [c for c in cards if c.owner_id == actor_id]

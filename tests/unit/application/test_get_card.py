@@ -113,9 +113,7 @@ def repository_with_public_card(public_card: Card) -> FakeCardRepository:
 class TestGetCardHappyPath:
     """Card PRIVATE and actor==owner → returns snapshot."""
 
-    def test_owner_can_read_private_card(
-        self, repository_with_private_card: FakeCardRepository
-    ):
+    def test_owner_can_read_private_card(self, repository_with_private_card: FakeCardRepository):
         from application.use_cases.get_card import GetCard, GetCardRequest
 
         use_case = GetCard(repository=repository_with_private_card)
@@ -237,9 +235,7 @@ class TestGetCardInvalidCardId:
 class TestGetCardPublicAccess:
     """PUBLIC card allows read by non-owner."""
 
-    def test_non_owner_can_read_public_card(
-        self, repository_with_public_card: FakeCardRepository
-    ):
+    def test_non_owner_can_read_public_card(self, repository_with_public_card: FakeCardRepository):
         from application.use_cases.get_card import GetCard, GetCardRequest
 
         use_case = GetCard(repository=repository_with_public_card)

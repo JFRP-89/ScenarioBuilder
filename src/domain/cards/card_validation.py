@@ -43,8 +43,5 @@ def validate_types(
 
 
 def validate_table_coherence(table: TableSize, map_spec: MapSpec) -> None:
-    if (
-        map_spec.table.width_mm != table.width_mm
-        or map_spec.table.height_mm != table.height_mm
-    ):
+    if map_spec.table.width_mm != table.width_mm or map_spec.table.height_mm != table.height_mm:
         raise ValidationError("map_spec.table dimensions must match table")

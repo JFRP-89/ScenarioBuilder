@@ -165,9 +165,7 @@ class TestToggleFavoriteHappyPath:
         )
 
         assert response.status_code == 200
-        assert (
-            fake_toggle.call_count == 1
-        ), "toggle_favorite.execute() should be called once"
+        assert fake_toggle.call_count == 1, "toggle_favorite.execute() should be called once"
         assert fake_toggle.last_request is not None, "Request should be captured"
 
         # Validate request DTO fields
@@ -250,9 +248,7 @@ class TestListFavoritesHappyPath:
         )
 
         assert response.status_code == 200
-        assert (
-            fake_list.call_count == 1
-        ), "list_favorites.execute() should be called once"
+        assert fake_list.call_count == 1, "list_favorites.execute() should be called once"
         assert fake_list.last_request is not None, "Request should be captured"
 
         # Validate request DTO fields
@@ -270,9 +266,7 @@ class TestListFavoritesNotFound:
         """Create client with list that raises not found error."""
         app = create_app()
 
-        fake_list_error = FakeListFavorites(
-            error=Exception("not found: card does not exist")
-        )
+        fake_list_error = FakeListFavorites(error=Exception("not found: card does not exist"))
 
         app.config["services"] = FakeServices(
             toggle_favorite=fake_toggle,

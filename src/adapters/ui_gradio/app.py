@@ -1,4 +1,4 @@
-﻿"""Gradio UI adapter for ScenarioBuilder."""
+"""Gradio UI adapter for ScenarioBuilder."""
 
 from __future__ import annotations
 
@@ -112,9 +112,7 @@ def _call_api_generate_card(
         return None
 
 
-def _normalize_error(
-    response: requests.Response | None, exc: Exception | None = None
-) -> dict:
+def _normalize_error(response: requests.Response | None, exc: Exception | None = None) -> dict:
     """Normalize error response into consistent JSON format.
 
     Args:
@@ -173,9 +171,7 @@ def build_app() -> gr.Blocks:
             )
             seed = gr.Number(value=1, precision=0, label="Seed", elem_id="seed-input")
 
-        generate_btn = gr.Button(
-            "Generate Card", variant="primary", elem_id="generate-button"
-        )
+        generate_btn = gr.Button("Generate Card", variant="primary", elem_id="generate-button")
         output = gr.JSON(label="Generated Card", elem_id="result-json")
 
         def _handle_generate(actor: str, m: str, s: int) -> dict:
@@ -217,8 +213,6 @@ def build_app() -> gr.Blocks:
 # =============================================================================
 if __name__ == "__main__":
     build_app().launch(
-        server_name=os.environ.get(
-            "UI_HOST", "0.0.0.0"
-        ),  # nosec B104 - container/local dev
+        server_name=os.environ.get("UI_HOST", "0.0.0.0"),  # nosec B104 - container/local dev
         server_port=int(os.environ.get("UI_PORT", "7860")),
     )

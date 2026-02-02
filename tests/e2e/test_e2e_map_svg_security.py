@@ -41,27 +41,25 @@ def test_map_svg_content_type_and_security_headers(
     )
 
     # 3) Validar status y Content-Type
-    assert svg_response.status_code == 200, (
-        f"GET /cards/{card_id}/map.svg falló: {svg_response.status_code}"
-    )
+    assert (
+        svg_response.status_code == 200
+    ), f"GET /cards/{card_id}/map.svg falló: {svg_response.status_code}"
 
     content_type = svg_response.headers.get("Content-Type", "")
-    assert "image/svg+xml" in content_type, (
-        f"Content-Type incorrecto: {content_type}"
-    )
+    assert "image/svg+xml" in content_type, f"Content-Type incorrecto: {content_type}"
 
     # 4) Validar SVG content - debe contener <svg y al menos uno de los elementos gráficos
     svg_body = svg_response.text
     assert "<svg" in svg_body, "Response no contiene SVG válido (sin <svg)"
 
-    has_graphic_element = any([
-        "<rect" in svg_body,
-        "<circle" in svg_body,
-        "<polygon" in svg_body,
-    ])
-    assert has_graphic_element, (
-        "SVG no contiene elementos gráficos (<rect, <circle, o <polygon)"
+    has_graphic_element = any(
+        [
+            "<rect" in svg_body,
+            "<circle" in svg_body,
+            "<polygon" in svg_body,
+        ]
     )
+    assert has_graphic_element, "SVG no contiene elementos gráficos (<rect, <circle, o <polygon)"
 
     # 5) Validar headers anti-XSS
     _assert_security_headers(svg_response.headers)
@@ -74,51 +72,40 @@ def _assert_security_headers(headers: dict) -> None:
     """Validar headers de seguridad."""
     # X-Content-Type-Options: nosniff
     x_content_type_options = headers.get("X-Content-Type-Options", "")
-    assert "nosniff" in x_content_type_options, (
-        f"Header X-Content-Type-Options falta o incorrecto: {x_content_type_options}"
-    )
+    assert (
+        "nosniff" in x_content_type_options
+    ), f"Header X-Content-Type-Options falta o incorrecto: {x_content_type_options}"
 
     # Content-Security-Policy con default-src 'none'
     csp = headers.get("Content-Security-Policy", "")
     assert csp, "Header Content-Security-Policy falta"
-    assert "default-src" in csp, (
-        f"CSP no contiene default-src: {csp}"
-    )
-    assert "'none'" in csp or "none" in csp, (
-        f"CSP no restringe con 'none': {csp}"
-    )
+    assert "default-src" in csp, f"CSP no contiene default-src: {csp}"
+    assert "'none'" in csp or "none" in csp, f"CSP no restringe con 'none': {csp}"
 
     # Cache-Control con no-store
     cache_control = headers.get("Cache-Control", "")
     assert cache_control, "Header Cache-Control falta"
-    assert "no-store" in cache_control or "private" in cache_control, (
-        f"Cache-Control no restrictivo: {cache_control}"
-    )
+    assert (
+        "no-store" in cache_control or "private" in cache_control
+    ), f"Cache-Control no restrictivo: {cache_control}"
 
 
 def _assert_no_dangerous_svg_content(svg_body: str) -> None:
     """Validar que SVG no contiene scripts ni handlers."""
     # No <script> tags
-    assert "<script" not in svg_body.lower(), (
-        "SVG contiene <script> tag (XSS vulnerability)"
-    )
+    assert "<script" not in svg_body.lower(), "SVG contiene <script> tag (XSS vulnerability)"
 
     # No foreignObject (puede inyectar HTML)
-    assert "foreignobject" not in svg_body.lower(), (
-        "SVG contiene foreignObject (XSS vector)"
-    )
+    assert "foreignobject" not in svg_body.lower(), "SVG contiene foreignObject (XSS vector)"
 
     # No handlers inline
     dangerous_handlers = ["onload=", "onclick=", "onerror=", "onmouseover="]
     for handler in dangerous_handlers:
-        assert handler not in svg_body.lower(), (
-            f"SVG contiene handler peligroso: {handler}"
-        )
+        assert handler not in svg_body.lower(), f"SVG contiene handler peligroso: {handler}"
+
 
 @pytest.mark.e2e
-def test_map_svg_missing_actor_header(
-    e2e_services, wait_for_health, generated_card_id
-):
+def test_map_svg_missing_actor_header(e2e_services, wait_for_health, generated_card_id):
     """
     E2E API: Validar deny-by-default en GET /cards/<id>/map.svg.
 
@@ -141,11 +128,11 @@ def test_map_svg_missing_actor_header(
         timeout=30,
     )
 
-    assert svg_response.status_code == 400, (
-        f"GET sin X-Actor-Id debería ser 400, pero fue {svg_response.status_code}"
-    )
+    assert (
+        svg_response.status_code == 400
+    ), f"GET sin X-Actor-Id debería ser 400, pero fue {svg_response.status_code}"
 
     response_json = svg_response.json()
-    assert "error" in response_json or "message" in response_json, (
-        f"Respuesta 400 sin error/message: {response_json}"
-    )
+    assert (
+        "error" in response_json or "message" in response_json
+    ), f"Respuesta 400 sin error/message: {response_json}"

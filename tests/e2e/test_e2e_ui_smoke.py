@@ -147,9 +147,9 @@ def _assert_svg_rendered_if_present(page: Page) -> None:
     if svg_locator.count() == 0 and iframe_locator.count() == 0:
         return
 
-    assert svg_locator.count() > 0 or iframe_locator.count() > 0, (
-        "No se encontró SVG ni iframe de resultado"
-    )
+    assert (
+        svg_locator.count() > 0 or iframe_locator.count() > 0
+    ), "No se encontró SVG ni iframe de resultado"
 
 
 def _dump_ui_artifacts(page: Page, name: str) -> None:
@@ -161,4 +161,3 @@ def _dump_ui_artifacts(page: Page, name: str) -> None:
 
     screenshot_path = artifacts_dir / f"{name}.png"
     page.screenshot(path=str(screenshot_path), full_page=True)
-
