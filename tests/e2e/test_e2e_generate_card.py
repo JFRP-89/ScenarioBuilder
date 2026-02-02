@@ -16,7 +16,7 @@ VISIBILITY_LABELS = ["visibility"]
 
 
 @pytest.mark.e2e
-def test_generate_card_happy_path(docker_compose_up, wait_for_health, page):  # noqa: ARG001
+def test_generate_card_happy_path(e2e_services, wait_for_health, page):  # noqa: ARG001
     """Simula usuario generando card desde Gradio y valida que aparece card_id."""
     wait_for_health()
 
@@ -208,3 +208,4 @@ def _visible_texts(page) -> list[str]:
                 texts.append(text)
     # Limitar tamaño para no explotar el mensaje
     return texts[:50]
+

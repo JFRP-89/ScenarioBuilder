@@ -7,7 +7,7 @@ import requests
 
 
 @pytest.mark.e2e
-def test_seed_determinism_api(docker_compose_up, wait_for_health, page):  # noqa: ARG001
+def test_seed_determinism_api(e2e_services, wait_for_health, page):  # noqa: ARG001
     """
     Prueba que con la misma seed, el SVG del mapa es determinista.
     
@@ -96,3 +96,4 @@ def _save_artifact(content: str, filename: str) -> None:
     artifact_path = artifacts_dir / filename
     artifact_path.write_text(content, encoding="utf-8")
     print(f"  💾 Artifact guardado: {artifact_path}")
+

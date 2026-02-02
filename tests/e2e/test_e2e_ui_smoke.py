@@ -11,7 +11,7 @@ from playwright.sync_api import Error as PlaywrightError, Locator, Page
 
 
 @pytest.mark.e2e
-def test_ui_smoke_loads(docker_compose_up, wait_for_health, page):  # noqa: ARG001
+def test_ui_smoke_loads(e2e_services, wait_for_health, page):  # noqa: ARG001
     """
     Smoke test E2E UI (Gradio): carga e interacción mínima.
     """
@@ -160,3 +160,4 @@ def _dump_ui_artifacts(page: Page, name: str) -> None:
 
     screenshot_path = artifacts_dir / f"{name}.png"
     page.screenshot(path=str(screenshot_path), full_page=True)
+

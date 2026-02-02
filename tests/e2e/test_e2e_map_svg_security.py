@@ -8,7 +8,7 @@ from tests.e2e._support import get_api_base_url
 
 @pytest.mark.e2e
 def test_map_svg_content_type_and_security_headers(
-    docker_compose_up, wait_for_health, generated_card_id  # noqa: ARG001
+    e2e_services, wait_for_health, generated_card_id  # noqa: ARG001
 ):
     """
     E2E API: Verificar que /cards/<id>/map.svg devuelve SVG seguro.
@@ -117,7 +117,7 @@ def _assert_no_dangerous_svg_content(svg_body: str) -> None:
 
 @pytest.mark.e2e
 def test_map_svg_missing_actor_header(
-    docker_compose_up, wait_for_health, generated_card_id  # noqa: ARG001
+    e2e_services, wait_for_health, generated_card_id  # noqa: ARG001
 ):
     """
     E2E API: Validar deny-by-default en GET /cards/<id>/map.svg.

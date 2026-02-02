@@ -7,7 +7,7 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_api_get_card_happy_path(docker_compose_up, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
     """
     E2E API: recuperar card por ID con actor autorizado.
     
@@ -83,7 +83,7 @@ def test_api_get_card_happy_path(docker_compose_up, wait_for_health, generated_c
 
 
 @pytest.mark.e2e
-def test_api_get_card_missing_actor_header(docker_compose_up, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
     """
     E2E API: deny-by-default - GET sin X-Actor-Id debe fallar.
     
@@ -129,7 +129,7 @@ def test_api_get_card_missing_actor_header(docker_compose_up, wait_for_health, g
 
 
 @pytest.mark.e2e
-def test_api_get_card_not_found(docker_compose_up, wait_for_health):  # noqa: ARG001
+def test_api_get_card_not_found(e2e_services, wait_for_health):  # noqa: ARG001
     """
     E2E API: GET card inexistente debe retornar 404.
     
@@ -168,3 +168,4 @@ def test_api_get_card_not_found(docker_compose_up, wait_for_health):  # noqa: AR
         print(f"✅ 404 correcto: {error_data.get('error') or error_data.get('message')}")
     except ValueError:
         pytest.fail(f"Response no es JSON válido: {response.text}")
+
