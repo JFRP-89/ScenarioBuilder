@@ -12,11 +12,10 @@ Limits: min 60.0 cm (600 mm), max 300.0 cm (3000 mm) per axis
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Union
 
 from domain.errors import ValidationError
-
 
 # Conversion factors (as Decimal for precision)
 CM_PER_INCH = Decimal("2.5")
@@ -271,10 +270,10 @@ class TableSize:
 
     @classmethod
     def standard(cls) -> "TableSize":
-        """Create standard 4×4 ft table (120×120 cm = 48×48 in)."""
+        """Create standard 4x4 ft table (120x120 cm = 48x48 in)."""
         return cls(width_mm=1200, height_mm=1200)
 
     @classmethod
     def massive(cls) -> "TableSize":
-        """Create massive 6×4 ft table (180×120 cm = 72×48 in)."""
+        """Create massive 6x4 ft table (180x120 cm = 72x48 in)."""
         return cls(width_mm=1800, height_mm=1200)
