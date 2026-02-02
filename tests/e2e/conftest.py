@@ -17,7 +17,6 @@ import pytest
 import requests
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
-
 # ============================================================================
 # CONFIG
 # ============================================================================
@@ -145,7 +144,7 @@ def e2e_services(
 
 
 @pytest.fixture(scope="session")
-def docker_compose_up(e2e_services: None) -> Generator[None, None, None]:  # noqa: F811
+def docker_compose_up(e2e_services: None) -> Generator[None, None, None]:
     """Compatibilidad con tests legacy: asegura servicios E2E arriba."""
     yield
 
@@ -159,34 +158,34 @@ def _wait_for_health(
 ) -> None:
     """
     Polling de health checks hasta que API y UI respondan.
-    
+
     API: GET /health debe devolver 200
     UI: GET / debe devolver 200 o 302 (redirect aceptable)
     """
     api_url = f"{base_urls['api']}/health"
     ui_url = base_urls["ui"]
-    
+
     start = time.time()
     api_ok = False
     ui_ok = False
-    
+
     print(f"⏳ Esperando health checks (timeout={timeout_s}s)...")
-    
+
     while time.time() - start < timeout_s:
         # Check API
         if not api_ok:
             api_ok = _check_endpoint(api_url, (200,), f"  ✓ API health OK ({api_url})")
-        
+
         # Check UI
         if check_ui and not ui_ok:
             ui_ok = _check_endpoint(ui_url, (200, 302), f"  ✓ UI health OK ({ui_url})")
-        
+
         # Ambos OK?
         if api_ok and (ui_ok or not check_ui):
             return
-        
+
         time.sleep(interval_s)
-    
+
     # Timeout
     raise TimeoutError(
         f"Health checks timeout después de {timeout_s}s. "
@@ -198,7 +197,7 @@ def _wait_for_health(
 def wait_for_health(
     e2e_base_urls: dict[str, str],
     e2e_mode: str,
-) -> Generator[Callable[[], None], None, None]:  # noqa: F811
+) -> Generator[Callable[[], None], None, None]:
     """Fixture callable para esperar health checks de API/UI."""
     def _wait() -> None:
         _wait_for_health(e2e_base_urls, check_ui=e2e_mode == "docker")
@@ -230,7 +229,7 @@ def _dump_docker_debug() -> None:
         check=False,
     )
     print(result.stdout)
-    
+
     print("\n📋 docker compose logs (últimas 200 líneas):")
     result = subprocess.run(
         ["docker", "compose", "logs", "--tail=200", "api", "ui"],
@@ -307,24 +306,24 @@ def _is_ui_test(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(scope="session")
-def playwright_instance() -> Generator[Playwright, None, None]:  # noqa: F811
+def playwright_instance() -> Generator[Playwright, None, None]:
     """Playwright instance (sync API) con scope=session."""
     with sync_playwright() as p:
         yield p
 
 
 @pytest.fixture(scope="session")
-def browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:  # noqa: F811
+def browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
     """Browser Chromium con scope=session (reutilizado por todos los tests)."""
-    browser = playwright_instance.chromium.launch(headless=True)  # noqa: F811
+    browser = playwright_instance.chromium.launch(headless=True)
     yield browser
     browser.close()
 
 
 @pytest.fixture
-def page(browser: Browser) -> Generator[Page, None, None]:  # noqa: F811
+def page(browser: Browser) -> Generator[Page, None, None]:
     """Page (scope=function, nueva por cada test)."""
-    page = browser.new_page()  # noqa: F811
+    page = browser.new_page()
     yield page
     page.close()
 
@@ -338,7 +337,7 @@ def page(browser: Browser) -> Generator[Page, None, None]:  # noqa: F811
 def generated_card_id():
     """
     Fixture compartida para almacenar card_id generado entre tests API.
-    
+
     Permite reusar el card_id entre tests de la misma sesión.
     Usado por: test_api_generate_card.py, test_e2e_get_card_api.py
     """

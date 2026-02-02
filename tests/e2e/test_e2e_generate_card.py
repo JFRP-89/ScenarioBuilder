@@ -1,12 +1,13 @@
 """E2E happy path: generar card desde UI Gradio y validar card_id."""
 
+import contextlib
 import re
 
 import pytest
-from playwright.sync_api import Error as PlaywrightError, Locator
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Locator
 
 from tests.e2e.utils import dump_debug_artifacts
-
 
 ACTOR_LABELS = ["actor", "x-actor-id", "actor id"]
 MODE_LABELS = ["mode"]
@@ -16,7 +17,7 @@ VISIBILITY_LABELS = ["visibility"]
 
 
 @pytest.mark.e2e
-def test_generate_card_happy_path(e2e_services, wait_for_health, page):  # noqa: ARG001
+def test_generate_card_happy_path(e2e_services, wait_for_health, page):
     """Simula usuario generando card desde Gradio y valida que aparece card_id."""
     wait_for_health()
 
@@ -117,11 +118,9 @@ def _read_json_text(page) -> str:
 
 def _wait_for_ui_ready(page) -> None:
     page.wait_for_selector("input, textarea, select", state="visible", timeout=20000)
-    try:
-        page.locator("p.loading").first.wait_for(state="hidden", timeout=20000)
-    except PlaywrightError:
+    with contextlib.suppress(PlaywrightError):
         # Si el loader no desaparece, al menos seguimos con inputs visibles.
-        pass
+        page.locator("p.loading").first.wait_for(state="hidden", timeout=20000)
 
 
 def _extract_card_id(html: str) -> str:

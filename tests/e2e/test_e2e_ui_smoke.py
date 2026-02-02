@@ -7,11 +7,12 @@ import re
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Error as PlaywrightError, Locator, Page
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Locator, Page
 
 
 @pytest.mark.e2e
-def test_ui_smoke_loads(e2e_services, wait_for_health, page):  # noqa: ARG001
+def test_ui_smoke_loads(e2e_services, wait_for_health, page):
     """
     Smoke test E2E UI (Gradio): carga e interacción mínima.
     """

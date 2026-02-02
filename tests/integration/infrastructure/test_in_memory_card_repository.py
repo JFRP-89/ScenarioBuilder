@@ -7,9 +7,9 @@ This repository stores cards by card_id with last-write-wins semantics.
 from __future__ import annotations
 
 from domain.cards.card import Card, GameMode
-from domain.security.authz import Visibility
-from domain.maps.table_size import TableSize
 from domain.maps.map_spec import MapSpec
+from domain.maps.table_size import TableSize
+from domain.security.authz import Visibility
 
 
 # =============================================================================

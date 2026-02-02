@@ -8,11 +8,11 @@ from tests.e2e._support import get_api_base_url
 
 @pytest.mark.e2e
 def test_map_svg_content_type_and_security_headers(
-    e2e_services, wait_for_health, generated_card_id  # noqa: ARG001
+    e2e_services, wait_for_health, generated_card_id
 ):
     """
     E2E API: Verificar que /cards/<id>/map.svg devuelve SVG seguro.
-    
+
     Valida:
     1. Reutiliza card_id del fixture generado
     2. GET /cards/<id>/map.svg con X-Actor-Id → 200
@@ -20,7 +20,7 @@ def test_map_svg_content_type_and_security_headers(
     4. Body contiene <svg y al menos uno de: <rect, <circle, <polygon
     5. Headers defensivos: X-Content-Type-Options, Content-Security-Policy, Cache-Control
     6. NO contiene: <script, foreignObject, onload=, onclick=, onerror=, onmouseover=
-    
+
     Depende de: test_api_generate_card_post
     """
     wait_for_health()
@@ -53,7 +53,7 @@ def test_map_svg_content_type_and_security_headers(
     # 4) Validar SVG content - debe contener <svg y al menos uno de los elementos gráficos
     svg_body = svg_response.text
     assert "<svg" in svg_body, "Response no contiene SVG válido (sin <svg)"
-    
+
     has_graphic_element = any([
         "<rect" in svg_body,
         "<circle" in svg_body,
@@ -117,13 +117,13 @@ def _assert_no_dangerous_svg_content(svg_body: str) -> None:
 
 @pytest.mark.e2e
 def test_map_svg_missing_actor_header(
-    e2e_services, wait_for_health, generated_card_id  # noqa: ARG001
+    e2e_services, wait_for_health, generated_card_id
 ):
     """
     E2E API: Validar deny-by-default en GET /cards/<id>/map.svg.
-    
+
     Sin X-Actor-Id header → 400 Bad Request
-    
+
     Depende de: test_api_generate_card_post
     """
     wait_for_health()

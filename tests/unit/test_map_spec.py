@@ -8,10 +8,9 @@ Only the minimal contract is tested here; extra hardening is deferred.
 from __future__ import annotations
 
 import pytest
-
-from domain.maps.table_size import TableSize
-from domain.maps.map_spec import MapSpec
 from domain.errors import ValidationError
+from domain.maps.map_spec import MapSpec
+from domain.maps.table_size import TableSize
 
 
 # =============================================================================

@@ -5,7 +5,7 @@ import requests
 
 
 @pytest.mark.e2e
-def test_post_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
+def test_post_cards_missing_actor_id(e2e_services, wait_for_health):
     """POST /cards sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 
@@ -37,7 +37,7 @@ def test_post_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: AR
 
 
 @pytest.mark.e2e
-def test_get_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
+def test_get_cards_missing_actor_id(e2e_services, wait_for_health):
     """GET /cards sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 
@@ -62,7 +62,7 @@ def test_get_cards_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG
 
 
 @pytest.mark.e2e
-def test_get_favorites_missing_actor_id(e2e_services, wait_for_health):  # noqa: ARG001
+def test_get_favorites_missing_actor_id(e2e_services, wait_for_health):
     """GET /favorites sin X-Actor-Id debe devolver 400."""
     wait_for_health()
 

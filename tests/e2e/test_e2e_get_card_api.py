@@ -7,16 +7,16 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_id):
     """
     E2E API: recuperar card por ID con actor autorizado.
-    
+
     Flujo:
     1. GET /cards/{card_id} con X-Actor-Id: u1
     2. Validar status 200
     3. Validar JSON contiene: card_id, owner_id, seed, mode, visibility
     4. Validar valores coinciden con los del POST
-    
+
     Depende de: test_api_generate_card_post (debe ejecutarse primero)
     """
     wait_for_health()
@@ -44,10 +44,10 @@ def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_i
 
     # Validar JSON contrato
     card_data = response.json()
-    
+
     required_keys = {"card_id", "owner_id", "seed", "mode", "visibility"}
     actual_keys = set(card_data.keys())
-    
+
     missing_keys = required_keys - actual_keys
     assert not missing_keys, (
         f"Faltan keys en respuesta: {missing_keys}. "
@@ -58,19 +58,19 @@ def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_i
     assert card_data["card_id"] == card_id, (
         f"card_id no coincide. Esperado: {card_id}, Recibido: {card_data['card_id']}"
     )
-    
+
     assert card_data["owner_id"] == "u1", (
         f"owner_id esperado 'u1', recibido '{card_data['owner_id']}'"
     )
-    
+
     assert card_data["seed"] == 123, (
         f"seed esperado 123, recibido {card_data['seed']}"
     )
-    
+
     assert card_data["mode"] == "matched", (
         f"mode esperado 'matched', recibido '{card_data['mode']}'"
     )
-    
+
     assert card_data["visibility"] == "private", (
         f"visibility esperado 'private', recibido '{card_data['visibility']}'"
     )
@@ -83,15 +83,15 @@ def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_i
 
 
 @pytest.mark.e2e
-def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, generated_card_id):  # noqa: ARG001
+def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, generated_card_id):
     """
     E2E API: deny-by-default - GET sin X-Actor-Id debe fallar.
-    
+
     Flujo:
     1. GET /cards/{card_id} SIN header X-Actor-Id
     2. Validar status 400
     3. Validar JSON tiene error/message
-    
+
     Depende de: test_api_generate_card_post
     """
     wait_for_health()
@@ -129,10 +129,10 @@ def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, genera
 
 
 @pytest.mark.e2e
-def test_api_get_card_not_found(e2e_services, wait_for_health):  # noqa: ARG001
+def test_api_get_card_not_found(e2e_services, wait_for_health):
     """
     E2E API: GET card inexistente debe retornar 404.
-    
+
     Flujo:
     1. GET /cards/does-not-exist-uuid con X-Actor-Id: u1
     2. Validar status 404

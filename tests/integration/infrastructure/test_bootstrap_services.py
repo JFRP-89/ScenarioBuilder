@@ -39,16 +39,16 @@ class TestBootstrapServicesIntegrationFlow:
 
     def test_generate_save_get_flow(self) -> None:
         """Complete flow: generate card → save → get retrieves same card."""
-        from infrastructure.bootstrap import build_services
         from application.use_cases.generate_scenario_card import (
             GenerateScenarioCardRequest,
         )
-        from application.use_cases.save_card import SaveCardRequest
         from application.use_cases.get_card import GetCardRequest
+        from application.use_cases.save_card import SaveCardRequest
         from domain.cards.card import Card, GameMode
-        from domain.security.authz import Visibility
-        from domain.maps.table_size import TableSize
         from domain.maps.map_spec import MapSpec
+        from domain.maps.table_size import TableSize
+        from domain.security.authz import Visibility
+        from infrastructure.bootstrap import build_services
 
         # Arrange
         services = build_services()
@@ -100,16 +100,16 @@ class TestBootstrapServicesIntegrationFlow:
 
     def test_services_share_repository_state(self) -> None:
         """Use cases share the same repository instance (state is preserved)."""
-        from infrastructure.bootstrap import build_services
         from application.use_cases.generate_scenario_card import (
             GenerateScenarioCardRequest,
         )
-        from application.use_cases.save_card import SaveCardRequest
         from application.use_cases.get_card import GetCardRequest
+        from application.use_cases.save_card import SaveCardRequest
         from domain.cards.card import Card, GameMode
-        from domain.security.authz import Visibility
-        from domain.maps.table_size import TableSize
         from domain.maps.map_spec import MapSpec
+        from domain.maps.table_size import TableSize
+        from domain.security.authz import Visibility
+        from infrastructure.bootstrap import build_services
 
         # Arrange
         services = build_services()
@@ -160,16 +160,16 @@ class TestBootstrapServicesIntegrationFlow:
         self,
     ) -> None:
         """Multiple calls to build_services create independent service instances."""
-        from infrastructure.bootstrap import build_services
         from application.use_cases.generate_scenario_card import (
             GenerateScenarioCardRequest,
         )
-        from application.use_cases.save_card import SaveCardRequest
         from application.use_cases.get_card import GetCardRequest
+        from application.use_cases.save_card import SaveCardRequest
         from domain.cards.card import Card, GameMode
-        from domain.security.authz import Visibility
-        from domain.maps.table_size import TableSize
         from domain.maps.map_spec import MapSpec
+        from domain.maps.table_size import TableSize
+        from domain.security.authz import Visibility
+        from infrastructure.bootstrap import build_services
 
         # Arrange
         services1 = build_services()

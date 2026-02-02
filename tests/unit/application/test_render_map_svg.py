@@ -11,12 +11,11 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
-
-from domain.errors import ValidationError
 from domain.cards.card import Card, GameMode
-from domain.security.authz import Visibility
-from domain.maps.table_size import TableSize
+from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
+from domain.maps.table_size import TableSize
+from domain.security.authz import Visibility
 
 
 # =============================================================================

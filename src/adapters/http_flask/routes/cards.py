@@ -7,8 +7,8 @@ delegates to use cases via app.config["services"], and returns JSON responses.
 from __future__ import annotations
 
 import re
-from typing import cast
 from io import BytesIO
+from typing import cast
 
 from adapters.http_flask.constants import (
     DEFAULT_FILTER,
