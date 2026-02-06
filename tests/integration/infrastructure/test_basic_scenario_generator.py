@@ -99,7 +99,9 @@ class TestBasicScenarioGeneratorDeterminism:
         seeds = [1, 10, 100, 123, 124, 200, 500, 999, 1234, 9999]
 
         # Act - generate shapes for multiple seeds
-        shapes_list = [gen.generate_shapes(seed=s, table=table, mode=mode) for s in seeds]
+        shapes_list = [
+            gen.generate_shapes(seed=s, table=table, mode=mode) for s in seeds
+        ]
 
         # Assert - there should be variation across different seeds
         # Using repr() to get string representation for set deduplication
@@ -194,11 +196,11 @@ class TestScenarioGeneratorContract:
         mode: GameMode,
     ) -> None:
         """Contract: generate_shapes MUST return list[dict], not dict.
-        
+
         This test enforces the explicit contract for ScenarioGenerator.generate_shapes:
         - MUST return: list[dict] (shapes for MapSpec)
         - MUST NOT return: dict (with deployment_shapes/scenography_specs keys)
-        
+
         Rationale:
         - MapSpec expects list[dict]
         - Generator shouldn't know about API response structure
@@ -221,7 +223,7 @@ class TestScenarioGeneratorContract:
             f"expected list[dict]. The generator must return a flat list of shapes, "
             f"not a structured dict with deployment_shapes/scenography_specs keys."
         )
-        
+
         # Assert - list must contain dict elements
         assert len(result) > 0, "generate_shapes() returned empty list"
         for idx, shape in enumerate(result):
@@ -229,7 +231,7 @@ class TestScenarioGeneratorContract:
                 f"Contract violation: shape at index {idx} is {type(shape).__name__}, "
                 f"expected dict"
             )
-        
+
         # Assert - shapes must be compatible with MapSpec (domain contract)
         map_spec = MapSpec(table=table, shapes=result)
         assert map_spec is not None
