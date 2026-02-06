@@ -69,7 +69,9 @@ class FakeCardRepository:
 class SpySvgRenderer:
     """Spy SVG renderer that tracks calls and returns configurable SVG."""
 
-    def __init__(self, svg: str = "<svg></svg>", should_raise: Optional[Exception] = None) -> None:
+    def __init__(
+        self, svg: str = "<svg></svg>", should_raise: Optional[Exception] = None
+    ) -> None:
         self._svg = svg
         self._should_raise = should_raise
         self.calls: list[tuple[dict, list[dict]]] = []

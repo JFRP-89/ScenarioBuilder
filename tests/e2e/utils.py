@@ -50,7 +50,8 @@ def wait_http_ok(
 
     # Timeout
     raise TimeoutError(
-        f"wait_http_ok timeout después de {timeout_s}s para {url}. " f"Último error: {last_error}"
+        f"wait_http_ok timeout después de {timeout_s}s para {url}. "
+        f"Último error: {last_error}"
     )
 
 

@@ -66,15 +66,21 @@ class TestBootstrapServicesIntegrationFlow:
         gen_response = services.generate_scenario_card.execute(gen_request)
 
         # Build Card from response
-        from application.use_cases._shape_normalization import normalize_shapes_for_map_spec
-        
+        from application.use_cases._shape_normalization import (
+            normalize_shapes_for_map_spec,
+        )
+
         table = TableSize(
             width_mm=gen_response.table_mm["width_mm"],
             height_mm=gen_response.table_mm["height_mm"],
         )
         # Normalize shapes for MapSpec
-        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(gen_response.shapes)
-        map_spec = MapSpec(table=table, shapes=all_shapes, objective_shapes=response_objective_shapes)
+        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(
+            gen_response.shapes
+        )
+        map_spec = MapSpec(
+            table=table, shapes=all_shapes, objective_shapes=response_objective_shapes
+        )
         card = Card(
             card_id=gen_response.card_id,
             owner_id=gen_response.owner_id,
@@ -131,15 +137,21 @@ class TestBootstrapServicesIntegrationFlow:
         gen_response = services.generate_scenario_card.execute(gen_request)
 
         # Build Card from response
-        from application.use_cases._shape_normalization import normalize_shapes_for_map_spec
-        
+        from application.use_cases._shape_normalization import (
+            normalize_shapes_for_map_spec,
+        )
+
         table = TableSize(
             width_mm=gen_response.table_mm["width_mm"],
             height_mm=gen_response.table_mm["height_mm"],
         )
         # Normalize shapes for MapSpec
-        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(gen_response.shapes)
-        map_spec = MapSpec(table=table, shapes=all_shapes, objective_shapes=response_objective_shapes)
+        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(
+            gen_response.shapes
+        )
+        map_spec = MapSpec(
+            table=table, shapes=all_shapes, objective_shapes=response_objective_shapes
+        )
         card = Card(
             card_id=gen_response.card_id,
             owner_id=gen_response.owner_id,
@@ -195,15 +207,21 @@ class TestBootstrapServicesIntegrationFlow:
         gen_response = services1.generate_scenario_card.execute(gen_request)
 
         # Build Card from response
-        from application.use_cases._shape_normalization import normalize_shapes_for_map_spec
-        
+        from application.use_cases._shape_normalization import (
+            normalize_shapes_for_map_spec,
+        )
+
         table = TableSize(
             width_mm=gen_response.table_mm["width_mm"],
             height_mm=gen_response.table_mm["height_mm"],
         )
         # Normalize shapes for MapSpec
-        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(gen_response.shapes)
-        map_spec = MapSpec(table=table, shapes=all_shapes, objective_shapes=response_objective_shapes)
+        all_shapes, response_objective_shapes = normalize_shapes_for_map_spec(
+            gen_response.shapes
+        )
+        map_spec = MapSpec(
+            table=table, shapes=all_shapes, objective_shapes=response_objective_shapes
+        )
         card = Card(
             card_id=gen_response.card_id,
             owner_id=gen_response.owner_id,

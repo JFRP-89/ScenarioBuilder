@@ -39,7 +39,9 @@ class FakeServices:
 class TestCreateAppCallsBuildServicesOnce:
     """Test that create_app() calls build_services() exactly once."""
 
-    def test_create_app_calls_build_services_once_and_stores_in_config(self, monkeypatch):
+    def test_create_app_calls_build_services_once_and_stores_in_config(
+        self, monkeypatch
+    ):
         """create_app() should call build_services() once and store in config."""
         # Arrange: create sentinel and track calls
         sentinel_services = FakeServices()
@@ -50,13 +52,17 @@ class TestCreateAppCallsBuildServicesOnce:
             return sentinel_services
 
         # Patch build_services at the module where it will be imported
-        monkeypatch.setattr("adapters.http_flask.app.build_services", fake_build_services)
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", fake_build_services
+        )
 
         # Act
         app = create_app()
 
         # Assert: called exactly once
-        assert call_count["count"] == 1, "build_services() should be called exactly once"
+        assert (
+            call_count["count"] == 1
+        ), "build_services() should be called exactly once"
 
         # Assert: services stored in config
         assert "services" in app.config, "services should be stored in app.config"
@@ -74,7 +80,9 @@ class TestCreateAppRegistersBlueprintsCorrectly:
     def test_create_app_registers_blueprints(self, monkeypatch):
         """create_app() should register health, cards, maps, presets blueprints."""
         # Arrange: patch build_services to avoid real infra
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
 
         # Act
         app = create_app()
@@ -85,12 +93,16 @@ class TestCreateAppRegistersBlueprintsCorrectly:
         assert "health" in registered_bp_names, "health blueprint should be registered"
         assert "cards" in registered_bp_names, "cards blueprint should be registered"
         assert "maps" in registered_bp_names, "maps blueprint should be registered"
-        assert "presets" in registered_bp_names, "presets blueprint should be registered"
+        assert (
+            "presets" in registered_bp_names
+        ), "presets blueprint should be registered"
 
     def test_health_endpoint_exists(self, monkeypatch):
         """Health endpoint should be accessible."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
         client = app.test_client()
 
@@ -110,7 +122,9 @@ class TestCreateAppExposesGetActorIdHelper:
     def test_get_actor_id_is_in_config(self, monkeypatch):
         """app.config should contain a get_actor_id callable."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
 
         # Act
         app = create_app()
@@ -129,7 +143,9 @@ class TestValidationErrorMappedTo400:
     def test_validation_error_is_mapped_to_400_json(self, monkeypatch):
         """ValidationError should be caught and returned as 400 JSON response."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         # Register a temporary endpoint that raises ValidationError
@@ -159,7 +175,9 @@ class TestNotFoundExceptionMappedTo404:
     def test_not_found_exception_is_mapped_to_404(self, monkeypatch):
         """Exception with 'not found' message should map to 404."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__boom_not_found")
@@ -186,7 +204,9 @@ class TestForbiddenExceptionMappedTo403:
     def test_forbidden_exception_is_mapped_to_403(self, monkeypatch):
         """Exception with 'Forbidden' message should map to 403."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__boom_forbidden")
@@ -206,7 +226,9 @@ class TestForbiddenExceptionMappedTo403:
     def test_forbidden_access_denied_is_mapped_to_403(self, monkeypatch):
         """Exception with 'forbidden' (lowercase) should also map to 403."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__boom_access_denied")
@@ -231,7 +253,9 @@ class TestInternalServerErrorReturnsGenericMessage:
     def test_generic_exception_is_mapped_to_500_with_generic_message(self, monkeypatch):
         """Unexpected exception should map to 500 with generic 'internal error' message."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__boom_internal")
@@ -262,12 +286,16 @@ class TestInternalServerErrorReturnsGenericMessage:
         assert (
             "password" not in json_data["message"]
         ), "500 message should never leak credentials or secrets"
-        assert "secret" not in json_data["message"].lower(), "500 message must not contain 'secret'"
+        assert (
+            "secret" not in json_data["message"].lower()
+        ), "500 message must not contain 'secret'"
 
     def test_500_error_code_is_internalerror(self, monkeypatch):
         """500 error response should use 'InternalError' code."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__boom_runtime")
@@ -281,7 +309,9 @@ class TestInternalServerErrorReturnsGenericMessage:
 
         # Assert
         json_data = response.get_json()
-        assert json_data["error"] == "InternalError", "500 errors should use 'InternalError' code"
+        assert (
+            json_data["error"] == "InternalError"
+        ), "500 errors should use 'InternalError' code"
 
 
 # =============================================================================
@@ -293,7 +323,9 @@ class TestErrorResponseJsonStructure:
     def test_validation_error_json_structure(self, monkeypatch):
         """ValidationError response should have error, message keys."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__test_structure")
@@ -316,7 +348,9 @@ class TestErrorResponseJsonStructure:
     def test_not_found_error_has_notfound_code(self, monkeypatch):
         """Not Found error response should use NotFound error code."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__test_notfound")
@@ -338,7 +372,9 @@ class TestErrorResponseJsonStructure:
     def test_forbidden_error_has_forbidden_code(self, monkeypatch):
         """Forbidden error response should use Forbidden error code."""
         # Arrange
-        monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: FakeServices())
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: FakeServices()
+        )
         app = create_app()
 
         @app.route("/__test_forbidden")

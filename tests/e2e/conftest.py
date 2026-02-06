@@ -189,7 +189,8 @@ def _wait_for_health(
 
     # Timeout
     raise TimeoutError(
-        f"Health checks timeout después de {timeout_s}s. " f"API OK={api_ok}, UI OK={ui_ok}"
+        f"Health checks timeout después de {timeout_s}s. "
+        f"API OK={api_ok}, UI OK={ui_ok}"
     )
 
 
@@ -206,7 +207,9 @@ def wait_for_health(
     yield _wait
 
 
-def _check_endpoint(url: str, acceptable_codes: tuple[int, ...], success_msg: str) -> bool:
+def _check_endpoint(
+    url: str, acceptable_codes: tuple[int, ...], success_msg: str
+) -> bool:
     """Check si un endpoint responde con código aceptable."""
     try:
         resp = requests.get(url, timeout=5)

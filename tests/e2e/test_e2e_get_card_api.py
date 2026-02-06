@@ -82,7 +82,9 @@ def test_api_get_card_happy_path(e2e_services, wait_for_health, generated_card_i
 
 
 @pytest.mark.e2e
-def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, generated_card_id):
+def test_api_get_card_missing_actor_header(
+    e2e_services, wait_for_health, generated_card_id
+):
     """
     E2E API: deny-by-default - GET sin X-Actor-Id debe fallar.
 
@@ -123,7 +125,9 @@ def test_api_get_card_missing_actor_header(e2e_services, wait_for_health, genera
         assert has_error_info, (
             f"Response debe contener 'error' o 'message'. " f"Recibido: {error_data}"
         )
-        print(f"✅ Deny-by-default OK: {error_data.get('error') or error_data.get('message')}")
+        print(
+            f"✅ Deny-by-default OK: {error_data.get('error') or error_data.get('message')}"
+        )
     except ValueError:
         pytest.fail(f"Response no es JSON válido: {response.text}")
 
@@ -164,6 +168,8 @@ def test_api_get_card_not_found(e2e_services, wait_for_health):
         assert has_error_info, (
             f"Response debe contener 'error' o 'message'. " f"Recibido: {error_data}"
         )
-        print(f"✅ 404 correcto: {error_data.get('error') or error_data.get('message')}")
+        print(
+            f"✅ 404 correcto: {error_data.get('error') or error_data.get('message')}"
+        )
     except ValueError:
         pytest.fail(f"Response no es JSON válido: {response.text}")
