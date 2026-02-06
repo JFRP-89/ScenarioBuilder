@@ -74,7 +74,9 @@ class CreateVariant:
         """
         # 1) Validate inputs
         actor_id = validate_actor_id(request.actor_id)
-        base_card_id = validate_card_id(request.base_card_id)  # Renamed from _validate_base_card_id
+        base_card_id = validate_card_id(
+            request.base_card_id
+        )  # Renamed from _validate_base_card_id
 
         # 2) Load base card
         base = self._repository.get_by_id(base_card_id)
@@ -86,7 +88,11 @@ class CreateVariant:
             raise Exception("Forbidden: only owner can create variant")
 
         # 4) Determine seed
-        seed = self._seed_generator.generate_seed() if request.seed is None else request.seed
+        seed = (
+            self._seed_generator.generate_seed()
+            if request.seed is None
+            else request.seed
+        )
 
         # 5) Generate new shapes
         shapes = self._scenario_generator.generate_shapes(
@@ -94,6 +100,17 @@ class CreateVariant:
             table=base.table,
             mode=base.mode,
         )
+
+        # 5a) Enforce contract: shapes MUST be list[dict], not dict
+        if not isinstance(shapes, list):
+            raise ValidationError(
+                f"ScenarioGenerator contract violation: generate_shapes() returned "
+                f"{type(shapes).__name__}, expected list[dict]"
+            )
+        if shapes and not all(isinstance(s, dict) for s in shapes):
+            raise ValidationError(
+                "ScenarioGenerator contract violation: shapes list contains non-dict elements"
+            )
 
         # 6) Validate shapes with domain (MapSpec)
         try:

@@ -918,24 +918,15 @@ class TestDenyByDefaultDefensiveCode:
         unknown_visibility._name_ = "UNKNOWN"
         unknown_visibility._value_ = "unknown"
 
-        # Register it in the enum's internal structures
-        Visibility._value2member_map_["unknown"] = unknown_visibility
-        Visibility._member_map_["UNKNOWN"] = unknown_visibility
+        # Non-owner with unknown visibility should be denied by default
+        result = can_read(
+            owner_id="owner_a",
+            visibility=unknown_visibility,
+            current_user_id="user_b",
+        )
 
-        try:
-            # Non-owner with unknown visibility should be denied by default
-            result = can_read(
-                owner_id="owner_a",
-                visibility=unknown_visibility,
-                current_user_id="user_b",
-            )
-
-            # Deny by default should return False
-            assert result is False
-        finally:
-            # Clean up the temporary enum member
-            Visibility._value2member_map_.pop("unknown", None)
-            Visibility._member_map_.pop("UNKNOWN", None)
+        # Deny by default should return False
+        assert result is False
 
     def test_unknown_visibility_owner_bypasses_but_others_denied(self):
         """Test that owner can read but non-owners are denied by default.
@@ -946,26 +937,18 @@ class TestDenyByDefaultDefensiveCode:
         restricted_visibility._name_ = "RESTRICTED"
         restricted_visibility._value_ = "restricted"
 
-        Visibility._value2member_map_["restricted"] = restricted_visibility
-        Visibility._member_map_["RESTRICTED"] = restricted_visibility
+        # Owner can still read (owner check comes first)
+        result_owner = can_read(
+            owner_id="owner_a",
+            visibility=restricted_visibility,
+            current_user_id="owner_a",
+        )
+        assert result_owner is True  # Owner bypass works
 
-        try:
-            # Owner can still read (owner check comes first)
-            result_owner = can_read(
-                owner_id="owner_a",
-                visibility=restricted_visibility,
-                current_user_id="owner_a",
-            )
-            assert result_owner is True  # Owner bypass works
-
-            # Non-owner gets denied by default
-            result_other = can_read(
-                owner_id="owner_a",
-                visibility=restricted_visibility,
-                current_user_id="user_b",
-            )
-            assert result_other is False  # Deny by default for unknown visibility
-        finally:
-            # Clean up the temporary enum member
-            Visibility._value2member_map_.pop("restricted", None)
-            Visibility._member_map_.pop("RESTRICTED", None)
+        # Non-owner gets denied by default
+        result_other = can_read(
+            owner_id="owner_a",
+            visibility=restricted_visibility,
+            current_user_id="user_b",
+        )
+        assert result_other is False  # Deny by default for unknown visibility

@@ -75,7 +75,9 @@ class SpyScenarioGenerator:
     def __post_init__(self) -> None:
         self.calls = []
 
-    def generate_shapes(self, seed: int, table: TableSize, mode: GameMode) -> list[dict]:
+    def generate_shapes(
+        self, seed: int, table: TableSize, mode: GameMode
+    ) -> list[dict]:
         self.calls.append((seed, table, mode))
         return self.shapes
 
@@ -146,8 +148,17 @@ class TestHappyPath:
         assert response.mode == "matched"
         assert response.visibility == "private"  # default when None
         assert response.table_mm == {"width_mm": 1200, "height_mm": 1200}
-        assert len(response.shapes) == 1
-        assert response.shapes[0]["type"] == "circle"
+        assert response.name == "Battle Scenario"
+        assert response.initial_priority == "Check the rulebook rules for it"
+        # shapes is a dict with deployment_shapes, objective_shapes, and scenography_specs
+        assert isinstance(response.shapes, dict)
+        assert "deployment_shapes" in response.shapes
+        assert "objective_shapes" in response.shapes
+        assert "scenography_specs" in response.shapes
+        # scenography_specs is empty when not provided by user
+        scenography_specs = response.shapes["scenography_specs"]
+        assert len(scenography_specs) == 0
+        assert scenography_specs == []
 
         # ScenarioGenerator was called correctly
         assert len(spy_scenario_generator.calls) == 1
@@ -195,7 +206,9 @@ class TestSeedGeneration:
 class TestInvalidPreset:
     """Invalid table preset raises ValidationError."""
 
-    def test_invalid_preset_raises_validation_error(self, use_case: GenerateScenarioCard):
+    def test_invalid_preset_raises_validation_error(
+        self, use_case: GenerateScenarioCard
+    ):
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.MATCHED,
@@ -306,7 +319,9 @@ class TestVisibilityAsString:
             seed=42,
             table_preset="standard",
             visibility=visibility_str,
-            shared_with=(["user-456"] if expected_visibility == Visibility.SHARED else None),
+            shared_with=(
+                ["user-456"] if expected_visibility == Visibility.SHARED else None
+            ),
         )
 
         response = use_case.execute(request)
@@ -370,6 +385,339 @@ class TestInvalidShapesFromGenerator:
         )
 
         with pytest.raises(ValidationError, match="(?i)shape|bounds|map"):
+            use_case.execute(request)
+
+
+# =============================================================================
+# 9) CONTRACT ENFORCEMENT
+# =============================================================================
+class TestScenarioGeneratorContractEnforcement:
+    """Contract enforcement: Use case rejects dict return from generator."""
+
+    def test_generator_returning_dict_raises_contract_violation(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+    ):
+        """Generator returning dict instead of list[dict] raises ValidationError.
+
+        This enforces the ScenarioGenerator contract at use case level.
+        Even if a generator implementation incorrectly returns a dict
+        (e.g., {"deployment_shapes": [...]}), the use case must reject it.
+        """
+
+        # Arrange - generator that violates contract by returning dict
+        @dataclass
+        class BadGenerator:
+            """Generator that violates contract by returning dict."""
+
+            def generate_shapes(
+                self, seed: int, table: TableSize, mode: GameMode
+            ) -> dict:
+                # Contract violation: returning dict instead of list[dict]
+                return {
+                    "deployment_shapes": [
+                        {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
+                    ],
+                    "scenography_specs": [],
+                }
+
+        bad_generator = BadGenerator()
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=bad_generator,
+        )
+
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+        )
+
+        # Act & Assert - contract violation detected
+        with pytest.raises(ValidationError, match="(?i)contract.*violation.*list"):
+            use_case.execute(request)
+
+
+# =============================================================================
+# OBJECTIVE_SHAPES VALIDATION
+# =============================================================================
+class TestObjectiveShapesValidation:
+    """Test that objective_shapes from request are validated."""
+
+    def test_objective_shapes_out_of_bounds_raises_validation_error(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """Use case rejects objective_shapes with coordinates outside table bounds."""
+        # Generator returns valid shapes (list[dict])
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request includes objective_shapes out of bounds
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            objective_shapes=[
+                {"cx": 2000, "cy": 600},  # cx=2000 > standard table width (1200mm)
+            ],
+        )
+
+        # Act & Assert - validation catches out-of-bounds objective_shapes
+        with pytest.raises(ValidationError, match="(?i)out of bounds"):
+            use_case.execute(request)
+
+    def test_too_many_objective_shapes_raises_validation_error(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """Use case rejects more than 10 objective_shapes."""
+        # Generator returns valid shapes (list[dict])
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request includes 11 objective_shapes (exceeds max of 10)
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            objective_shapes=[{"cx": 100 + i * 50, "cy": 100} for i in range(11)],
+        )
+
+        # Act & Assert - validation catches too many objective_shapes
+        with pytest.raises(ValidationError, match="(?i)too many objective points"):
+            use_case.execute(request)
+
+
+# =============================================================================
+# POST-MERGE SHAPES VALIDATION
+# =============================================================================
+class TestPostMergeShapesValidation:
+    """Test that final merged shapes (user + generated) are validated."""
+
+    def test_valid_user_map_specs_plus_generated_shapes_succeeds(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """User-provided map_specs + generated shapes both valid => OK."""
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request with valid map_specs (scenography)
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            map_specs=[
+                {
+                    "type": "circle",
+                    "cx": 300,
+                    "cy": 300,
+                    "r": 50,
+                }
+            ],  # Valid scenography
+        )
+
+        # Act - should succeed (both user + generated shapes are valid)
+        response = use_case.execute(request)
+
+        # Assert
+        assert response.card_id == "card-001"
+        assert "scenography_specs" in response.shapes
+        assert len(response.shapes["scenography_specs"]) == 1
+
+    def test_user_map_specs_out_of_bounds_fails_post_merge(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """User map_specs out of bounds => FAIL in post-merge validation."""
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request with invalid map_specs (out of bounds)
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            map_specs=[
+                {
+                    "type": "circle",
+                    "cx": 2000,  # cx=2000 > standard table width (1200mm)
+                    "cy": 300,
+                    "r": 50,
+                }
+            ],
+        )
+
+        # Act & Assert - post-merge validation catches out-of-bounds
+        with pytest.raises(
+            ValidationError,
+            match="(?i)final shapes validation failed.*out of bounds",
+        ):
+            use_case.execute(request)
+
+    def test_too_many_total_shapes_fails_post_merge(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+    ):
+        """User deployment_shapes + map_specs exceed max (100) => FAIL."""
+        # Generator returns valid shapes (not relevant as user provides deployment_shapes)
+        valid_shape = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        generator = SpyScenarioGenerator(shapes=valid_shape)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # User provides 60 deployment_shapes + 41 scenography = 101 total (exceeds max of 100)
+        user_deployment = [
+            {"type": "rect", "x": 10 + i * 15, "y": 10, "width": 10, "height": 10}
+            for i in range(60)
+        ]
+        user_scenography = [
+            {"type": "circle", "cx": 100 + i * 20, "cy": 600, "r": 10}
+            for i in range(41)
+        ]
+
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            deployment_shapes=user_deployment,
+            map_specs=user_scenography,
+        )
+
+        # Act & Assert - post-merge validation catches too many shapes
+        with pytest.raises(
+            ValidationError, match="(?i)final shapes validation failed.*too many"
+        ):
+            use_case.execute(request)
+
+    def test_valid_deployment_shapes_plus_generated_succeeds(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """User-provided deployment_shapes + generated shapes both valid => OK."""
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request with valid deployment_shapes
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            deployment_shapes=[
+                {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
+            ],
+        )
+
+        # Act - should succeed
+        response = use_case.execute(request)
+
+        # Assert
+        assert response.card_id == "card-001"
+        assert "deployment_shapes" in response.shapes
+
+    def test_user_deployment_shapes_out_of_bounds_fails_post_merge(
+        self,
+        fake_id_generator: FakeIdGenerator,
+        fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
+    ):
+        """User deployment_shapes out of bounds => FAIL."""
+        generator = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(
+            id_generator=fake_id_generator,
+            seed_generator=fake_seed_generator,
+            scenario_generator=generator,
+        )
+
+        # Request with invalid deployment_shapes (rect extends beyond table)
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=42,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            deployment_shapes=[
+                {
+                    "type": "rect",
+                    "x": 1100,
+                    "y": 0,
+                    "width": 200,  # x + width = 1300 > 1200mm
+                    "height": 100,
+                }
+            ],
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValidationError,
+            match="(?i)final shapes validation failed.*out of bounds",
+        ):
             use_case.execute(request)
 
 

@@ -28,7 +28,11 @@ class InMemoryFavoritesRepository:
             List of card_ids sorted lexicographically.
         """
         return sorted(
-            [card_id for stored_actor_id, card_id in self._favorites if stored_actor_id == actor_id]
+            [
+                card_id
+                for stored_actor_id, card_id in self._favorites
+                if stored_actor_id == actor_id
+            ]
         )
 
     def is_favorite(self, actor_id: str, card_id: str) -> bool:

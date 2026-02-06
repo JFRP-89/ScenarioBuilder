@@ -35,7 +35,9 @@ def _to_decimal(value: Union[str, int, Decimal], field_name: str) -> Decimal:
         raise ValidationError(f"{field_name} cannot be None")
 
     if isinstance(value, float):
-        raise ValidationError(f"{field_name} cannot be float (use str or Decimal for precision)")
+        raise ValidationError(
+            f"{field_name} cannot be float (use str or Decimal for precision)"
+        )
 
     if isinstance(value, Decimal):
         return value
@@ -49,7 +51,9 @@ def _to_decimal(value: Union[str, int, Decimal], field_name: str) -> Decimal:
 
         # Reject comma as decimal separator
         if "," in value:
-            raise ValidationError(f"{field_name} must use dot as decimal separator, not comma")
+            raise ValidationError(
+                f"{field_name} must use dot as decimal separator, not comma"
+            )
 
         try:
             return Decimal(value)
@@ -83,7 +87,9 @@ def _ensure_max_two_decimals(
         # For Decimal, check exponent
         _, _, exponent = decimal_value.as_tuple()
         if isinstance(exponent, int) and exponent < -2:
-            raise ValidationError(f"{field_name} cannot have more than 2 decimal places")
+            raise ValidationError(
+                f"{field_name} cannot have more than 2 decimal places"
+            )
     # int always has 0 decimals, so it's fine
 
 

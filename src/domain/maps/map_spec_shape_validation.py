@@ -7,7 +7,10 @@ from typing import Any, cast
 from domain.errors import ValidationError
 
 _MAX_POLYGON_POINTS = 200
+_MAX_OBJECTIVE_POINTS = 10
+_OBJECTIVE_POINT_RADIUS = 25
 _ALLOWED_TYPES = {"circle", "rect", "polygon"}
+_OBJECTIVE_POINT_TYPE = "objective_point"
 
 
 def _require_int(field_name: str, value: Any) -> int:
@@ -43,7 +46,12 @@ def _validate_circle(shape: dict, width_mm: int, height_mm: int) -> None:
 
 
 def _validate_rect(shape: dict, width_mm: int, height_mm: int) -> None:
-    if "x" not in shape or "y" not in shape or "width" not in shape or "height" not in shape:
+    if (
+        "x" not in shape
+        or "y" not in shape
+        or "width" not in shape
+        or "height" not in shape
+    ):
         raise ValidationError("rect requires x, y, width, height")
 
     x = _require_int("x", shape["x"])
@@ -90,3 +98,51 @@ def _validate_polygon(shape: dict, width_mm: int, height_mm: int) -> None:
 
     for point in points:
         _validate_polygon_point(point, width_mm, height_mm)
+
+
+def _validate_objective_point(shape: dict, width_mm: int, height_mm: int) -> None:
+    """Validate an objective_point shape.
+
+    Objective points are special circular markers with fixed radius of 25mm.
+    They require only cx and cy coordinates.
+    """
+    if "cx" not in shape or "cy" not in shape:
+        raise ValidationError("objective_point requires cx, cy")
+
+    cx = _require_int("cx", shape["cx"])
+    cy = _require_int("cy", shape["cy"])
+
+    # Check bounds: objective_point has fixed radius of 25mm, so they can
+    # extend slightly beyond bounds but center must be within table
+    if cx < 0 or cy < 0 or cx > width_mm or cy > height_mm:
+        raise ValidationError("objective_point center out of bounds")
+
+
+def validate_objective_shapes(
+    shapes: list[dict] | None, width_mm: int, height_mm: int
+) -> None:
+    """Validate objective_shapes array.
+
+    Args:
+        shapes: List of objective_point dictionaries or None.
+        width_mm: Table width in mm.
+        height_mm: Table height in mm.
+
+    Raises:
+        ValidationError: If validation fails.
+    """
+    if shapes is None:
+        return  # objective_shapes are optional
+
+    if not isinstance(shapes, list):
+        raise ValidationError("objective_shapes must be list")
+
+    if len(shapes) > _MAX_OBJECTIVE_POINTS:
+        raise ValidationError(
+            f"too many objective points (max {_MAX_OBJECTIVE_POINTS})"
+        )
+
+    for shape in shapes:
+        if not isinstance(shape, dict):
+            raise ValidationError("objective_shape must be dict")
+        _validate_objective_point(shape, width_mm, height_mm)

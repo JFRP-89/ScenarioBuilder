@@ -152,7 +152,9 @@ def test_circle_requires_all_fields(table: TableSize):
 
 def test_rect_requires_all_fields(table: TableSize):
     with pytest.raises(ValidationError):
-        MapSpec(table=table, shapes=[{"type": "rect", "x": 100, "y": 100, "width": 200}])
+        MapSpec(
+            table=table, shapes=[{"type": "rect", "x": 100, "y": 100, "width": 200}]
+        )
 
 
 def test_polygon_requires_points_field(table: TableSize):
@@ -188,14 +190,18 @@ def test_polygon_point_requires_x_and_y(table: TableSize):
 
 def test_circle_with_bool_coordinate_is_rejected(table: TableSize):
     with pytest.raises(ValidationError):
-        MapSpec(table=table, shapes=[{"type": "circle", "cx": True, "cy": 600, "r": 100}])
+        MapSpec(
+            table=table, shapes=[{"type": "circle", "cx": True, "cy": 600, "r": 100}]
+        )
 
 
 def test_rect_with_bool_dimension_is_rejected(table: TableSize):
     with pytest.raises(ValidationError):
         MapSpec(
             table=table,
-            shapes=[{"type": "rect", "x": 100, "y": 100, "width": False, "height": 200}],
+            shapes=[
+                {"type": "rect", "x": 100, "y": 100, "width": False, "height": 200}
+            ],
         )
 
 
@@ -220,3 +226,75 @@ def test_rect_with_negative_x_or_y_is_rejected(table: TableSize):
             table=table,
             shapes=[{"type": "rect", "x": 100, "y": -10, "width": 200, "height": 200}],
         )
+
+
+# =============================================================================
+# OBJECTIVE_SHAPES TESTS
+# =============================================================================
+def test_mapspec_accepts_valid_objective_shapes(table: TableSize):
+    """MapSpec accepts valid objective_shapes within bounds."""
+    objective_shapes = [
+        {"cx": 600, "cy": 600},
+        {"cx": 1000, "cy": 800},
+    ]
+    MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_accepts_none_objective_shapes(table: TableSize):
+    """MapSpec accepts None for objective_shapes (optional)."""
+    MapSpec(table=table, shapes=[], objective_shapes=None)
+
+
+def test_mapspec_rejects_objective_shape_out_of_bounds(table: TableSize):
+    """MapSpec rejects objective_shape with center outside table."""
+    objective_shapes = [
+        {"cx": 2000, "cy": 600},  # cx > table width (1200mm for standard)
+    ]
+    with pytest.raises(ValidationError, match="out of bounds"):
+        MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_rejects_objective_shape_with_negative_coords(table: TableSize):
+    """MapSpec rejects objective_shape with negative coordinates."""
+    objective_shapes = [
+        {"cx": -100, "cy": 600},
+    ]
+    with pytest.raises(ValidationError, match="out of bounds"):
+        MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_rejects_too_many_objective_shapes(table: TableSize):
+    """MapSpec rejects more than 10 objective_shapes."""
+    objective_shapes = [{"cx": 100 + i * 50, "cy": 100} for i in range(11)]
+    with pytest.raises(ValidationError, match="too many objective points"):
+        MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_rejects_objective_shape_missing_cx(table: TableSize):
+    """MapSpec rejects objective_shape without cx coordinate."""
+    objective_shapes = [
+        {"cy": 600},  # Missing cx
+    ]
+    with pytest.raises(ValidationError, match="requires cx, cy"):
+        MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_rejects_objective_shape_missing_cy(table: TableSize):
+    """MapSpec rejects objective_shape without cy coordinate."""
+    objective_shapes = [
+        {"cx": 600},  # Missing cy
+    ]
+    with pytest.raises(ValidationError, match="requires cx, cy"):
+        MapSpec(table=table, shapes=[], objective_shapes=objective_shapes)
+
+
+def test_mapspec_rejects_objective_shapes_not_list(table: TableSize):
+    """MapSpec rejects objective_shapes that is not a list."""
+    with pytest.raises(ValidationError, match="must be list"):
+        MapSpec(table=table, shapes=[], objective_shapes={"cx": 600, "cy": 600})  # type: ignore
+
+
+def test_mapspec_rejects_objective_shape_not_dict(table: TableSize):
+    """MapSpec rejects objective_shape that is not a dict."""
+    with pytest.raises(ValidationError, match="must be dict"):
+        MapSpec(table=table, shapes=[], objective_shapes=["not_a_dict"])  # type: ignore

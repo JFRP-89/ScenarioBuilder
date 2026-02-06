@@ -12,5 +12,5 @@ def test_e2e_infrastructure_ready(docker_compose_up, e2e_base_urls):
     Los tests reales de flujo Gradio/API vendrán en siguientes PRs.
     """
     # Si llegamos aquí, docker_compose_up ya validó health checks
-    assert e2e_base_urls["api"] == "http://localhost:8000"
-    assert e2e_base_urls["ui"] == "http://localhost:7860"
+    assert e2e_base_urls["api"] in {"http://localhost:8000", "http://127.0.0.1:8000"}
+    assert e2e_base_urls["ui"] in {"http://localhost:7860", "http://127.0.0.1:7860"}

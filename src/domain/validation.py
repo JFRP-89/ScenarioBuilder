@@ -11,7 +11,9 @@ from typing import Any
 from domain.errors import ValidationError
 
 
-def validate_non_empty_str(name: str, value: Any, allow_none: bool = False) -> str | None:
+def validate_non_empty_str(
+    name: str, value: Any, allow_none: bool = False
+) -> str | None:
     """Validate that value is a non-empty string after strip.
 
     Args:

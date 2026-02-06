@@ -90,10 +90,9 @@ class TestGetApiBaseUrl:
         monkeypatch.setenv("API_BASE_URL", "http://example.test:9999/")
 
         # Force re-import to pick up new env (clean parent module too)
-        sys.modules.pop("adapters.ui_gradio.app", None)
-        sys.modules.pop("adapters.ui_gradio", None)
+        sys.modules.pop("adapters.ui_gradio.compat", None)
 
-        from adapters.ui_gradio.app import _get_api_base_url
+        from adapters.ui_gradio.compat import _get_api_base_url
 
         result = _get_api_base_url()
 
@@ -107,16 +106,48 @@ class TestGetApiBaseUrl:
         monkeypatch.delenv("API_BASE_URL", raising=False)
 
         # Force re-import (clean parent module too)
-        sys.modules.pop("adapters.ui_gradio.app", None)
-        sys.modules.pop("adapters.ui_gradio", None)
+        sys.modules.pop("adapters.ui_gradio.compat", None)
 
-        from adapters.ui_gradio.app import _get_api_base_url
+        from adapters.ui_gradio.compat import _get_api_base_url
 
         result = _get_api_base_url()
 
         assert result, "_get_api_base_url() returned empty string"
         assert result.startswith("http"), f"Expected URL starting with 'http', got '{result}'"
         assert not result.endswith("/"), f"URL should not have trailing slash: '{result}'"
+
+    def test_get_api_base_url_strips_single_trailing_slash(self, monkeypatch):
+        """_get_api_base_url() strips single trailing slash."""
+        monkeypatch.setenv("API_BASE_URL", "http://api.example.com/")
+
+        sys.modules.pop("adapters.ui_gradio.compat", None)
+
+        from adapters.ui_gradio.compat import _get_api_base_url
+
+        result = _get_api_base_url()
+        assert result == "http://api.example.com"
+
+    def test_get_api_base_url_strips_multiple_trailing_slashes(self, monkeypatch):
+        """_get_api_base_url() strips multiple trailing slashes."""
+        monkeypatch.setenv("API_BASE_URL", "http://api.example.com///")
+
+        sys.modules.pop("adapters.ui_gradio.compat", None)
+
+        from adapters.ui_gradio.compat import _get_api_base_url
+
+        result = _get_api_base_url()
+        assert result == "http://api.example.com"
+
+    def test_get_api_base_url_preserves_url_without_trailing_slash(self, monkeypatch):
+        """_get_api_base_url() preserves URL without trailing slash."""
+        monkeypatch.setenv("API_BASE_URL", "http://api.example.com")
+
+        sys.modules.pop("adapters.ui_gradio.compat", None)
+
+        from adapters.ui_gradio.compat import _get_api_base_url
+
+        result = _get_api_base_url()
+        assert result == "http://api.example.com"
 
 
 # =============================================================================
@@ -127,10 +158,36 @@ class TestBuildHeaders:
 
     def test_build_headers_includes_actor_id(self):
         """_build_headers(actor_id) should include X-Actor-Id header."""
-        from adapters.ui_gradio.app import _build_headers
+        from adapters.ui_gradio.compat import _build_headers
 
         headers = _build_headers("u1")
 
         assert isinstance(headers, dict), f"Expected dict, got {type(headers)}"
         assert "X-Actor-Id" in headers, "X-Actor-Id header missing"
         assert headers["X-Actor-Id"] == "u1", f"Expected 'u1', got '{headers.get('X-Actor-Id')}'"
+
+    def test_build_headers_with_empty_actor_id(self):
+        """_build_headers('') includes empty string in header."""
+        from adapters.ui_gradio.compat import _build_headers
+
+        headers = _build_headers("")
+        assert headers["X-Actor-Id"] == ""
+
+    def test_build_headers_with_complex_actor_id(self):
+        """_build_headers handles complex actor IDs."""
+        from adapters.ui_gradio.compat import _build_headers
+
+        headers = _build_headers("user@example.com")
+        assert headers["X-Actor-Id"] == "user@example.com"
+
+    def test_build_headers_returns_new_dict_each_call(self):
+        """Each call to _build_headers returns a new dict."""
+        from adapters.ui_gradio.compat import _build_headers
+
+        headers1 = _build_headers("u1")
+        headers2 = _build_headers("u2")
+
+        assert headers1 is not headers2
+        assert headers1["X-Actor-Id"] == "u1"
+        assert headers2["X-Actor-Id"] == "u2"
+

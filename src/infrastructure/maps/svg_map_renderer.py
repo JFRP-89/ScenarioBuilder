@@ -38,6 +38,21 @@ class SvgMapRenderer:
         points_str = " ".join(f'{int(p["x"])},{int(p["y"])}' for p in points)
         return f'<polygon points="{points_str}" />'
 
+    def _objective_point_svg(self, shape: dict) -> str:
+        """Render an objective_point as a black filled circle with radius 25mm.
+
+        Args:
+            shape: Dictionary with cx and cy coordinates.
+
+        Returns:
+            SVG string for a black filled circle.
+        """
+        cx = int(shape["cx"])
+        cy = int(shape["cy"])
+        r = 25  # Fixed radius of 25mm
+        # Black fill with black stroke
+        return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="black" stroke="black" />'
+
     def _shape_svg(self, shape: dict) -> str | None:
         shape_type = shape.get("type")
         if shape_type == "rect":
@@ -46,6 +61,8 @@ class SvgMapRenderer:
             return self._circle_svg(shape)
         if shape_type == "polygon":
             return self._polygon_svg(shape)
+        if shape_type == "objective_point":
+            return self._objective_point_svg(shape)
         return None
 
     def render(self, table_mm: dict, shapes: list[dict]) -> str:

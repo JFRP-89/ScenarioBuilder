@@ -17,7 +17,9 @@ def _iter_shapes(map_spec: Dict) -> List[Dict]:
 
 
 def _is_rect_valid(shape: Dict, width: int, height: int) -> bool:
-    if not (0 <= cast(int, shape["x"]) <= width and 0 <= cast(int, shape["y"]) <= height):
+    if not (
+        0 <= cast(int, shape["x"]) <= width and 0 <= cast(int, shape["y"]) <= height
+    ):
         return False
     return (
         cast(int, shape["x"]) + cast(int, shape["w"]) <= width
@@ -26,7 +28,9 @@ def _is_rect_valid(shape: Dict, width: int, height: int) -> bool:
 
 
 def _is_circle_valid(shape: Dict, width: int, height: int) -> bool:
-    if not (0 <= cast(int, shape["cx"]) <= width and 0 <= cast(int, shape["cy"]) <= height):
+    if not (
+        0 <= cast(int, shape["cx"]) <= width and 0 <= cast(int, shape["cy"]) <= height
+    ):
         return False
     return (
         cast(int, shape["cx"]) + cast(int, shape["r"]) <= width
