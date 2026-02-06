@@ -15,19 +15,25 @@ from adapters.http_flask.constants import (
     DEFAULT_MODE,
     DEFAULT_TABLE_PRESET,
     DEFAULT_VISIBILITY,
+    KEY_ARMIES,
     KEY_CARD_ID,
     KEY_CARDS,
+    KEY_DEPLOYMENT,
     KEY_FILTER,
+    KEY_INITIAL_PRIORITY,
+    KEY_LAYOUT,
     KEY_MODE,
+    KEY_NAME,
+    KEY_OBJECTIVE_SHAPES,
+    KEY_OBJECTIVES,
     KEY_OWNER_ID,
     KEY_SEED,
     KEY_SHAPES,
     KEY_SHARED_WITH,
+    KEY_SPECIAL_RULES,
     KEY_TABLE_MM,
     KEY_TABLE_PRESET,
     KEY_VISIBILITY,
-    TABLE_PRESET_MASSIVE,
-    TABLE_PRESET_STANDARD,
 )
 from adapters.http_flask.context import get_actor_id, get_services
 from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
@@ -37,23 +43,9 @@ from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.save_card import SaveCardRequest
 from defusedxml import ElementTree as DET
 from defusedxml.ElementTree import fromstring as defused_fromstring
-from domain.cards.card import Card, parse_game_mode
-from domain.maps.map_spec import MapSpec
-from domain.maps.table_size import TableSize
-from domain.security.authz import parse_visibility
 from flask import Blueprint, jsonify, request, send_file
 
 cards_bp = Blueprint("cards", __name__)
-
-
-def _resolve_table(preset: str) -> TableSize:
-    """Resolve table preset string to TableSize."""
-    if preset == TABLE_PRESET_MASSIVE:
-        return TableSize.massive()
-    if preset == TABLE_PRESET_STANDARD:
-        return TableSize.standard()
-    # Default to standard
-    return TableSize.standard()
 
 
 @cards_bp.post("")
@@ -69,6 +61,16 @@ def create_card():
     table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
     visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
     shared_with = payload.get(KEY_SHARED_WITH)
+    armies = payload.get(KEY_ARMIES)
+    deployment = payload.get(KEY_DEPLOYMENT)
+    layout = payload.get(KEY_LAYOUT)
+    objectives = payload.get(KEY_OBJECTIVES)
+    initial_priority = payload.get(KEY_INITIAL_PRIORITY)
+    name = payload.get(KEY_NAME)
+    special_rules = payload.get(KEY_SPECIAL_RULES)
+    map_specs = payload.get("map_specs")
+    deployment_shapes = payload.get("deployment_shapes")
+    objective_shapes = payload.get(KEY_OBJECTIVE_SHAPES)
 
     # 3) Get services
     services = get_services()
@@ -81,41 +83,44 @@ def create_card():
         table_preset=table_preset,
         visibility=visibility,
         shared_with=shared_with,
+        armies=armies,
+        deployment=deployment,
+        layout=layout,
+        objectives=objectives,
+        initial_priority=initial_priority,
+        name=name,
+        special_rules=special_rules,
+        map_specs=map_specs,
+        deployment_shapes=deployment_shapes,
+        objective_shapes=objective_shapes,
     )
     gen_response = services.generate_scenario_card.execute(gen_request)
 
-    # 5) Build Card domain entity for saving
-    table = _resolve_table(table_preset)
-    card = Card(
-        card_id=gen_response.card_id,
-        owner_id=gen_response.owner_id,
-        visibility=parse_visibility(gen_response.visibility),
-        shared_with=shared_with,
-        mode=parse_game_mode(gen_response.mode),
-        seed=gen_response.seed,
-        table=table,
-        map_spec=MapSpec(table=table, shapes=gen_response.shapes),
-    )
-
-    # 6) Call save use case
-    save_request = SaveCardRequest(actor_id=actor_id, card=card)
+    # 5) Save Card (already validated in use case) using SaveCard use case
+    save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
     services.save_card.execute(save_request)
 
-    # 7) Return response
-    return (
-        jsonify(
-            {
-                KEY_CARD_ID: gen_response.card_id,
-                KEY_OWNER_ID: gen_response.owner_id,
-                KEY_SEED: gen_response.seed,
-                KEY_MODE: gen_response.mode,
-                KEY_VISIBILITY: gen_response.visibility,
-                KEY_TABLE_MM: gen_response.table_mm,
-                KEY_SHAPES: gen_response.shapes,
-            }
-        ),
-        201,
-    )
+    # 6) Return response with exact structure matching production schema
+    response_data = {
+        KEY_CARD_ID: gen_response.card_id,
+        KEY_SEED: gen_response.seed,
+        KEY_OWNER_ID: gen_response.owner_id,
+        KEY_NAME: gen_response.name,
+        KEY_MODE: gen_response.mode,
+        KEY_ARMIES: gen_response.armies,
+        KEY_TABLE_PRESET: gen_response.table_preset,
+        KEY_TABLE_MM: gen_response.table_mm,
+        KEY_LAYOUT: gen_response.layout,
+        KEY_DEPLOYMENT: gen_response.deployment,
+        KEY_INITIAL_PRIORITY: gen_response.initial_priority,
+        KEY_OBJECTIVES: gen_response.objectives,
+        KEY_SPECIAL_RULES: gen_response.special_rules,
+        KEY_VISIBILITY: gen_response.visibility,
+        KEY_SHARED_WITH: gen_response.shared_with or [],
+        KEY_SHAPES: gen_response.shapes,
+    }
+
+    return jsonify(response_data), 201
 
 
 @cards_bp.get("/<card_id>")
@@ -372,16 +377,22 @@ def _validate_svg_attribute(
     lower_attr = clean_attr.lower()
 
     if lower_attr.startswith("on"):
-        raise ValidationError(f"SVG contains forbidden event handler attribute: {clean_attr}")
+        raise ValidationError(
+            f"SVG contains forbidden event handler attribute: {clean_attr}"
+        )
 
     if lower_attr in {"href", "xlink:href", "src"}:
-        raise ValidationError(f"SVG must not contain external reference attribute: {clean_attr}")
+        raise ValidationError(
+            f"SVG must not contain external reference attribute: {clean_attr}"
+        )
 
     if lower_attr in {"style", "class"}:
         raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
 
     if clean_attr not in allowed_for_tag:
-        raise ValidationError(f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>")
+        raise ValidationError(
+            f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
+        )
 
     _validate_svg_numeric_attr(tag, clean_attr, attr_value)
 

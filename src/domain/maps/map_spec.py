@@ -8,6 +8,7 @@ from domain.maps.map_spec_validation import (
     _validate_shape,
     _validate_shapes_count,
     _validate_shapes_not_none,
+    validate_objective_shapes,
 )
 from domain.maps.table_size import TableSize
 
@@ -18,6 +19,7 @@ class MapSpec:
 
     table: TableSize
     shapes: list[dict]
+    objective_shapes: list[dict] | None = None
 
     def __post_init__(self) -> None:
         shapes = _validate_shapes_not_none(self.shapes)
@@ -28,3 +30,6 @@ class MapSpec:
 
         for shape in shapes:
             _validate_shape(shape, width_mm, height_mm)
+
+        # Validate objective_shapes (optional)
+        validate_objective_shapes(self.objective_shapes, width_mm, height_mm)

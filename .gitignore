@@ -15,3 +15,4 @@ __PYCACHE__/
 tests/e2e/artifacts/*.html
 tests/e2e/artifacts/*.png
 tests/e2e/artifacts/*.jpg
+.mypy_cache/

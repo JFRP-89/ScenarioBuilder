@@ -1,142 +1,42 @@
-"""Gradio UI adapter for ScenarioBuilder."""
+"""Gradio UI adapter for ScenarioBuilder.
+
+This module contains ONLY:
+- ``build_app()`` -- assembles the Gradio layout and calls ``wire_events()``
+- ``__main__`` launcher
+
+All helpers, handlers, constants and event wiring live in sibling modules.
+"""
 
 from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
-from typing import Any, cast
 
 # Add src to path if running as script (not as module)
 if __name__ == "__main__":
-    src_path = Path(__file__).parent.parent.parent
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if sys.path and os.path.normpath(sys.path[0]) == os.path.normpath(script_dir):
+        sys.path.pop(0)
+    src_path = os.path.abspath(
+        os.path.join(script_dir, os.pardir, os.pardir, os.pardir)
+    )
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
 
 import gradio as gr
-
-try:
-    import requests  # type: ignore[import-untyped]
-except ImportError:
-    requests = None
-
-from adapters.ui_gradio.constants import (
-    DEFAULT_TABLE_PRESET,
-    ENDPOINT_GENERATE_CARD,
-    ERROR_API_FAILURE,
-    ERROR_REQUEST_FAILED,
-    ERROR_REQUESTS_NOT_AVAILABLE,
-    ERROR_UNEXPECTED,
-    FIELD_MODE,
-    FIELD_SEED,
-    FIELD_TABLE_PRESET,
-    REQUEST_TIMEOUT_SECONDS,
-    SUCCESS_STATUS_CODES,
+from adapters.ui_gradio.state_helpers import get_default_actor_id
+from adapters.ui_gradio.ui.sections import (
+    actor_section,
+    deployment_zones_section,
+    objective_points_section,
+    scenario_details_section,
+    scenario_meta_section,
+    scenography_section,
+    special_rules_section,
+    table_section,
+    visibility_section,
 )
-
-
-# =============================================================================
-# Helper functions
-# =============================================================================
-def _get_default_actor_id() -> str:
-    """Get default actor ID from environment."""
-    return os.environ.get("DEFAULT_ACTOR_ID", "demo-user")
-
-
-def _get_api_base_url() -> str:
-    """Get API base URL from environment and normalize (remove trailing slash).
-
-    Returns:
-        str: API base URL without trailing slash (e.g., "http://localhost:8000")
-    """
-    default = "http://localhost:8000"
-    api_url = os.environ.get("API_BASE_URL", default)
-    # Remove trailing slash if present
-    return api_url.rstrip("/")
-
-
-def _build_headers(actor_id: str) -> dict[str, str]:
-    """Build HTTP headers for API requests.
-
-    Args:
-        actor_id: Actor ID to include in header
-
-    Returns:
-        dict: Headers dict with X-Actor-Id
-    """
-    return {"X-Actor-Id": actor_id}
-
-
-def _build_payload(mode: str, seed: int | None) -> dict:
-    """Build request payload for card generation.
-
-    Args:
-        mode: Game mode
-        seed: Random seed (can be None)
-
-    Returns:
-        dict: Payload ready for POST
-    """
-    return {
-        FIELD_MODE: mode,
-        FIELD_SEED: int(seed) if seed else None,
-        FIELD_TABLE_PRESET: DEFAULT_TABLE_PRESET,
-    }
-
-
-def _call_api_generate_card(
-    base_url: str, headers: dict[str, str], payload: dict
-) -> requests.Response | None:
-    """Call the API to generate a card.
-
-    Args:
-        base_url: API base URL
-        headers: HTTP headers
-        payload: Request payload
-
-    Returns:
-        Response object or None if request failed
-    """
-    if not requests:
-        return None
-
-    try:
-        response = requests.post(
-            f"{base_url}{ENDPOINT_GENERATE_CARD}",
-            json=payload,
-            headers=headers,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        return response
-    except requests.RequestException:
-        return None
-
-
-def _normalize_error(response: requests.Response | None, exc: Exception | None = None) -> dict:
-    """Normalize error response into consistent JSON format.
-
-    Args:
-        response: HTTP response (if available)
-        exc: Exception (if available)
-
-    Returns:
-        dict: Error response with status and message
-    """
-    if exc is not None:
-        if isinstance(exc, requests.RequestException):
-            return {
-                "status": "error",
-                "message": f"{ERROR_REQUEST_FAILED}: {exc!s}",
-            }
-        return {"status": "error", "message": f"{ERROR_UNEXPECTED}: {exc!s}"}
-
-    if response is None:
-        return {"status": "error", "message": ERROR_REQUESTS_NOT_AVAILABLE}
-
-    return {
-        "status": "error",
-        "message": f"{ERROR_API_FAILURE}: {response.status_code}",
-    }
+from adapters.ui_gradio.ui.wiring import wire_events
 
 
 # =============================================================================
@@ -154,55 +54,220 @@ def build_app() -> gr.Blocks:
     with gr.Blocks(title="Scenario Card Generator") as app:
         gr.Markdown("# Scenario Card Generator")
 
-        with gr.Row():
-            actor_id = gr.Textbox(
-                label="Actor ID",
-                value=_get_default_actor_id(),
-                placeholder="Enter your actor ID",
-                elem_id="actor-id-input",
-            )
+        # Actor ID
+        actor_id = actor_section.build_actor_section(get_default_actor_id())
 
-        with gr.Row():
-            mode = gr.Dropdown(
-                choices=["casual", "narrative", "matched"],
-                value="casual",
-                label="Game Mode",
-                elem_id="mode-dropdown",
-            )
-            seed = gr.Number(value=1, precision=0, label="Seed", elem_id="seed-input")
+        # Scenario Name, Mode, Seed, Armies
+        scenario_name, mode, seed, armies = (
+            scenario_meta_section.build_scenario_meta_section()
+        )
 
-        generate_btn = gr.Button("Generate Card", variant="primary", elem_id="generate-button")
+        # Visibility
+        visibility, shared_with_row, shared_with = (
+            visibility_section.build_visibility_section()
+        )
+
+        # Table Configuration
+        (
+            table_preset,
+            prev_unit_state,
+            custom_table_row,
+            table_width,
+            table_height,
+            table_unit,
+        ) = table_section.build_table_section()
+
+        # Scenario Details
+        (
+            deployment,
+            layout,
+            objectives,
+            initial_priority,
+            objectives_with_vp_toggle,
+            vp_group,
+            vp_state,
+            vp_input,
+            add_vp_btn,
+            remove_vp_btn,
+            vp_list,
+            remove_selected_vp_btn,
+            _,  # vp_buttons_row (unused)
+        ) = scenario_details_section.build_scenario_details_section()
+
+        # Special Rules Builder
+        (
+            special_rules_state,
+            special_rules_toggle,
+            rules_group,
+            rule_type_radio,
+            rule_name_input,
+            rule_value_input,
+            add_rule_btn,
+            remove_rule_btn,
+            rules_list,
+            remove_selected_rule_btn,
+            _,  # rule_name_state (unused)
+            _,  # rule_value_state (unused)
+        ) = special_rules_section.build_special_rules_section()
+
+        # Deployment Zones Builder
+        (
+            deployment_zones_toggle,
+            deployment_zones_state,
+            zone_table_width_state,
+            zone_table_height_state,
+            zones_group,
+            zone_border_select,
+            zone_fill_side_checkbox,
+            zone_description,
+            zone_width,
+            zone_height,
+            zone_sep_x,
+            zone_sep_y,
+            add_zone_btn,
+            remove_last_zone_btn,
+            deployment_zones_list,
+            remove_selected_zone_btn,
+        ) = deployment_zones_section.build_deployment_zones_section()
+
+        # Objective Points Builder (max 10 markers)
+        (
+            objective_points_toggle,
+            objective_points_state,
+            objective_description,
+            objective_cx_input,
+            objective_cy_input,
+            add_objective_btn,
+            objective_points_list,
+            remove_last_objective_btn,
+            remove_selected_objective_btn,
+            objective_points_group,
+        ) = objective_points_section.build_objective_points_section()
+
+        # Scenography Builder
+        (
+            scenography_toggle,
+            scenography_state,
+            scenography_description,
+            scenography_type,
+            circle_form_row,
+            circle_cx,
+            circle_cy,
+            circle_r,
+            rect_form_row,
+            rect_x,
+            rect_y,
+            rect_width,
+            rect_height,
+            polygon_form_col,
+            polygon_preset,
+            polygon_points,
+            delete_polygon_row_btn,
+            polygon_delete_msg,
+            allow_overlap_checkbox,
+            add_scenography_btn,
+            remove_last_scenography_btn,
+            scenography_list,
+            remove_selected_scenography_btn,
+            scenography_group,
+        ) = scenography_section.build_scenography_section()
+
+        # Generate button and output
+        generate_btn = gr.Button(
+            "Generate Card", variant="primary", elem_id="generate-button"
+        )
         output = gr.JSON(label="Generated Card", elem_id="result-json")
 
-        def _handle_generate(actor: str, m: str, s: int) -> dict:
-            """Generate a scenario card via HTTP API call."""
-            try:
-                api_url = _get_api_base_url()
-                headers = _build_headers(actor.strip())
-                payload = _build_payload(m, s)
-
-                response = _call_api_generate_card(api_url, headers, payload)
-
-                # Handle API call failure
-                if response is None:
-                    return _normalize_error(None)
-
-                # Handle non-success HTTP status
-                if response.status_code not in SUCCESS_STATUS_CODES:
-                    return _normalize_error(response)
-
-                # Return successful response
-                return cast(dict[Any, Any], response.json())
-
-            except requests.RequestException as exc:
-                return _normalize_error(None, exc)
-            except Exception as exc:
-                return _normalize_error(None, exc)
-
-        generate_btn.click(
-            fn=_handle_generate,
-            inputs=[actor_id, mode, seed],
-            outputs=output,
+        # ── Wire all events ──────────────────────────────────────────────
+        wire_events(
+            actor_id=actor_id,
+            scenario_name=scenario_name,
+            mode=mode,
+            seed=seed,
+            armies=armies,
+            table_preset=table_preset,
+            prev_unit_state=prev_unit_state,
+            custom_table_row=custom_table_row,
+            table_width=table_width,
+            table_height=table_height,
+            table_unit=table_unit,
+            deployment=deployment,
+            layout=layout,
+            objectives=objectives,
+            initial_priority=initial_priority,
+            objectives_with_vp_toggle=objectives_with_vp_toggle,
+            vp_group=vp_group,
+            vp_state=vp_state,
+            vp_input=vp_input,
+            add_vp_btn=add_vp_btn,
+            remove_vp_btn=remove_vp_btn,
+            vp_list=vp_list,
+            remove_selected_vp_btn=remove_selected_vp_btn,
+            special_rules_state=special_rules_state,
+            special_rules_toggle=special_rules_toggle,
+            rules_group=rules_group,
+            rule_type_radio=rule_type_radio,
+            rule_name_input=rule_name_input,
+            rule_value_input=rule_value_input,
+            add_rule_btn=add_rule_btn,
+            remove_rule_btn=remove_rule_btn,
+            rules_list=rules_list,
+            remove_selected_rule_btn=remove_selected_rule_btn,
+            visibility=visibility,
+            shared_with_row=shared_with_row,
+            shared_with=shared_with,
+            deployment_zones_toggle=deployment_zones_toggle,
+            zones_group=zones_group,
+            deployment_zones_state=deployment_zones_state,
+            zone_table_width_state=zone_table_width_state,
+            zone_table_height_state=zone_table_height_state,
+            zone_border_select=zone_border_select,
+            zone_fill_side_checkbox=zone_fill_side_checkbox,
+            zone_description=zone_description,
+            zone_width=zone_width,
+            zone_height=zone_height,
+            zone_sep_x=zone_sep_x,
+            zone_sep_y=zone_sep_y,
+            add_zone_btn=add_zone_btn,
+            remove_last_zone_btn=remove_last_zone_btn,
+            deployment_zones_list=deployment_zones_list,
+            remove_selected_zone_btn=remove_selected_zone_btn,
+            objective_points_toggle=objective_points_toggle,
+            objective_points_group=objective_points_group,
+            objective_points_state=objective_points_state,
+            objective_description=objective_description,
+            objective_cx_input=objective_cx_input,
+            objective_cy_input=objective_cy_input,
+            add_objective_btn=add_objective_btn,
+            objective_points_list=objective_points_list,
+            remove_last_objective_btn=remove_last_objective_btn,
+            remove_selected_objective_btn=remove_selected_objective_btn,
+            scenography_toggle=scenography_toggle,
+            scenography_group=scenography_group,
+            scenography_state=scenography_state,
+            scenography_description=scenography_description,
+            scenography_type=scenography_type,
+            circle_form_row=circle_form_row,
+            circle_cx=circle_cx,
+            circle_cy=circle_cy,
+            circle_r=circle_r,
+            rect_form_row=rect_form_row,
+            rect_x=rect_x,
+            rect_y=rect_y,
+            rect_width=rect_width,
+            rect_height=rect_height,
+            polygon_form_col=polygon_form_col,
+            polygon_preset=polygon_preset,
+            polygon_points=polygon_points,
+            delete_polygon_row_btn=delete_polygon_row_btn,
+            polygon_delete_msg=polygon_delete_msg,
+            allow_overlap_checkbox=allow_overlap_checkbox,
+            add_scenography_btn=add_scenography_btn,
+            remove_last_scenography_btn=remove_last_scenography_btn,
+            scenography_list=scenography_list,
+            remove_selected_scenography_btn=remove_selected_scenography_btn,
+            generate_btn=generate_btn,
+            output=output,
         )
 
     return app
@@ -213,6 +278,8 @@ def build_app() -> gr.Blocks:
 # =============================================================================
 if __name__ == "__main__":
     build_app().launch(
-        server_name=os.environ.get("UI_HOST", "0.0.0.0"),  # nosec B104 - container/local dev
+        server_name=os.environ.get(
+            "UI_HOST", "0.0.0.0"
+        ),  # nosec B104 - container/local dev
         server_port=int(os.environ.get("UI_PORT", "7860")),
     )

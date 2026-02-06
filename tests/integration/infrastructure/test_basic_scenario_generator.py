@@ -180,3 +180,56 @@ class TestBasicScenarioGeneratorLimits:
             # Should not raise
             map_spec = MapSpec(table=table, shapes=shapes)
             assert map_spec is not None
+
+
+# =============================================================================
+# CONTRACT ENFORCEMENT TESTS
+# =============================================================================
+class TestScenarioGeneratorContract:
+    """Contract enforcement: ScenarioGenerator MUST return list[dict], never dict."""
+
+    def test_generate_shapes_returns_list_not_dict(
+        self,
+        table: TableSize,
+        mode: GameMode,
+    ) -> None:
+        """Contract: generate_shapes MUST return list[dict], not dict.
+        
+        This test enforces the explicit contract for ScenarioGenerator.generate_shapes:
+        - MUST return: list[dict] (shapes for MapSpec)
+        - MUST NOT return: dict (with deployment_shapes/scenography_specs keys)
+        
+        Rationale:
+        - MapSpec expects list[dict]
+        - Generator shouldn't know about API response structure
+        - Response transformation is use case responsibility
+        """
+        from infrastructure.scenario_generation.basic_scenario_generator import (
+            BasicScenarioGenerator,
+        )
+
+        # Arrange
+        gen = BasicScenarioGenerator()
+        seed = 123
+
+        # Act
+        result = gen.generate_shapes(seed=seed, table=table, mode=mode)
+
+        # Assert - MUST be list, MUST NOT be dict
+        assert isinstance(result, list), (
+            f"Contract violation: generate_shapes() returned {type(result).__name__}, "
+            f"expected list[dict]. The generator must return a flat list of shapes, "
+            f"not a structured dict with deployment_shapes/scenography_specs keys."
+        )
+        
+        # Assert - list must contain dict elements
+        assert len(result) > 0, "generate_shapes() returned empty list"
+        for idx, shape in enumerate(result):
+            assert isinstance(shape, dict), (
+                f"Contract violation: shape at index {idx} is {type(shape).__name__}, "
+                f"expected dict"
+            )
+        
+        # Assert - shapes must be compatible with MapSpec (domain contract)
+        map_spec = MapSpec(table=table, shapes=result)
+        assert map_spec is not None

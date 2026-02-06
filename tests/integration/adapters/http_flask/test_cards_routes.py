@@ -11,7 +11,7 @@ All endpoints require X-Actor-Id header and use services from app.config["servic
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 import pytest
 from adapters.http_flask.app import create_app
@@ -22,15 +22,52 @@ from adapters.http_flask.app import create_app
 # =============================================================================
 @dataclass
 class FakeGenerateResponse:
-    """Fake response from GenerateScenarioCard."""
+    """Fake response from GenerateScenarioCard.
+
+    Structure matches production schema with shapes as nested dict.
+    """
 
     card_id: str = "card-001"
     owner_id: str = "u1"
     seed: int = 123
     mode: str = "matched"
     visibility: str = "private"
-    table_mm: dict = field(default_factory=lambda: {"width_mm": 1200, "height_mm": 1200})
-    shapes: list = field(default_factory=list)
+    table_mm: dict = field(
+        default_factory=lambda: {"width_mm": 1200, "height_mm": 1200}
+    )
+    shapes: dict = field(
+        default_factory=lambda: {
+            "deployment_shapes": [],
+            "objective_shapes": [],
+            "scenography_specs": [],
+        }
+    )
+    card: object = None  # Card domain entity (will be mocked)
+    name: str = "Battle Scenario"
+    initial_priority: str = "Check the rulebook rules for it"
+    table_preset: Optional[str] = None
+    armies: Optional[str] = None
+    shared_with: Optional[list] = None
+    deployment: Optional[str] = None
+    layout: Optional[str] = None
+    objectives: Optional[Union[str, dict]] = None
+    special_rules: Optional[list[dict]] = None
+
+    def __post_init__(self):
+        """Create fake Card if not provided."""
+        if self.card is None:
+            # Create a minimal fake Card object
+            self.card = type(
+                "FakeCard",
+                (),
+                {
+                    "card_id": self.card_id,
+                    "owner_id": self.owner_id,
+                    "seed": self.seed,
+                    "mode": self.mode,
+                    "visibility": self.visibility,
+                },
+            )()
 
 
 class FakeGenerateScenarioCard:
