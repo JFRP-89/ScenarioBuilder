@@ -38,14 +38,23 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
     # Validar status
     assert response.status_code == 201, (
-        f"POST /cards falló con status {response.status_code}. " f"Response: {response.text}"
+        f"POST /cards falló con status {response.status_code}. "
+        f"Response: {response.text}"
     )
 
     # Validar JSON
     card_data = response.json()
 
     # Required keys
-    required_keys = {"card_id", "owner_id", "seed", "mode", "visibility", "table_mm", "shapes"}
+    required_keys = {
+        "card_id",
+        "owner_id",
+        "seed",
+        "mode",
+        "visibility",
+        "table_mm",
+        "shapes",
+    }
     actual_keys = set(card_data.keys())
 
     missing_keys = required_keys - actual_keys
@@ -80,7 +89,9 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
 
     # Validar shapes es lista (aunque sea vacía)
     shapes = card_data["shapes"]
-    assert isinstance(shapes, list), f"shapes debe ser lista, recibido {type(shapes).__name__}"
+    assert isinstance(
+        shapes, list
+    ), f"shapes debe ser lista, recibido {type(shapes).__name__}"
 
     # Guardar card_id en fixture para reuso en otros tests
     generated_card_id["card_id"] = card_id

@@ -113,8 +113,12 @@ class TestGetApiBaseUrl:
         result = _get_api_base_url()
 
         assert result, "_get_api_base_url() returned empty string"
-        assert result.startswith("http"), f"Expected URL starting with 'http', got '{result}'"
-        assert not result.endswith("/"), f"URL should not have trailing slash: '{result}'"
+        assert result.startswith(
+            "http"
+        ), f"Expected URL starting with 'http', got '{result}'"
+        assert not result.endswith(
+            "/"
+        ), f"URL should not have trailing slash: '{result}'"
 
     def test_get_api_base_url_strips_single_trailing_slash(self, monkeypatch):
         """_get_api_base_url() strips single trailing slash."""
@@ -164,7 +168,9 @@ class TestBuildHeaders:
 
         assert isinstance(headers, dict), f"Expected dict, got {type(headers)}"
         assert "X-Actor-Id" in headers, "X-Actor-Id header missing"
-        assert headers["X-Actor-Id"] == "u1", f"Expected 'u1', got '{headers.get('X-Actor-Id')}'"
+        assert (
+            headers["X-Actor-Id"] == "u1"
+        ), f"Expected 'u1', got '{headers.get('X-Actor-Id')}'"
 
     def test_build_headers_with_empty_actor_id(self):
         """_build_headers('') includes empty string in header."""
@@ -190,4 +196,3 @@ class TestBuildHeaders:
         assert headers1 is not headers2
         assert headers1["X-Actor-Id"] == "u1"
         assert headers2["X-Actor-Id"] == "u2"
-

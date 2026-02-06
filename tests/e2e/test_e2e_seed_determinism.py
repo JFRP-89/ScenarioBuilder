@@ -39,7 +39,8 @@ def test_seed_determinism_api(e2e_services, wait_for_health, page):
 
     try:
         assert hash_1 == hash_2, (
-            f"SVGs no son deterministas con seed=123. " f"hash_1={hash_1}, hash_2={hash_2}"
+            f"SVGs no son deterministas con seed=123. "
+            f"hash_1={hash_1}, hash_2={hash_2}"
         )
     except AssertionError:
         # Debug: guardar SVGs para análisis

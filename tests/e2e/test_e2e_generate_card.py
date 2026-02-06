@@ -34,7 +34,9 @@ def test_generate_card_happy_path(e2e_services, wait_for_health, page):
         _click_generate_button(page)
 
         _wait_for_card_id_or_pattern(page)
-        card_id = _extract_card_id(_read_json_text(page)) or _extract_card_id(page.content())
+        card_id = _extract_card_id(_read_json_text(page)) or _extract_card_id(
+            page.content()
+        )
         assert card_id, "No se pudo extraer card_id desde el HTML"
 
     except PlaywrightError:
@@ -99,9 +101,13 @@ def _fill_visibility_if_present(page) -> None:
 
 
 def _click_generate_button(page) -> None:
-    button = page.get_by_role("button", name=re.compile(r"(generate|create|build)", re.I))
+    button = page.get_by_role(
+        "button", name=re.compile(r"(generate|create|build)", re.I)
+    )
     if button.count() == 0:
-        raise AssertionError(_missing_inputs_message(page, "Generate/Create/Build button"))
+        raise AssertionError(
+            _missing_inputs_message(page, "Generate/Create/Build button")
+        )
     button.first.click()
 
 
@@ -164,7 +170,9 @@ def _find_by_labels_or_placeholder(page, labels: list[str]) -> Locator | None:
 
 
 def _find_by_attribute(page, attribute: str, labels: list[str]) -> Locator | None:
-    candidates = page.locator(f"input[{attribute}], textarea[{attribute}], select[{attribute}]")
+    candidates = page.locator(
+        f"input[{attribute}], textarea[{attribute}], select[{attribute}]"
+    )
     count = candidates.count()
     for idx in range(count):
         element = candidates.nth(idx)

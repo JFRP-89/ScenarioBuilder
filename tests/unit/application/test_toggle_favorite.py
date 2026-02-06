@@ -104,7 +104,9 @@ class FakeFavoritesRepository:
             self._favorites.discard(key)
 
     def list_favorites(self, actor_id: str) -> list[str]:
-        return sorted([card_id for (uid, card_id) in self._favorites if uid == actor_id])
+        return sorted(
+            [card_id for (uid, card_id) in self._favorites if uid == actor_id]
+        )
 
 
 # =============================================================================
@@ -345,7 +347,9 @@ class TestToggleFavoriteShared:
         )
 
         # Arrange: SHARED card with u2 in shared_with
-        card = make_card("c1", "u1", Visibility.SHARED, table, map_spec, shared_with=["u2"])
+        card = make_card(
+            "c1", "u1", Visibility.SHARED, table, map_spec, shared_with=["u2"]
+        )
         card_repo = FakeCardRepository({"c1": card})
 
         use_case = ToggleFavorite(
@@ -373,7 +377,9 @@ class TestToggleFavoriteShared:
         )
 
         # Arrange: SHARED card with u2 in shared_with (NOT u3)
-        card = make_card("c1", "u1", Visibility.SHARED, table, map_spec, shared_with=["u2"])
+        card = make_card(
+            "c1", "u1", Visibility.SHARED, table, map_spec, shared_with=["u2"]
+        )
         card_repo = FakeCardRepository({"c1": card})
 
         use_case = ToggleFavorite(

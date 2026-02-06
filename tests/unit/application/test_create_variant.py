@@ -105,7 +105,9 @@ class SpyScenarioGenerator:
         self._shapes = shapes if shapes is not None else make_valid_shapes()
         self.calls: list[tuple[int, TableSize, GameMode]] = []
 
-    def generate_shapes(self, seed: int, table: TableSize, mode: GameMode) -> list[dict]:
+    def generate_shapes(
+        self, seed: int, table: TableSize, mode: GameMode
+    ) -> list[dict]:
         """Generate shapes and record the call."""
         self.calls.append((seed, table, mode))
         return self._shapes
@@ -553,7 +555,9 @@ class TestCreateVariantInvalidShapes:
         )
 
         # Arrange: shapes outside bounds for standard table (1100x700)
-        invalid_shapes = [{"type": "rect", "x": 2000, "y": 2000, "width": 200, "height": 200}]
+        invalid_shapes = [
+            {"type": "rect", "x": 2000, "y": 2000, "width": 200, "height": 200}
+        ]
         scenario_gen = SpyScenarioGenerator(shapes=invalid_shapes)
 
         base = make_valid_card(card_id="card-base-001", owner_id="u1")

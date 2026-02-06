@@ -28,7 +28,9 @@ def test_map_svg_content_type_and_security_headers(
     # Obtener card_id generado previamente
     card_id = generated_card_id.get("card_id")
     if not card_id:
-        pytest.skip("No hay card_id generado (ejecutar test_api_generate_card_post primero)")
+        pytest.skip(
+            "No hay card_id generado (ejecutar test_api_generate_card_post primero)"
+        )
 
     api_url = get_api_base_url()
     headers = {"X-Actor-Id": "u1"}
@@ -59,7 +61,9 @@ def test_map_svg_content_type_and_security_headers(
             "<polygon" in svg_body,
         ]
     )
-    assert has_graphic_element, "SVG no contiene elementos gráficos (<rect, <circle, o <polygon)"
+    assert (
+        has_graphic_element
+    ), "SVG no contiene elementos gráficos (<rect, <circle, o <polygon)"
 
     # 5) Validar headers anti-XSS
     _assert_security_headers(svg_response.headers)
@@ -93,15 +97,21 @@ def _assert_security_headers(headers: dict) -> None:
 def _assert_no_dangerous_svg_content(svg_body: str) -> None:
     """Validar que SVG no contiene scripts ni handlers."""
     # No <script> tags
-    assert "<script" not in svg_body.lower(), "SVG contiene <script> tag (XSS vulnerability)"
+    assert (
+        "<script" not in svg_body.lower()
+    ), "SVG contiene <script> tag (XSS vulnerability)"
 
     # No foreignObject (puede inyectar HTML)
-    assert "foreignobject" not in svg_body.lower(), "SVG contiene foreignObject (XSS vector)"
+    assert (
+        "foreignobject" not in svg_body.lower()
+    ), "SVG contiene foreignObject (XSS vector)"
 
     # No handlers inline
     dangerous_handlers = ["onload=", "onclick=", "onerror=", "onmouseover="]
     for handler in dangerous_handlers:
-        assert handler not in svg_body.lower(), f"SVG contiene handler peligroso: {handler}"
+        assert (
+            handler not in svg_body.lower()
+        ), f"SVG contiene handler peligroso: {handler}"
 
 
 @pytest.mark.e2e
@@ -118,7 +128,9 @@ def test_map_svg_missing_actor_header(e2e_services, wait_for_health, generated_c
     # Obtener card_id generado previamente
     card_id = generated_card_id.get("card_id")
     if not card_id:
-        pytest.skip("No hay card_id generado (ejecutar test_api_generate_card_post primero)")
+        pytest.skip(
+            "No hay card_id generado (ejecutar test_api_generate_card_post primero)"
+        )
 
     api_url = get_api_base_url()
 

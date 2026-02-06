@@ -7,7 +7,9 @@ from tests.e2e._support import get_api_base_url
 
 
 @pytest.mark.e2e
-def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated_card_id):
+def test_favorites_toggle_and_list_flow(
+    e2e_services, wait_for_health, generated_card_id
+):
     """
     E2E flujo de favoritos reutilizando card_id generado:
     1) Toggle favorite ON -> is_favorite=true
@@ -60,7 +62,8 @@ def test_favorites_toggle_and_list_flow(e2e_services, wait_for_health, generated
     list_data = list_response.json()
     card_ids_in_favorites = list_data.get("card_ids", [])
     assert card_id in card_ids_in_favorites, (
-        f"card_id {card_id} NO está en favoritos. " f"Favoritos: {card_ids_in_favorites}"
+        f"card_id {card_id} NO está en favoritos. "
+        f"Favoritos: {card_ids_in_favorites}"
     )
 
     # 4) Toggle OFF

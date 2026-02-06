@@ -128,7 +128,9 @@ def _select_mode(mode_control: Locator, value: str) -> None:
     role = mode_control.get_attribute("role")
     if role == "combobox":
         mode_control.click()
-        option = mode_control.page.get_by_role("option", name=re.compile(value, re.IGNORECASE))
+        option = mode_control.page.get_by_role(
+            "option", name=re.compile(value, re.IGNORECASE)
+        )
         if option.count() > 0:
             option.first.click()
             return
