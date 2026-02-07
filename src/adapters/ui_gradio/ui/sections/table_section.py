@@ -3,6 +3,7 @@
 from typing import Any
 
 import gradio as gr
+from adapters.ui_gradio.ui.components import create_unit_radio, create_unit_state
 
 
 def build_table_section() -> tuple[Any, Any, Any, Any, Any, Any]:
@@ -24,7 +25,7 @@ def build_table_section() -> tuple[Any, Any, Any, Any, Any, Any]:
             elem_id="table-preset",
         )
 
-    prev_unit_state = gr.State("cm")
+    prev_unit_state = create_unit_state()
 
     with gr.Row(visible=False) as custom_table_row:
         table_width = gr.Number(
@@ -33,12 +34,7 @@ def build_table_section() -> tuple[Any, Any, Any, Any, Any, Any]:
         table_height = gr.Number(
             value=120, precision=2, label="Height", elem_id="table-height"
         )
-        table_unit = gr.Radio(
-            choices=["cm", "in", "ft"],
-            value="cm",
-            label="Unit",
-            elem_id="table-unit",
-        )
+        table_unit = create_unit_radio("table")
 
     return (
         table_preset,

@@ -12,17 +12,19 @@ from adapters.ui_gradio.state_helpers import (
     remove_last_objective_point,
     remove_selected_objective_point,
 )
-from adapters.ui_gradio.units import convert_to_cm
+from adapters.ui_gradio.units import convert_to_cm, convert_unit_to_unit
 
 
-def wire_objectives(
+def wire_objectives(  # noqa: C901
     *,
     objective_points_toggle: gr.Checkbox,
     objective_points_group: gr.Group,
     objective_points_state: gr.State,
+    objective_unit_state: gr.State,
     objective_description: gr.Textbox,
     objective_cx_input: gr.Number,
     objective_cy_input: gr.Number,
+    objective_unit: gr.Radio,
     add_objective_btn: gr.Button,
     objective_points_list: gr.Dropdown,
     remove_last_objective_btn: gr.Button,
@@ -44,6 +46,7 @@ def wire_objectives(
         tw: float,
         th: float,
         tu: str,
+        objective_unit_val: str,
     ) -> dict[str, Any]:
         description_stripped = (desc or "").strip()
         if not description_stripped:
@@ -75,10 +78,15 @@ def wire_objectives(
             }
         table_width_mm = int(convert_to_cm(tw, tu) * 10)
         table_height_mm = int(convert_to_cm(th, tu) * 10)
+
+        # Convert objective coordinates from user unit to mm
+        cx_mm = int(convert_to_cm(cx, objective_unit_val) * 10)
+        cy_mm = int(convert_to_cm(cy, objective_unit_val) * 10)
+
         new_state, error = add_objective_point(
             current_state,
-            cx,
-            cy,
+            cx_mm,
+            cy_mm,
             table_width_mm,
             table_height_mm,
             description_stripped,
@@ -132,6 +140,7 @@ def wire_objectives(
             table_width,
             table_height,
             table_unit,
+            objective_unit,
         ],
         outputs=[objective_points_state, objective_points_list, output],
     )
@@ -154,4 +163,26 @@ def wire_objectives(
         fn=_toggle_objective_points,
         inputs=[objective_points_toggle],
         outputs=[objective_points_group],
+    )
+
+    # Wire unit change for Objective Points
+    def _on_objective_unit_change(
+        new_unit: str, cx: float, cy: float, prev_unit: str
+    ) -> tuple[float, float, str]:
+        """Convert objective coordinates when unit changes."""
+        if prev_unit == new_unit:
+            return cx, cy, new_unit
+        cx_converted = convert_unit_to_unit(cx, prev_unit, new_unit)
+        cy_converted = convert_unit_to_unit(cy, prev_unit, new_unit)
+        return cx_converted, cy_converted, new_unit
+
+    objective_unit.change(
+        fn=_on_objective_unit_change,
+        inputs=[
+            objective_unit,
+            objective_cx_input,
+            objective_cy_input,
+            objective_unit_state,
+        ],
+        outputs=[objective_cx_input, objective_cy_input, objective_unit_state],
     )

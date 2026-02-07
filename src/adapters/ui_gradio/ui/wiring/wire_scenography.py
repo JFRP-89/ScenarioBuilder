@@ -15,7 +15,7 @@ from adapters.ui_gradio.state_helpers import (
     remove_last_scenography_element,
     remove_selected_scenography_element,
 )
-from adapters.ui_gradio.units import convert_to_cm
+from adapters.ui_gradio.units import convert_to_cm, convert_unit_to_unit
 
 
 def wire_scenography(  # noqa: C901
@@ -47,6 +47,8 @@ def wire_scenography(  # noqa: C901
     table_width: gr.Number,
     table_height: gr.Number,
     table_unit: gr.Radio,
+    scenography_unit_state: gr.State,
+    scenography_unit: gr.Radio,
     output: gr.JSON,
 ) -> None:
     """Wire scenography add/remove/toggle events."""
@@ -82,6 +84,7 @@ def wire_scenography(  # noqa: C901
         table_width_val: float,
         table_height_val: float,
         table_unit_val: str,
+        scenography_unit_val: str,
     ) -> dict[Any, Any]:
         description_stripped = (description or "").strip()
         if not description_stripped:
@@ -134,7 +137,11 @@ def wire_scenography(  # noqa: C901
                         "message": "Circle requires Radius > 0.",
                     },
                 }
-            form_data: dict[str, Any] = {"cx": int(cx), "cy": int(cy), "r": int(r)}
+            form_data: dict[str, Any] = {
+                "cx": int(convert_to_cm(cx, scenography_unit_val) * 10),
+                "cy": int(convert_to_cm(cy, scenography_unit_val) * 10),
+                "r": int(convert_to_cm(r, scenography_unit_val) * 10),
+            }
         elif elem_type == "rect":
             if x is None or x < 0:
                 return {
@@ -173,10 +180,10 @@ def wire_scenography(  # noqa: C901
                     },
                 }
             form_data = {
-                "x": int(x),
-                "y": int(y),
-                "width": int(width),
-                "height": int(height),
+                "x": int(convert_to_cm(x, scenography_unit_val) * 10),
+                "y": int(convert_to_cm(y, scenography_unit_val) * 10),
+                "width": int(convert_to_cm(width, scenography_unit_val) * 10),
+                "height": int(convert_to_cm(height, scenography_unit_val) * 10),
             }
         else:
             # polygon
@@ -226,7 +233,9 @@ def wire_scenography(  # noqa: C901
                         or math.isinf(y_val)
                     ):
                         continue
-                    points_list.append({"x": int(x_val), "y": int(y_val)})
+                    x_mm = int(convert_to_cm(x_val, scenography_unit_val) * 10)
+                    y_mm = int(convert_to_cm(y_val, scenography_unit_val) * 10)
+                    points_list.append({"x": x_mm, "y": y_mm})
                 except (ValueError, TypeError, AttributeError):
                     continue
 
@@ -328,6 +337,7 @@ def wire_scenography(  # noqa: C901
             table_width,
             table_height,
             table_unit,
+            scenography_unit,
         ],
         outputs=[scenography_state, scenography_list, output],
     )
@@ -355,4 +365,110 @@ def wire_scenography(  # noqa: C901
         fn=_toggle_scenography,
         inputs=[scenography_toggle],
         outputs=[scenography_group],
+    )
+
+    # Wire unit change for Scenography
+    def _on_scenography_unit_change(
+        new_unit: str,
+        cx: float,
+        cy: float,
+        r: float,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        polygon_data: list[list[Any]],
+        prev_unit: str,
+    ) -> tuple[float, float, float, float, float, float, float, list[list[float]], str]:
+        """Convert scenography coordinates when unit changes."""
+        if prev_unit == new_unit:
+            # No conversion needed
+            return cx, cy, r, x, y, width, height, polygon_data, new_unit
+
+        # Convert all circle coordinates
+        cx_converted = convert_unit_to_unit(cx, prev_unit, new_unit)
+        cy_converted = convert_unit_to_unit(cy, prev_unit, new_unit)
+        r_converted = convert_unit_to_unit(r, prev_unit, new_unit)
+
+        # Convert all rect coordinates
+        x_converted = convert_unit_to_unit(x, prev_unit, new_unit)
+        y_converted = convert_unit_to_unit(y, prev_unit, new_unit)
+        width_converted = convert_unit_to_unit(width, prev_unit, new_unit)
+        height_converted = convert_unit_to_unit(height, prev_unit, new_unit)
+
+        # Convert polygon points
+        polygon_converted = polygon_data
+        if polygon_data is not None:
+            try:
+                # Handle both list and dataframe formats
+                if hasattr(polygon_data, "values"):
+                    points_list = polygon_data.values.tolist()
+                elif isinstance(polygon_data, list):
+                    points_list = polygon_data
+                else:
+                    points_list = []
+
+                converted_points = []
+                for row in points_list:
+                    if (
+                        row is not None
+                        and isinstance(row, (list, tuple))
+                        and len(row) >= 2
+                    ):
+                        try:
+                            x_val = float(row[0])
+                            y_val = float(row[1])
+                            x_converted_pt = convert_unit_to_unit(
+                                x_val, prev_unit, new_unit
+                            )
+                            y_converted_pt = convert_unit_to_unit(
+                                y_val, prev_unit, new_unit
+                            )
+                            converted_points.append([x_converted_pt, y_converted_pt])
+                        except (ValueError, TypeError):
+                            pass
+                polygon_converted = (
+                    converted_points if converted_points else polygon_data
+                )
+            except Exception:
+                # If conversion fails, keep original
+                polygon_converted = polygon_data
+
+        return (
+            cx_converted,
+            cy_converted,
+            r_converted,
+            x_converted,
+            y_converted,
+            width_converted,
+            height_converted,
+            polygon_converted,
+            new_unit,
+        )
+
+    scenography_unit.change(
+        fn=_on_scenography_unit_change,
+        inputs=[
+            scenography_unit,
+            circle_cx,
+            circle_cy,
+            circle_r,
+            rect_x,
+            rect_y,
+            rect_width,
+            rect_height,
+            polygon_points,
+            scenography_unit_state,
+        ],
+        outputs=[
+            circle_cx,
+            circle_cy,
+            circle_r,
+            rect_x,
+            rect_y,
+            rect_width,
+            rect_height,
+            polygon_points,
+            scenography_unit_state,
+        ],
     )

@@ -3,6 +3,7 @@
 from typing import Any
 
 import gradio as gr
+from adapters.ui_gradio.ui.components import build_unit_selector
 
 
 def build_deployment_zones_section() -> tuple[Any, ...]:
@@ -11,10 +12,11 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
     Returns:
         Tuple of (deployment_zones_toggle, deployment_zones_state,
                  zone_table_width_state, zone_table_height_state,
-                 zones_group, zone_border_select, zone_fill_side_checkbox,
-                 zone_description, zone_width, zone_height, zone_sep_x,
-                 zone_sep_y, add_zone_btn, remove_last_zone_btn,
-                 deployment_zones_list, remove_selected_zone_btn)
+                 zone_unit_state, zones_group, zone_border_select,
+                 zone_fill_side_checkbox, zone_unit, zone_description,
+                 zone_width, zone_height, zone_sep_x, zone_sep_y,
+                 add_zone_btn, remove_last_zone_btn, deployment_zones_list,
+                 remove_selected_zone_btn)
     """
     # Toggle for Deployment Zones section
     with gr.Row():
@@ -34,11 +36,11 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
 
         deployment_zones_state = gr.State([])
         zone_table_width_state = gr.State(
-            1200
-        )  # Track current table width for UI updates
+            120
+        )  # Track current table width for UI updates (in cm)
         zone_table_height_state = gr.State(
-            1200
-        )  # Track current table height for UI updates
+            120
+        )  # Track current table height for UI updates (in cm)
 
         with gr.Row():
             zone_border_select = gr.Radio(
@@ -56,6 +58,9 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
             )
 
         with gr.Row():
+            zone_unit_state, zone_unit = build_unit_selector("zone")
+
+        with gr.Row():
             zone_description = gr.Textbox(
                 value="",
                 label="Description",
@@ -66,16 +71,16 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
 
         with gr.Row():
             zone_width = gr.Number(
-                value=1200,
-                precision=0,
-                label="Width (mm)",
+                value=120,
+                precision=2,
+                label="Width (cm) [LOCKED]",
                 elem_id="zone-width",
-                interactive=True,
+                interactive=False,
             )
             zone_height = gr.Number(
-                value=200,
-                precision=0,
-                label="Height (mm)",
+                value=20,
+                precision=2,
+                label="Height",
                 elem_id="zone-height",
                 interactive=True,
             )
@@ -83,15 +88,15 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
         with gr.Row():
             zone_sep_x = gr.Number(
                 value=0,
-                precision=0,
-                label="Separation X (mm)",
+                precision=2,
+                label="Separation X (cm) [LOCKED]",
                 elem_id="zone-sep-x",
-                interactive=True,
+                interactive=False,
             )
             zone_sep_y = gr.Number(
                 value=0,
-                precision=0,
-                label="Separation Y (mm)",
+                precision=2,
+                label="Separation Y",
                 elem_id="zone-sep-y",
                 interactive=True,
             )
@@ -120,9 +125,11 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
         deployment_zones_state,
         zone_table_width_state,
         zone_table_height_state,
+        zone_unit_state,
         zones_group,
         zone_border_select,
         zone_fill_side_checkbox,
+        zone_unit,
         zone_description,
         zone_width,
         zone_height,

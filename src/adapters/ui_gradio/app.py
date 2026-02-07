@@ -25,6 +25,7 @@ if __name__ == "__main__":
 
 import gradio as gr
 from adapters.ui_gradio.state_helpers import get_default_actor_id
+from adapters.ui_gradio.ui.components import build_svg_preview
 from adapters.ui_gradio.ui.sections import (
     actor_section,
     deployment_zones_section,
@@ -116,9 +117,11 @@ def build_app() -> gr.Blocks:
             deployment_zones_state,
             zone_table_width_state,
             zone_table_height_state,
+            zone_unit_state,
             zones_group,
             zone_border_select,
             zone_fill_side_checkbox,
+            zone_unit,
             zone_description,
             zone_width,
             zone_height,
@@ -134,9 +137,11 @@ def build_app() -> gr.Blocks:
         (
             objective_points_toggle,
             objective_points_state,
+            objective_unit_state,
             objective_description,
             objective_cx_input,
             objective_cy_input,
+            objective_unit,
             add_objective_btn,
             objective_points_list,
             remove_last_objective_btn,
@@ -148,8 +153,10 @@ def build_app() -> gr.Blocks:
         (
             scenography_toggle,
             scenography_state,
+            scenography_unit_state,
             scenography_description,
             scenography_type,
+            scenography_unit,
             circle_form_row,
             circle_cx,
             circle_cy,
@@ -171,6 +178,12 @@ def build_app() -> gr.Blocks:
             remove_selected_scenography_btn,
             scenography_group,
         ) = scenography_section.build_scenography_section()
+
+        # SVG Map Preview
+        svg_preview = build_svg_preview(
+            elem_id_prefix="card-svg-preview",
+            label="Map Preview",
+        )
 
         # Generate button and output
         generate_btn = gr.Button(
@@ -223,6 +236,8 @@ def build_app() -> gr.Blocks:
             zone_table_height_state=zone_table_height_state,
             zone_border_select=zone_border_select,
             zone_fill_side_checkbox=zone_fill_side_checkbox,
+            zone_unit_state=zone_unit_state,
+            zone_unit=zone_unit,
             zone_description=zone_description,
             zone_width=zone_width,
             zone_height=zone_height,
@@ -235,9 +250,11 @@ def build_app() -> gr.Blocks:
             objective_points_toggle=objective_points_toggle,
             objective_points_group=objective_points_group,
             objective_points_state=objective_points_state,
+            objective_unit_state=objective_unit_state,
             objective_description=objective_description,
             objective_cx_input=objective_cx_input,
             objective_cy_input=objective_cy_input,
+            objective_unit=objective_unit,
             add_objective_btn=add_objective_btn,
             objective_points_list=objective_points_list,
             remove_last_objective_btn=remove_last_objective_btn,
@@ -245,8 +262,10 @@ def build_app() -> gr.Blocks:
             scenography_toggle=scenography_toggle,
             scenography_group=scenography_group,
             scenography_state=scenography_state,
+            scenography_unit_state=scenography_unit_state,
             scenography_description=scenography_description,
             scenography_type=scenography_type,
+            scenography_unit=scenography_unit,
             circle_form_row=circle_form_row,
             circle_cx=circle_cx,
             circle_cy=circle_cy,
@@ -267,6 +286,7 @@ def build_app() -> gr.Blocks:
             scenography_list=scenography_list,
             remove_selected_scenography_btn=remove_selected_scenography_btn,
             generate_btn=generate_btn,
+            svg_preview=svg_preview,
             output=output,
         )
 
