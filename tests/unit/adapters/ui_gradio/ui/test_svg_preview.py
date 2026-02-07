@@ -248,7 +248,9 @@ class TestRenderSvgFromCard:
             "shapes": {
                 "deployment_shapes": "not a list",
                 "objective_shapes": None,
-                "scenography_specs": [{"type": "circle", "cx": 600, "cy": 600, "r": 50}],
+                "scenography_specs": [
+                    {"type": "circle", "cx": 600, "cy": 600, "r": 50}
+                ],
             },
         }
         result = render_svg_from_card(card)
