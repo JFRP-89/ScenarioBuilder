@@ -8,7 +8,6 @@ across Table Configuration, Deployment Zones, Objective Points, and Scenography 
 from __future__ import annotations
 
 import gradio as gr
-
 from adapters.ui_gradio.ui.components import (
     build_unit_selector,
     create_unit_radio,
