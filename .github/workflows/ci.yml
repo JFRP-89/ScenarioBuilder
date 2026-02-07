@@ -53,7 +53,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install ruff==${{ env.RUFF_VERSION }}
-          python -m pip install black
+          python -m pip install black==24.8.0
+
+      - name: Show formatter versions
+        run: |
+          black --version
+          ruff --version
 
       - name: Run ruff check
         run: ruff check .
