@@ -13,7 +13,11 @@ from adapters.ui_gradio.state_helpers import (
     remove_selected_deployment_zone,
     validate_separation_coords,
 )
-from adapters.ui_gradio.units import convert_to_cm
+from adapters.ui_gradio.units import (
+    convert_from_cm,
+    convert_to_cm,
+    convert_unit_to_unit,
+)
 
 
 def wire_deployment_zones(  # noqa: C901
@@ -23,8 +27,10 @@ def wire_deployment_zones(  # noqa: C901
     deployment_zones_state: gr.State,
     zone_table_width_state: gr.State,
     zone_table_height_state: gr.State,
+    zone_unit_state: gr.State,
     zone_border_select: gr.Radio,
     zone_fill_side_checkbox: gr.Checkbox,
+    zone_unit: gr.Radio,
     zone_description: gr.Textbox,
     zone_width: gr.Number,
     zone_height: gr.Number,
@@ -56,6 +62,7 @@ def wire_deployment_zones(  # noqa: C901
         tw: float,
         th: float,
         tu: str,
+        zone_unit_val: str,
     ) -> dict[Any, Any]:
         description_stripped = (desc or "").strip()
         if not description_stripped:
@@ -96,23 +103,30 @@ def wire_deployment_zones(  # noqa: C901
             }
         table_w_mm = int(convert_to_cm(tw, tu) * 10)
         table_h_mm = int(convert_to_cm(th, tu) * 10)
+
+        # Convert zone dimensions from user unit to mm
+        w_mm = int(convert_to_cm(w, zone_unit_val) * 10)
+        h_mm = int(convert_to_cm(h, zone_unit_val) * 10)
+        sx_mm = int(convert_to_cm(sx, zone_unit_val) * 10)
+        sy_mm = int(convert_to_cm(sy, zone_unit_val) * 10)
+
         if fill_side:
             if border in ("north", "south"):
-                w = table_w_mm
-                sx = 0
+                w_mm = table_w_mm
+                sx_mm = 0
             else:
-                h = table_h_mm
-                sy = 0
-        sx, sy = validate_separation_coords(
-            border, int(w), int(h), sx, sy, table_w_mm, table_h_mm
+                h_mm = table_h_mm
+                sy_mm = 0
+        sx_mm, sy_mm = validate_separation_coords(
+            border, w_mm, h_mm, sx_mm, sy_mm, table_w_mm, table_h_mm
         )
         zone_data = {
             "type": "rect",
             "description": description_stripped,
-            "x": int(sx),
-            "y": int(sy),
-            "width": int(w),
-            "height": int(h),
+            "x": int(sx_mm),
+            "y": int(sy_mm),
+            "width": int(w_mm),
+            "height": int(h_mm),
             "border": border,
         }
         new_state, error_msg = add_deployment_zone(
@@ -157,41 +171,73 @@ def wire_deployment_zones(  # noqa: C901
         }
 
     def _on_zone_border_or_fill_change(
-        border_val: str, fill_side: bool, tw: float, th: float, tu: str
+        border_val: str,
+        fill_side: bool,
+        tw: float,
+        th: float,
+        tu: str,
+        zone_unit_val: str,
     ) -> dict[str, Any]:
-        table_w_mm = int(convert_to_cm(tw, tu) * 10)
-        table_h_mm = int(convert_to_cm(th, tu) * 10)
+        """Update zone dimensions when border or fill_side changes.
+
+        Converts table dimensions to the current zone unit.
+        """
+        # Convert table dimensions to cm, then to the current zone unit
+        table_w_cm = convert_to_cm(tw, tu)
+        table_h_cm = convert_to_cm(th, tu)
+
+        width_in_zone_unit = convert_from_cm(table_w_cm, zone_unit_val)
+        height_in_zone_unit = convert_from_cm(table_h_cm, zone_unit_val)
+
         updates: dict[Any, Any] = {}
         if fill_side:
             if border_val in ("north", "south"):
                 updates[zone_width] = gr.update(
-                    value=table_w_mm, interactive=False, label="Width (mm) [LOCKED]"
+                    value=round(width_in_zone_unit, 2),
+                    interactive=False,
+                    label=f"Width ({zone_unit_val}) [LOCKED]",
                 )
-                updates[zone_height] = gr.update(interactive=True, label="Height (mm)")
+                updates[zone_height] = gr.update(
+                    interactive=True, label=f"Height ({zone_unit_val})"
+                )
                 updates[zone_sep_x] = gr.update(
-                    value=0, interactive=False, label="Separation X (mm) [LOCKED]"
+                    value=0,
+                    interactive=False,
+                    label=f"Separation X ({zone_unit_val}) [LOCKED]",
                 )
                 updates[zone_sep_y] = gr.update(
-                    interactive=True, label="Separation Y (mm)"
+                    interactive=True, label=f"Separation Y ({zone_unit_val})"
                 )
             else:
-                updates[zone_width] = gr.update(interactive=True, label="Width (mm)")
+                updates[zone_width] = gr.update(
+                    interactive=True, label=f"Width ({zone_unit_val})"
+                )
                 updates[zone_height] = gr.update(
-                    value=table_h_mm,
+                    value=round(height_in_zone_unit, 2),
                     interactive=False,
-                    label="Height (mm) [LOCKED]",
+                    label=f"Height ({zone_unit_val}) [LOCKED]",
                 )
                 updates[zone_sep_x] = gr.update(
-                    interactive=True, label="Separation X (mm)"
+                    interactive=True, label=f"Separation X ({zone_unit_val})"
                 )
                 updates[zone_sep_y] = gr.update(
-                    value=0, interactive=False, label="Separation Y (mm) [LOCKED]"
+                    value=0,
+                    interactive=False,
+                    label=f"Separation Y ({zone_unit_val}) [LOCKED]",
                 )
         else:
-            updates[zone_width] = gr.update(interactive=True, label="Width (mm)")
-            updates[zone_height] = gr.update(interactive=True, label="Height (mm)")
-            updates[zone_sep_x] = gr.update(interactive=True, label="Separation X (mm)")
-            updates[zone_sep_y] = gr.update(interactive=True, label="Separation Y (mm)")
+            updates[zone_width] = gr.update(
+                interactive=True, label=f"Width ({zone_unit_val})"
+            )
+            updates[zone_height] = gr.update(
+                interactive=True, label=f"Height ({zone_unit_val})"
+            )
+            updates[zone_sep_x] = gr.update(
+                interactive=True, label=f"Separation X ({zone_unit_val})"
+            )
+            updates[zone_sep_y] = gr.update(
+                interactive=True, label=f"Separation Y ({zone_unit_val})"
+            )
         return updates
 
     # -- bindings ----------------------------------------------------------
@@ -202,6 +248,7 @@ def wire_deployment_zones(  # noqa: C901
         table_width,
         table_height,
         table_unit,
+        zone_unit,
     ]
     _zone_outputs = [zone_width, zone_height, zone_sep_x, zone_sep_y]
     for component in (
@@ -232,6 +279,7 @@ def wire_deployment_zones(  # noqa: C901
             table_width,
             table_height,
             table_unit,
+            zone_unit,
         ],
         outputs=[deployment_zones_state, deployment_zones_list, output],
     )
@@ -254,4 +302,30 @@ def wire_deployment_zones(  # noqa: C901
         fn=_toggle_deployment_zones,
         inputs=[deployment_zones_toggle],
         outputs=[zones_group],
+    )
+
+    # Wire unit change for Deployment Zones
+    def _on_zone_unit_change(
+        new_unit: str, w: float, h: float, sx: float, sy: float, prev_unit: str
+    ) -> tuple[float, float, float, float, str]:
+        """Convert zone dimensions when unit changes."""
+        if prev_unit == new_unit:
+            return w, h, sx, sy, new_unit
+        w_converted = convert_unit_to_unit(w, prev_unit, new_unit)
+        h_converted = convert_unit_to_unit(h, prev_unit, new_unit)
+        sx_converted = convert_unit_to_unit(sx, prev_unit, new_unit) if sx else 0
+        sy_converted = convert_unit_to_unit(sy, prev_unit, new_unit) if sy else 0
+        return w_converted, h_converted, sx_converted, sy_converted, new_unit
+
+    zone_unit.change(
+        fn=_on_zone_unit_change,
+        inputs=[
+            zone_unit,
+            zone_width,
+            zone_height,
+            zone_sep_x,
+            zone_sep_y,
+            zone_unit_state,
+        ],
+        outputs=[zone_width, zone_height, zone_sep_x, zone_sep_y, zone_unit_state],
     )

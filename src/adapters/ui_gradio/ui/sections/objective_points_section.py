@@ -3,6 +3,7 @@
 from typing import Any
 
 import gradio as gr
+from adapters.ui_gradio.ui.components import build_unit_selector
 
 
 def build_objective_points_section() -> tuple[Any, ...]:
@@ -10,8 +11,9 @@ def build_objective_points_section() -> tuple[Any, ...]:
 
     Returns:
         Tuple of (objective_points_toggle, objective_points_state,
-                 objective_description, objective_cx_input, objective_cy_input,
-                 add_objective_btn, objective_points_list, remove_last_objective_btn,
+                 objective_unit_state, objective_description, objective_cx_input,
+                 objective_cy_input, objective_unit, add_objective_btn,
+                 objective_points_list, remove_last_objective_btn,
                  remove_selected_objective_btn, objective_points_group)
     """
     # Toggle for Objective Points section
@@ -32,6 +34,10 @@ def build_objective_points_section() -> tuple[Any, ...]:
             "Default position: map center._"
         )
 
+        # Unit selector
+        with gr.Row():
+            objective_unit_state, objective_unit = build_unit_selector("objective")
+
         # Description for objective point
         with gr.Row():
             objective_description = gr.Textbox(
@@ -45,15 +51,15 @@ def build_objective_points_section() -> tuple[Any, ...]:
         # Input fields for new point
         with gr.Row():
             objective_cx_input = gr.Number(
-                label="X Coordinate (mm)",
-                value=600,  # Default to center of standard 1200x1200
-                precision=0,
+                label="X Coordinate",
+                value=60,  # Default to center of standard 120x120 cm
+                precision=2,
                 elem_id="objective-cx",
             )
             objective_cy_input = gr.Number(
-                label="Y Coordinate (mm)",
-                value=600,  # Default to center of standard 1200x1200
-                precision=0,
+                label="Y Coordinate",
+                value=60,  # Default to center of standard 120x120 cm
+                precision=2,
                 elem_id="objective-cy",
             )
 
@@ -89,9 +95,11 @@ def build_objective_points_section() -> tuple[Any, ...]:
     return (
         objective_points_toggle,
         objective_points_state,
+        objective_unit_state,
         objective_description,
         objective_cx_input,
         objective_cy_input,
+        objective_unit,
         add_objective_btn,
         objective_points_list,
         remove_last_objective_btn,

@@ -17,26 +17,51 @@ class SvgMapRenderer:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" '
             f'width="{width}" height="{height}" '
-            f'viewBox="0 0 {width} {height}">'
+            f'viewBox="0 0 {width} {height}" '
+            'style="background:#f5f5f5;">'
         )
 
     def _rect_svg(self, shape: dict) -> str:
+        """Render rect with deployment zone styling (semi-transparent fill)."""
         x = int(shape["x"])
         y = int(shape["y"])
         w = int(shape["width"])
         h = int(shape["height"])
-        return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" />'
+        # Default to blue deployment zone styling
+        fill = shape.get("fill", "rgba(100,150,250,0.3)")
+        stroke = shape.get("stroke", "#4070c0")
+        stroke_width = shape.get("stroke-width", "2")
+        return (
+            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="{stroke_width}" />'
+        )
 
     def _circle_svg(self, shape: dict) -> str:
+        """Render circle with scenography styling (gray outline, transparent fill)."""
         cx = int(shape["cx"])
         cy = int(shape["cy"])
         r = int(shape["r"])
-        return f'<circle cx="{cx}" cy="{cy}" r="{r}" />'
+        # Default to scenography styling
+        fill = shape.get("fill", "rgba(128,128,128,0.2)")
+        stroke = shape.get("stroke", "#666")
+        stroke_width = shape.get("stroke-width", "2")
+        return (
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="{stroke_width}" />'
+        )
 
     def _polygon_svg(self, shape: dict) -> str:
+        """Render polygon with deployment zone styling."""
         points = shape["points"]
         points_str = " ".join(f'{int(p["x"])},{int(p["y"])}' for p in points)
-        return f'<polygon points="{points_str}" />'
+        # Default to red deployment zone styling
+        fill = shape.get("fill", "rgba(250,100,100,0.3)")
+        stroke = shape.get("stroke", "#c04040")
+        stroke_width = shape.get("stroke-width", "2")
+        return (
+            f'<polygon points="{points_str}" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="{stroke_width}" />'
+        )
 
     def _objective_point_svg(self, shape: dict) -> str:
         """Render an objective_point as a black filled circle with radius 25mm.
@@ -82,6 +107,12 @@ class SvgMapRenderer:
 
         # SVG header
         parts.append(self._svg_header(width, height))
+
+        # Table background (white playing area with border)
+        parts.append(
+            f'<rect x="0" y="0" width="{width}" height="{height}" '
+            'fill="white" stroke="#333" stroke-width="3" />'
+        )
 
         # Render shapes
         for shape in shapes:

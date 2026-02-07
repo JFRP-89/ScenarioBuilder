@@ -3,6 +3,7 @@
 from typing import Any
 
 import gradio as gr
+from adapters.ui_gradio.ui.components import build_unit_selector
 
 # Scenography types
 SCENOGRAPHY_TYPES = ["circle", "rect", "polygon"]
@@ -12,7 +13,8 @@ def build_scenography_section() -> tuple[Any, ...]:
     """Build scenography builder UI components (starts empty).
 
     Returns:
-        Tuple of (scenography_toggle, scenography_state, scenography_description, scenography_type,
+        Tuple of (scenography_toggle, scenography_state, scenography_unit_state,
+                 scenography_description, scenography_type, scenography_unit,
                  circle_form_row, circle_cx, circle_cy, circle_r, rect_form_row,
                  rect_x, rect_y, rect_width, rect_height, polygon_form_col,
                  polygon_preset, polygon_points, delete_polygon_row_btn,
@@ -48,6 +50,12 @@ def build_scenography_section() -> tuple[Any, ...]:
                 interactive=True,
             )
 
+        # Unit selector
+        with gr.Row():
+            scenography_unit_state, scenography_unit = build_unit_selector(
+                "scenography"
+            )
+
         # Element type selector
         with gr.Row():
             scenography_type = gr.Radio(
@@ -60,24 +68,24 @@ def build_scenography_section() -> tuple[Any, ...]:
         # Circle form (visible by default now)
         with gr.Row(visible=True) as circle_form_row:
             circle_cx = gr.Number(
-                value=900, precision=0, label="Center X (mm)", elem_id="circle-cx"
+                value=90, precision=2, label="Center X", elem_id="circle-cx"
             )
             circle_cy = gr.Number(
-                value=900, precision=0, label="Center Y (mm)", elem_id="circle-cy"
+                value=90, precision=2, label="Center Y", elem_id="circle-cy"
             )
             circle_r = gr.Number(
-                value=150, precision=0, label="Radius (mm)", elem_id="circle-r"
+                value=15, precision=2, label="Radius", elem_id="circle-r"
             )
 
         # Rectangle form (hidden by default)
         with gr.Row(visible=False) as rect_form_row:
-            rect_x = gr.Number(value=300, precision=0, label="X (mm)", elem_id="rect-x")
-            rect_y = gr.Number(value=300, precision=0, label="Y (mm)", elem_id="rect-y")
+            rect_x = gr.Number(value=30, precision=2, label="X", elem_id="rect-x")
+            rect_y = gr.Number(value=30, precision=2, label="Y", elem_id="rect-y")
             rect_width = gr.Number(
-                value=400, precision=0, label="Width (mm)", elem_id="rect-width"
+                value=40, precision=2, label="Width", elem_id="rect-width"
             )
             rect_height = gr.Number(
-                value=300, precision=0, label="Height (mm)", elem_id="rect-height"
+                value=30, precision=2, label="Height", elem_id="rect-height"
             )
 
         # Polygon form (hidden by default)
@@ -94,9 +102,9 @@ def build_scenography_section() -> tuple[Any, ...]:
                 "table below. Min: 3 points, Max: 200._"
             )
             polygon_points = gr.Dataframe(
-                headers=["x (mm)", "y (mm)"],
+                headers=["x", "y"],
                 datatype=["number", "number"],
-                value=[[600, 300], [1000, 700], [200, 700]],
+                value=[[60, 30], [100, 70], [20, 70]],
                 label="Polygon Points",
                 elem_id="polygon-points",
                 interactive=True,
@@ -149,8 +157,10 @@ def build_scenography_section() -> tuple[Any, ...]:
     return (
         scenography_toggle,
         scenography_state,
+        scenography_unit_state,
         scenography_description,
         scenography_type,
+        scenography_unit,
         circle_form_row,
         circle_cx,
         circle_cy,

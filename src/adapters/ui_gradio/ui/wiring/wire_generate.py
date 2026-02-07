@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import gradio as gr
 from adapters.ui_gradio.services.generate import handle_generate
+from adapters.ui_gradio.ui.components.svg_preview import render_svg_from_card
 
 
 def wire_generate(
@@ -30,12 +33,21 @@ def wire_generate(
     objectives_with_vp_toggle: gr.Checkbox,
     vp_state: gr.State,
     generate_btn: gr.Button,
+    svg_preview: gr.HTML,
     output: gr.JSON,
 ) -> None:
     """Wire generate button click."""
 
+    def _generate_and_render(
+        *args: Any,
+    ) -> tuple[dict[str, Any], str]:
+        """Generate card and render SVG preview."""
+        card_data = handle_generate(*args)
+        svg_html = render_svg_from_card(card_data)
+        return card_data, svg_html
+
     generate_btn.click(
-        fn=handle_generate,
+        fn=_generate_and_render,
         inputs=[
             actor_id,
             scenario_name,
@@ -59,5 +71,5 @@ def wire_generate(
             objectives_with_vp_toggle,
             vp_state,
         ],
-        outputs=output,
+        outputs=[output, svg_preview],
     )

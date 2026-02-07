@@ -485,33 +485,34 @@ def validate_separation_coords(
     """Calculate final zone coordinates based on border and separation.
 
     Coordinate logic:
-        NORTH: y = separation, x = 0
-        SOUTH: y = (table_height - zone_height) - separation, x = 0
-        WEST:  x = separation, y = 0
-        EAST:  x = (table_width - zone_width) - separation, y = 0
+        NORTH: x = sep_x, y = sep_y
+        SOUTH: x = sep_x, y = (max_y - sep_y)
+        WEST:  x = sep_x, y = sep_y
+        EAST:  x = (max_x - sep_x), y = sep_y
 
     Returns:
         Tuple of (final_x, final_y) representing zone top-left corner.
     """
+    max_x = max(0, table_width_mm - zone_width)
+    max_y = max(0, table_height_mm - zone_height)
+    clamped_x = max(0, min(sep_x, max_x))
+    clamped_y = max(0, min(sep_y, max_y))
+
     if border == "north":
-        x = 0.0
-        max_y = max(0, table_height_mm - zone_height)
-        y = max(0, min(sep_y, max_y))
+        x = clamped_x
+        y = clamped_y
 
     elif border == "south":
-        x = 0.0
-        max_y = max(0, table_height_mm - zone_height)
-        y = max(0, min(max_y - sep_y, max_y))
+        x = clamped_x
+        y = max_y - clamped_y
 
     elif border == "west":
-        y = 0.0
-        max_x = max(0, table_width_mm - zone_width)
-        x = max(0, min(sep_x, max_x))
+        x = clamped_x
+        y = clamped_y
 
     else:  # east
-        y = 0.0
-        max_x = max(0, table_width_mm - zone_width)
-        x = max(0, min(max_x - sep_x, max_x))
+        x = max_x - clamped_x
+        y = clamped_y
 
     return x, y
 
