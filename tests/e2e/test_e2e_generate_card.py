@@ -77,7 +77,9 @@ def _fill_seed(page) -> None:
 
 def _fill_table_preset_if_present(page) -> None:
     """Select 'standard' table preset. It's a Gradio radio so click the label."""
-    standard_label = page.locator("#table-preset label", has_text=re.compile(r"^standard$", re.I))
+    standard_label = page.locator(
+        "#table-preset label", has_text=re.compile(r"^standard$", re.I)
+    )
     if standard_label.count() > 0 and standard_label.first.is_visible():
         standard_label.first.click()
         return
