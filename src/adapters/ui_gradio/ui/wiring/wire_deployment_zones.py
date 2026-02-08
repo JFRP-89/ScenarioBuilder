@@ -28,12 +28,26 @@ def wire_deployment_zones(  # noqa: C901
     zone_table_width_state: gr.State,
     zone_table_height_state: gr.State,
     zone_unit_state: gr.State,
+    zone_type_select: gr.Radio,
+    border_row: gr.Row,
     zone_border_select: gr.Radio,
+    corner_row: gr.Row,
+    zone_corner_select: gr.Radio,
+    fill_side_row: gr.Row,
     zone_fill_side_checkbox: gr.Checkbox,
+    perfect_triangle_row: gr.Row,
+    zone_perfect_triangle_checkbox: gr.Checkbox,
     zone_unit: gr.Radio,
     zone_description: gr.Textbox,
+    rect_dimensions_row: gr.Row,
     zone_width: gr.Number,
     zone_height: gr.Number,
+    triangle_dimensions_row: gr.Row,
+    zone_triangle_side1: gr.Number,
+    zone_triangle_side2: gr.Number,
+    circle_dimensions_row: gr.Row,
+    zone_circle_radius: gr.Number,
+    separation_row: gr.Row,
     zone_sep_x: gr.Number,
     zone_sep_y: gr.Number,
     add_zone_btn: gr.Button,
@@ -48,14 +62,125 @@ def wire_deployment_zones(  # noqa: C901
 ) -> None:
     """Wire deployment-zone add/remove/border-fill events."""
 
+    # -- helpers -----------------------------------------------------------
+
+    def _calculate_triangle_vertices(
+        corner: str, side1_mm: int, side2_mm: int, table_w_mm: int, table_h_mm: int
+    ) -> list[tuple[int, int]]:
+        """Calculate triangle vertices from corner position and side lengths.
+
+        Creates a right isosceles triangle with one vertex at the specified corner
+        and the other two vertices along the adjacent table edges.
+
+        Args:
+            corner: One of "north-west", "north-east", "south-west", "south-east"
+            side1_mm: Length of first cathetus in mm (vertical from corner)
+            side2_mm: Length of second cathetus in mm (horizontal from corner)
+            table_w_mm: Table width in mm
+            table_h_mm: Table height in mm
+
+        Returns:
+            List of 3 (x, y) tuples representing the triangle vertices in mm coordinates
+        """
+        if corner == "north-west":
+            # Corner at (0, 0)
+            return [(0, 0), (0, side2_mm), (side1_mm, 0)]
+        elif corner == "north-east":
+            # Corner at (W, 0)
+            return [(table_w_mm, 0), (table_w_mm, side2_mm), (table_w_mm - side1_mm, 0)]
+        elif corner == "south-west":
+            # Corner at (0, H)
+            return [(0, table_h_mm), (0, table_h_mm - side2_mm), (side1_mm, table_h_mm)]
+        elif corner == "south-east":
+            # Corner at (W, H)
+            return [
+                (table_w_mm, table_h_mm),
+                (table_w_mm, table_h_mm - side2_mm),
+                (table_w_mm - side1_mm, table_h_mm),
+            ]
+        else:
+            raise ValueError(f"Invalid corner: {corner}")
+
+    def _calculate_circle_vertices(
+        corner: str,
+        radius_mm: int,
+        table_w_mm: int,
+        table_h_mm: int,
+        num_points: int = 20,
+    ) -> list[tuple[int, int]]:
+        """Calculate quarter-circle vertices from corner position and radius.
+
+        Creates a quarter circle anchored at the specified corner,
+        approximated as a polygon with num_points vertices.
+
+        Args:
+            corner: One of "north-west", "north-east", "south-west", "south-east"
+            radius_mm: Radius of the quarter circle in mm
+            table_w_mm: Table width in mm
+            table_h_mm: Table height in mm
+            num_points: Number of points to approximate the arc (default 20)
+
+        Returns:
+            List of (x, y) tuples representing the quarter-circle vertices in mm coordinates
+        """
+        import math
+
+        # Generate arc points (0 to 90 degrees)
+        vertices = []
+
+        if corner == "north-west":
+            # Quarter circle from (radius, 0) to (0, radius), corner at (0, 0)
+            vertices.append((0, 0))
+            for i in range(num_points + 1):
+                angle = math.pi / 2 * i / num_points  # 0 to 90 degrees
+                x = int(radius_mm * math.cos(angle))
+                y = int(radius_mm * math.sin(angle))
+                vertices.append((x, y))
+
+        elif corner == "north-east":
+            # Quarter circle from (W - radius, 0) to (W, radius), corner at (W, 0)
+            vertices.append((table_w_mm, 0))
+            for i in range(num_points + 1):
+                angle = math.pi / 2 * i / num_points
+                x = int(table_w_mm - radius_mm * math.cos(angle))
+                y = int(radius_mm * math.sin(angle))
+                vertices.append((x, y))
+
+        elif corner == "south-west":
+            # Quarter circle from (0, H - radius) to (radius, H), corner at (0, H)
+            vertices.append((0, table_h_mm))
+            for i in range(num_points + 1):
+                angle = math.pi / 2 * i / num_points
+                x = int(radius_mm * math.cos(angle))
+                y = int(table_h_mm - radius_mm * math.sin(angle))
+                vertices.append((x, y))
+
+        elif corner == "south-east":
+            # Quarter circle from (W, H - radius) to (W - radius, H), corner at (W, H)
+            vertices.append((table_w_mm, table_h_mm))
+            for i in range(num_points + 1):
+                angle = math.pi / 2 * i / num_points
+                x = int(table_w_mm - radius_mm * math.cos(angle))
+                y = int(table_h_mm - radius_mm * math.sin(angle))
+                vertices.append((x, y))
+        else:
+            raise ValueError(f"Invalid corner: {corner}")
+
+        return vertices
+
     # -- closures ----------------------------------------------------------
 
-    def _add_deployment_zone_wrapper(
+    def _add_deployment_zone_wrapper(  # noqa: C901
+        zone_type: str,
         border: str,
+        corner: str,
         fill_side: bool,
         desc: str,
         w: float,
         h: float,
+        tri_side1: float,
+        tri_side2: float,
+        circle_radius: float,
         sx: float,
         sy: float,
         current_state: list[dict[str, Any]],
@@ -64,6 +189,7 @@ def wire_deployment_zones(  # noqa: C901
         tu: str,
         zone_unit_val: str,
     ) -> dict[Any, Any]:
+        """Add deployment zone (rectangle, triangle, or circle)."""
         description_stripped = (desc or "").strip()
         if not description_stripped:
             return {
@@ -74,61 +200,201 @@ def wire_deployment_zones(  # noqa: C901
                     "message": "Deployment Zone requires Description to be filled.",
                 },
             }
-        if not border or not border.strip():
-            return {
-                deployment_zones_state: current_state,
-                deployment_zones_list: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Deployment Zone requires Border to be selected.",
-                },
-            }
-        if not w or w <= 0:
-            return {
-                deployment_zones_state: current_state,
-                deployment_zones_list: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Deployment Zone requires Width > 0.",
-                },
-            }
-        if not h or h <= 0:
-            return {
-                deployment_zones_state: current_state,
-                deployment_zones_list: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Deployment Zone requires Height > 0.",
-                },
-            }
+
         table_w_mm = int(convert_to_cm(tw, tu) * 10)
         table_h_mm = int(convert_to_cm(th, tu) * 10)
+        zone_data: dict[str, Any]
 
-        # Convert zone dimensions from user unit to mm
-        w_mm = int(convert_to_cm(w, zone_unit_val) * 10)
-        h_mm = int(convert_to_cm(h, zone_unit_val) * 10)
-        sx_mm = int(convert_to_cm(sx, zone_unit_val) * 10)
-        sy_mm = int(convert_to_cm(sy, zone_unit_val) * 10)
+        if zone_type == "triangle":
+            # Validate triangle parameters
+            if not corner or not corner.strip():
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Triangle requires Corner to be selected.",
+                    },
+                }
+            if not tri_side1 or tri_side1 <= 0:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Triangle requires Side Length 1 > 0.",
+                    },
+                }
+            if not tri_side2 or tri_side2 <= 0:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Triangle requires Side Length 2 > 0.",
+                    },
+                }
 
-        if fill_side:
-            if border in ("north", "south"):
-                w_mm = table_w_mm
-                sx_mm = 0
-            else:
-                h_mm = table_h_mm
-                sy_mm = 0
-        sx_mm, sy_mm = validate_separation_coords(
-            border, w_mm, h_mm, sx_mm, sy_mm, table_w_mm, table_h_mm
-        )
-        zone_data = {
-            "type": "rect",
-            "description": description_stripped,
-            "x": int(sx_mm),
-            "y": int(sy_mm),
-            "width": int(w_mm),
-            "height": int(h_mm),
-            "border": border,
-        }
+            # Convert triangle sides from user unit to mm
+            side1_mm = int(convert_to_cm(tri_side1, zone_unit_val) * 10)
+            side2_mm = int(convert_to_cm(tri_side2, zone_unit_val) * 10)
+
+            # Calculate triangle vertices
+            try:
+                vertices = _calculate_triangle_vertices(
+                    corner, side1_mm, side2_mm, table_w_mm, table_h_mm
+                )
+            except ValueError as e:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": f"Invalid triangle configuration: {e}",
+                    },
+                }
+
+            # Validate all vertices are within table bounds
+            for x, y in vertices:
+                if x < 0 or x > table_w_mm or y < 0 or y > table_h_mm:
+                    return {
+                        deployment_zones_state: current_state,
+                        deployment_zones_list: gr.update(),
+                        output: {
+                            "status": "error",
+                            "message": f"Triangle extends beyond table bounds: vertex ({x}, {y})",
+                        },
+                    }
+
+            # Convert vertices from tuples to dict format required by SVG renderer
+            points_dict = [{"x": int(x), "y": int(y)} for x, y in vertices]
+
+            zone_data = {
+                "type": "polygon",
+                "description": description_stripped,
+                "points": points_dict,
+                "corner": corner,
+            }
+
+        elif zone_type == "circle":
+            # Validate circle parameters
+            if not corner or not corner.strip():
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Circle requires Corner to be selected.",
+                    },
+                }
+            if not circle_radius or circle_radius <= 0:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Circle requires Radius > 0.",
+                    },
+                }
+
+            # Convert radius from user unit to mm
+            radius_mm = int(convert_to_cm(circle_radius, zone_unit_val) * 10)
+
+            # Calculate quarter-circle vertices
+            try:
+                vertices = _calculate_circle_vertices(
+                    corner, radius_mm, table_w_mm, table_h_mm
+                )
+            except ValueError as e:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": f"Invalid circle configuration: {e}",
+                    },
+                }
+
+            # Validate all vertices are within table bounds
+            for x, y in vertices:
+                if x < 0 or x > table_w_mm or y < 0 or y > table_h_mm:
+                    return {
+                        deployment_zones_state: current_state,
+                        deployment_zones_list: gr.update(),
+                        output: {
+                            "status": "error",
+                            "message": f"Circle extends beyond table bounds: vertex ({x}, {y})",
+                        },
+                    }
+
+            # Convert vertices from tuples to dict format required by SVG renderer
+            points_dict = [{"x": int(x), "y": int(y)} for x, y in vertices]
+
+            zone_data = {
+                "type": "polygon",
+                "description": description_stripped,
+                "points": points_dict,
+                "corner": corner,
+            }
+
+        else:  # rectangle
+            # Validate rectangle parameters
+            if not border or not border.strip():
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Deployment Zone requires Border to be selected.",
+                    },
+                }
+            if not w or w <= 0:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Deployment Zone requires Width > 0.",
+                    },
+                }
+            if not h or h <= 0:
+                return {
+                    deployment_zones_state: current_state,
+                    deployment_zones_list: gr.update(),
+                    output: {
+                        "status": "error",
+                        "message": "Deployment Zone requires Height > 0.",
+                    },
+                }
+
+            # Convert zone dimensions from user unit to mm
+            w_mm = int(convert_to_cm(w, zone_unit_val) * 10)
+            h_mm = int(convert_to_cm(h, zone_unit_val) * 10)
+            sx_mm = int(convert_to_cm(sx, zone_unit_val) * 10)
+            sy_mm = int(convert_to_cm(sy, zone_unit_val) * 10)
+
+            if fill_side:
+                if border in ("north", "south"):
+                    w_mm = table_w_mm
+                    sx_mm = 0
+                else:
+                    h_mm = table_h_mm
+                    sy_mm = 0
+
+            sx_mm, sy_mm = validate_separation_coords(
+                border, w_mm, h_mm, sx_mm, sy_mm, table_w_mm, table_h_mm
+            )
+
+            zone_data = {
+                "type": "rect",
+                "description": description_stripped,
+                "x": int(sx_mm),
+                "y": int(sy_mm),
+                "width": int(w_mm),
+                "height": int(h_mm),
+                "border": border,
+            }
+
         new_state, error_msg = add_deployment_zone(
             current_state, zone_data, table_w_mm, table_h_mm
         )
@@ -240,7 +506,73 @@ def wire_deployment_zones(  # noqa: C901
             )
         return updates
 
+    def _on_zone_type_change(zone_type: str) -> dict[Any, Any]:
+        """Toggle visibility of rectangle/triangle/circle UI elements."""
+        is_rect = zone_type == "rectangle"
+        is_triangle = zone_type == "triangle"
+        is_circle = zone_type == "circle"
+        return {
+            border_row: gr.update(visible=is_rect),
+            corner_row: gr.update(visible=is_triangle or is_circle),
+            fill_side_row: gr.update(visible=is_rect),
+            perfect_triangle_row: gr.update(visible=is_triangle),
+            rect_dimensions_row: gr.update(visible=is_rect),
+            triangle_dimensions_row: gr.update(visible=is_triangle),
+            circle_dimensions_row: gr.update(visible=is_circle),
+            separation_row: gr.update(visible=is_rect),
+        }
+
+    def _on_perfect_triangle_change(
+        is_perfect: bool, side1: float, zone_unit_val: str
+    ) -> dict[Any, Any]:
+        """Lock/unlock side2 based on perfect triangle checkbox."""
+        if is_perfect:
+            return {
+                zone_triangle_side2: gr.update(
+                    value=side1,
+                    interactive=False,
+                    label=f"Y ({zone_unit_val}) [LOCKED]",
+                )
+            }
+        else:
+            return {
+                zone_triangle_side2: gr.update(
+                    interactive=True,
+                    label=f"Y ({zone_unit_val})",
+                )
+            }
+
     # -- bindings ----------------------------------------------------------
+
+    # Wire zone type selection
+    zone_type_select.change(
+        fn=_on_zone_type_change,
+        inputs=[zone_type_select],
+        outputs=[
+            border_row,
+            corner_row,
+            fill_side_row,
+            perfect_triangle_row,
+            rect_dimensions_row,
+            triangle_dimensions_row,
+            circle_dimensions_row,
+            separation_row,
+        ],
+    )
+
+    # Wire perfect triangle checkbox
+    zone_perfect_triangle_checkbox.change(
+        fn=_on_perfect_triangle_change,
+        inputs=[zone_perfect_triangle_checkbox, zone_triangle_side1, zone_unit],
+        outputs=[zone_triangle_side2],
+    )
+
+    # Also sync side2 when side1 changes if perfect triangle is enabled
+    zone_triangle_side1.change(
+        fn=_on_perfect_triangle_change,
+        inputs=[zone_perfect_triangle_checkbox, zone_triangle_side1, zone_unit],
+        outputs=[zone_triangle_side2],
+    )
 
     _zone_inputs = [
         zone_border_select,
@@ -268,11 +600,16 @@ def wire_deployment_zones(  # noqa: C901
     add_zone_btn.click(
         fn=_add_deployment_zone_wrapper,
         inputs=[
+            zone_type_select,
             zone_border_select,
+            zone_corner_select,
             zone_fill_side_checkbox,
             zone_description,
             zone_width,
             zone_height,
+            zone_triangle_side1,
+            zone_triangle_side2,
+            zone_circle_radius,
             zone_sep_x,
             zone_sep_y,
             deployment_zones_state,
@@ -306,16 +643,44 @@ def wire_deployment_zones(  # noqa: C901
 
     # Wire unit change for Deployment Zones
     def _on_zone_unit_change(
-        new_unit: str, w: float, h: float, sx: float, sy: float, prev_unit: str
-    ) -> tuple[float, float, float, float, str]:
+        new_unit: str,
+        w: float,
+        h: float,
+        sx: float,
+        sy: float,
+        tri_side1: float,
+        tri_side2: float,
+        circle_radius: float,
+        prev_unit: str,
+    ) -> tuple[float, float, float, float, float, float, float, str]:
         """Convert zone dimensions when unit changes."""
         if prev_unit == new_unit:
-            return w, h, sx, sy, new_unit
+            return w, h, sx, sy, tri_side1, tri_side2, circle_radius, new_unit
         w_converted = convert_unit_to_unit(w, prev_unit, new_unit)
         h_converted = convert_unit_to_unit(h, prev_unit, new_unit)
         sx_converted = convert_unit_to_unit(sx, prev_unit, new_unit) if sx else 0
         sy_converted = convert_unit_to_unit(sy, prev_unit, new_unit) if sy else 0
-        return w_converted, h_converted, sx_converted, sy_converted, new_unit
+        tri_side1_converted = (
+            convert_unit_to_unit(tri_side1, prev_unit, new_unit) if tri_side1 else 0
+        )
+        tri_side2_converted = (
+            convert_unit_to_unit(tri_side2, prev_unit, new_unit) if tri_side2 else 0
+        )
+        circle_radius_converted = (
+            convert_unit_to_unit(circle_radius, prev_unit, new_unit)
+            if circle_radius
+            else 0
+        )
+        return (
+            w_converted,
+            h_converted,
+            sx_converted,
+            sy_converted,
+            tri_side1_converted,
+            tri_side2_converted,
+            circle_radius_converted,
+            new_unit,
+        )
 
     zone_unit.change(
         fn=_on_zone_unit_change,
@@ -325,7 +690,19 @@ def wire_deployment_zones(  # noqa: C901
             zone_height,
             zone_sep_x,
             zone_sep_y,
+            zone_triangle_side1,
+            zone_triangle_side2,
+            zone_circle_radius,
             zone_unit_state,
         ],
-        outputs=[zone_width, zone_height, zone_sep_x, zone_sep_y, zone_unit_state],
+        outputs=[
+            zone_width,
+            zone_height,
+            zone_sep_x,
+            zone_sep_y,
+            zone_triangle_side1,
+            zone_triangle_side2,
+            zone_circle_radius,
+            zone_unit_state,
+        ],
     )

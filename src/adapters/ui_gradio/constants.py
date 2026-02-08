@@ -57,7 +57,7 @@ POLYGON_PRESETS: dict[str, int] = {
 # ============================================================================
 # Deployment Zones
 # ============================================================================
-DEPLOYMENT_MAX_ZONES = 2
+DEPLOYMENT_MAX_ZONES = 4
 DEPLOYMENT_BORDERS = ["north", "south", "east", "west"]
 DEPLOYMENT_ZONE_MIN_SIZE = 100  # mm
 DEPLOYMENT_ZONE_MAX_SIZE = 2000  # mm
