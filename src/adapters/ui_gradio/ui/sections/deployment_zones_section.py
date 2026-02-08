@@ -12,9 +12,15 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
     Returns:
         Tuple of (deployment_zones_toggle, deployment_zones_state,
                  zone_table_width_state, zone_table_height_state,
-                 zone_unit_state, zones_group, zone_border_select,
-                 zone_fill_side_checkbox, zone_unit, zone_description,
-                 zone_width, zone_height, zone_sep_x, zone_sep_y,
+                 zone_unit_state, zones_group, zone_type_select,
+                 border_row, zone_border_select, corner_row, zone_corner_select,
+                 fill_side_row, zone_fill_side_checkbox,
+                 perfect_triangle_row, zone_perfect_triangle_checkbox,
+                 zone_unit, zone_description,
+                 rect_dimensions_row, zone_width, zone_height,
+                 triangle_dimensions_row, zone_triangle_side1, zone_triangle_side2,
+                 circle_dimensions_row, zone_circle_radius,
+                 separation_row, zone_sep_x, zone_sep_y,
                  add_zone_btn, remove_last_zone_btn, deployment_zones_list,
                  remove_selected_zone_btn)
     """
@@ -28,10 +34,9 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
 
     # Deployment Zones section (collapsible)
     with gr.Group(visible=False) as zones_group:
-        gr.Markdown("### Deployment Zones (0-2 rectangles)")
+        gr.Markdown("### Deployment Zones")
         gr.Markdown(
-            "_Define deployment zones for army placement. "
-            "Max 2 zones. Select border; dimensions adapt automatically._"
+            "_Define deployment zones for army placement. " "Choose type and location._"
         )
 
         deployment_zones_state = gr.State([])
@@ -42,7 +47,17 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
             120
         )  # Track current table height for UI updates (in cm)
 
+        # Zone Type Selection
         with gr.Row():
+            zone_type_select = gr.Radio(
+                choices=["rectangle", "triangle", "circle"],
+                value="rectangle",
+                label="Zone Type",
+                elem_id="zone-type-select",
+            )
+
+        # Border selection (for rectangles)
+        with gr.Row(visible=True) as border_row:
             zone_border_select = gr.Radio(
                 choices=["north", "south", "east", "west"],
                 value="north",
@@ -50,11 +65,29 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
                 elem_id="zone-border-select",
             )
 
-        with gr.Row():
+        # Corner selection (for triangles)
+        with gr.Row(visible=False) as corner_row:
+            zone_corner_select = gr.Radio(
+                choices=["north-west", "north-east", "south-west", "south-east"],
+                value="north-west",
+                label="Corner",
+                elem_id="zone-corner-select",
+            )
+
+        # Fill Full Side checkbox (rectangles only)
+        with gr.Row(visible=True) as fill_side_row:
             zone_fill_side_checkbox = gr.Checkbox(
                 value=True,
                 label="Fill Full Side (width for north/south, height for east/west)",
                 elem_id="zone-fill-side",
+            )
+
+        # Perfect Triangle checkbox (triangles only)
+        with gr.Row(visible=False) as perfect_triangle_row:
+            zone_perfect_triangle_checkbox = gr.Checkbox(
+                value=True,
+                label="Perfect Isosceles Triangle (equal sides)",
+                elem_id="zone-perfect-triangle",
             )
 
         with gr.Row():
@@ -69,7 +102,8 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
                 interactive=True,
             )
 
-        with gr.Row():
+        # Rectangle dimensions (visible for rectangles)
+        with gr.Row(visible=True) as rect_dimensions_row:
             zone_width = gr.Number(
                 value=120,
                 precision=2,
@@ -85,7 +119,35 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
                 interactive=True,
             )
 
-        with gr.Row():
+        # Triangle dimensions (visible for triangles)
+        with gr.Row(visible=False) as triangle_dimensions_row:
+            zone_triangle_side1 = gr.Number(
+                value=30,
+                precision=2,
+                label="X (cm)",
+                elem_id="zone-triangle-side1",
+                interactive=True,
+            )
+            zone_triangle_side2 = gr.Number(
+                value=30,
+                precision=2,
+                label="Y (cm) [LOCKED]",
+                elem_id="zone-triangle-side2",
+                interactive=False,
+            )
+
+        # Circle dimensions (visible for circles)
+        with gr.Row(visible=False) as circle_dimensions_row:
+            zone_circle_radius = gr.Number(
+                value=30,
+                precision=2,
+                label="Radius (cm)",
+                elem_id="zone-circle-radius",
+                interactive=True,
+            )
+
+        # Separation coordinates (only for rectangles)
+        with gr.Row(visible=True) as separation_row:
             zone_sep_x = gr.Number(
                 value=0,
                 precision=2,
@@ -127,12 +189,26 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
         zone_table_height_state,
         zone_unit_state,
         zones_group,
+        zone_type_select,
+        border_row,
         zone_border_select,
+        corner_row,
+        zone_corner_select,
+        fill_side_row,
         zone_fill_side_checkbox,
+        perfect_triangle_row,
+        zone_perfect_triangle_checkbox,
         zone_unit,
         zone_description,
+        rect_dimensions_row,
         zone_width,
         zone_height,
+        triangle_dimensions_row,
+        zone_triangle_side1,
+        zone_triangle_side2,
+        circle_dimensions_row,
+        zone_circle_radius,
+        separation_row,
         zone_sep_x,
         zone_sep_y,
         add_zone_btn,

@@ -318,30 +318,49 @@ def validate_required_fields(  # noqa: C901
             if not zone_label:
                 missing.append(f"Deployment Zone #{idx}: Description is required")
 
-            zone_border = (zone_data.get("border") or "").strip()
-            zone_x = zone_data.get("x")
-            zone_y = zone_data.get("y")
-            zone_width = zone_data.get("width")
-            zone_height = zone_data.get("height")
+            zone_type = zone_data.get("type", "rect")
 
-            if not zone_border:
-                missing.append(f"Deployment Zone #{idx}: Border is required")
-            if zone_x is None or zone_x < 0:
-                missing.append(
-                    f"Deployment Zone #{idx}: Separation X (mm) is required and must be >= 0"
-                )
-            if zone_y is None or zone_y < 0:
-                missing.append(
-                    f"Deployment Zone #{idx}: Separation Y (mm) is required and must be >= 0"
-                )
-            if not zone_width or zone_width <= 0:
-                missing.append(
-                    f"Deployment Zone #{idx}: Width (mm) is required and must be > 0"
-                )
-            if not zone_height or zone_height <= 0:
-                missing.append(
-                    f"Deployment Zone #{idx}: Height (mm) is required and must be > 0"
-                )
+            if zone_type == "polygon":
+                # Triangle/polygon validation
+                zone_points = zone_data.get("points", [])
+                zone_corner = (zone_data.get("corner") or "").strip()
+
+                if not zone_points:
+                    missing.append(f"Deployment Zone #{idx}: Points are required")
+                elif len(zone_points) < 3:
+                    missing.append(
+                        f"Deployment Zone #{idx}: At least 3 points required for polygon"
+                    )
+
+                if not zone_corner:
+                    missing.append(f"Deployment Zone #{idx}: Corner is required")
+
+            else:
+                # Rectangle validation
+                zone_border = (zone_data.get("border") or "").strip()
+                zone_x = zone_data.get("x")
+                zone_y = zone_data.get("y")
+                zone_width = zone_data.get("width")
+                zone_height = zone_data.get("height")
+
+                if not zone_border:
+                    missing.append(f"Deployment Zone #{idx}: Border is required")
+                if zone_x is None or zone_x < 0:
+                    missing.append(
+                        f"Deployment Zone #{idx}: Separation X (mm) is required and must be >= 0"
+                    )
+                if zone_y is None or zone_y < 0:
+                    missing.append(
+                        f"Deployment Zone #{idx}: Separation Y (mm) is required and must be >= 0"
+                    )
+                if not zone_width or zone_width <= 0:
+                    missing.append(
+                        f"Deployment Zone #{idx}: Width (mm) is required and must be > 0"
+                    )
+                if not zone_height or zone_height <= 0:
+                    missing.append(
+                        f"Deployment Zone #{idx}: Height (mm) is required and must be > 0"
+                    )
 
     # 14. Objective Points validation: if any point, description and coordinates required
     if objective_points_state_val:

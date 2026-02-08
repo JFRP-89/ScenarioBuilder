@@ -411,10 +411,37 @@ def get_scenography_choices(state: list[dict[str, Any]]) -> list[tuple[str, str]
 # =============================================================================
 # Deployment Zones helpers
 # =============================================================================
-def validate_deployment_zone_within_table(
+def validate_deployment_zone_within_table(  # noqa: C901
     zone: dict[str, Any], table_width_mm: int, table_height_mm: int
 ) -> str | None:
     """Validate deployment zone fits within table bounds (in mm)."""
+    zone_type = zone.get("type", "rect")
+
+    if zone_type == "polygon":
+        # Validate polygon (triangle) points
+        points = zone.get("points", [])
+        if not points:
+            return "Polygon zone must have points"
+
+        for i, point in enumerate(points):
+            # Support both dict format {"x": ..., "y": ...} and tuple/list format
+            if isinstance(point, dict):
+                if "x" not in point or "y" not in point:
+                    return f"Invalid point format at index {i}: missing x or y"
+                x = point["x"]
+                y = point["y"]
+            elif isinstance(point, (list, tuple)) and len(point) == 2:
+                x, y = point
+            else:
+                return f"Invalid point format at index {i}"
+
+            if x < 0 or x > table_width_mm:
+                return f"Polygon point {i} extends beyond table width: ({x}, {y})"
+            if y < 0 or y > table_height_mm:
+                return f"Polygon point {i} extends beyond table height: ({x}, {y})"
+        return None
+
+    # Validate rectangle zone
     x = float(zone.get("x", 0))
     y = float(zone.get("y", 0))
     width = float(zone.get("width", 0))
@@ -518,16 +545,44 @@ def validate_separation_coords(
 
 
 def deployment_zones_overlap(zone1: dict[str, Any], zone2: dict[str, Any]) -> bool:
-    """Check if two deployment zones overlap (strict AABB check)."""
-    x1 = float(zone1.get("x", 0))
-    y1 = float(zone1.get("y", 0))
-    w1 = float(zone1.get("width", 0))
-    h1 = float(zone1.get("height", 0))
+    """Check if two deployment zones overlap (using AABB for rectangles and bounding boxes for polygons)."""
 
-    x2 = float(zone2.get("x", 0))
-    y2 = float(zone2.get("y", 0))
-    w2 = float(zone2.get("width", 0))
-    h2 = float(zone2.get("height", 0))
+    def get_bounding_box(zone: dict[str, Any]) -> tuple[float, float, float, float]:
+        """Get bounding box (x, y, width, height) for any zone type."""
+        zone_type = zone.get("type", "rect")
+
+        if zone_type == "polygon":
+            points = zone.get("points", [])
+            if not points:
+                return (0, 0, 0, 0)
+
+            # Support both dict format {"x": ..., "y": ...} and tuple/list format
+            xs = []
+            ys = []
+            for p in points:
+                if isinstance(p, dict):
+                    xs.append(p.get("x", 0))
+                    ys.append(p.get("y", 0))
+                elif isinstance(p, (list, tuple)) and len(p) >= 2:
+                    xs.append(p[0])
+                    ys.append(p[1])
+
+            if not xs or not ys:
+                return (0, 0, 0, 0)
+
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+            return (min_x, min_y, max_x - min_x, max_y - min_y)
+        else:
+            # Rectangle
+            x = float(zone.get("x", 0))
+            y = float(zone.get("y", 0))
+            w = float(zone.get("width", 0))
+            h = float(zone.get("height", 0))
+            return (x, y, w, h)
+
+    x1, y1, w1, h1 = get_bounding_box(zone1)
+    x2, y2, w2, h2 = get_bounding_box(zone2)
 
     return not (x1 + w1 <= x2 or x2 + w2 <= x1 or y1 + h1 <= y2 or y2 + h2 <= y1)
 
