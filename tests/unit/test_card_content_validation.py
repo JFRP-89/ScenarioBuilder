@@ -10,7 +10,6 @@ Tests for:
 from __future__ import annotations
 
 import pytest
-
 from domain.cards.card_content_validation import (
     validate_objectives,
     validate_shared_with_visibility,
@@ -68,12 +67,8 @@ class TestValidateObjectives:
             validate_objectives({"objective": 123})
 
     def test_victory_points_not_list_raises(self):
-        with pytest.raises(
-            ValidationError, match="(?i)victory_points must be a list"
-        ):
-            validate_objectives(
-                {"objective": "Get it", "victory_points": "not a list"}
-            )
+        with pytest.raises(ValidationError, match="(?i)victory_points must be a list"):
+            validate_objectives({"objective": "Get it", "victory_points": "not a list"})
 
     def test_victory_points_item_not_string_raises(self):
         with pytest.raises(
@@ -107,9 +102,7 @@ class TestValidateSpecialRules:
         validate_special_rules([])
 
     def test_single_rule_with_description(self):
-        validate_special_rules(
-            [{"name": "Heavy Rain", "description": "Range halved"}]
-        )
+        validate_special_rules([{"name": "Heavy Rain", "description": "Range halved"}])
 
     def test_single_rule_with_source(self):
         validate_special_rules(
@@ -145,9 +138,7 @@ class TestValidateSpecialRules:
             validate_special_rules("not a list")
 
     def test_element_not_dict_raises(self):
-        with pytest.raises(
-            ValidationError, match=r"special_rules\[0\] must be a dict"
-        ):
+        with pytest.raises(ValidationError, match=r"special_rules\[0\] must be a dict"):
             validate_special_rules(["not a dict"])
 
     def test_missing_name_raises(self):

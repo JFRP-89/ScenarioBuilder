@@ -15,7 +15,6 @@ Rules:
 from __future__ import annotations
 
 import pytest
-
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.map_spec_shape_validation import validate_deployment_shapes
@@ -331,15 +330,11 @@ class TestDeploymentShapesTypeValidation:
     """Tests for type validation of the deployment_shapes parameter itself."""
 
     def test_non_list_raises(self):
-        with pytest.raises(
-            ValidationError, match="(?i)deployment_shapes must be list"
-        ):
+        with pytest.raises(ValidationError, match="(?i)deployment_shapes must be list"):
             validate_deployment_shapes("not a list", W, H)
 
     def test_non_dict_element_raises(self):
-        with pytest.raises(
-            ValidationError, match="(?i)deployment_shape must be dict"
-        ):
+        with pytest.raises(ValidationError, match="(?i)deployment_shape must be dict"):
             validate_deployment_shapes(["not a dict"], W, H)
 
 

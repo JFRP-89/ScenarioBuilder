@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from application.use_cases.generate_scenario_card import (
     GenerateScenarioCard,
     GenerateScenarioCardRequest,
@@ -324,9 +323,7 @@ class TestDeploymentShapesLimits:
                 },
             ],
         )
-        with pytest.raises(
-            ValidationError, match="(?i)either.*border.*corner"
-        ):
+        with pytest.raises(ValidationError, match="(?i)either.*border.*corner"):
             use_case.execute(request)
 
 
