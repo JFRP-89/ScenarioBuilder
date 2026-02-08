@@ -606,8 +606,8 @@ class TestPostMergeShapesValidation:
         fake_id_generator: FakeIdGenerator,
         fake_seed_generator: FakeSeedGenerator,
     ):
-        """User deployment_shapes + map_specs exceed max (100) => FAIL."""
-        # Generator returns valid shapes (not relevant as user provides deployment_shapes)
+        """User scenography_specs exceed max (100) => FAIL."""
+        # Generator returns valid shapes (not relevant as user provides scenography)
         valid_shape = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
         generator = SpyScenarioGenerator(shapes=valid_shape)
 
@@ -617,14 +617,10 @@ class TestPostMergeShapesValidation:
             scenario_generator=generator,
         )
 
-        # User provides 60 deployment_shapes + 41 scenography = 101 total (exceeds max of 100)
-        user_deployment = [
-            {"type": "rect", "x": 10 + i * 15, "y": 10, "width": 10, "height": 10}
-            for i in range(60)
-        ]
+        # User provides 101 scenography specs (exceeds max of 100)
         user_scenography = [
-            {"type": "circle", "cx": 100 + i * 20, "cy": 600, "r": 10}
-            for i in range(41)
+            {"type": "circle", "cx": 100 + i * 10, "cy": 600, "r": 5}
+            for i in range(101)
         ]
 
         request = GenerateScenarioCardRequest(
@@ -634,8 +630,7 @@ class TestPostMergeShapesValidation:
             table_preset="standard",
             visibility=None,
             shared_with=None,
-            deployment_shapes=user_deployment,
-            map_specs=user_scenography,
+            scenography_specs=user_scenography,
         )
 
         # Act & Assert - post-merge validation catches too many shapes
@@ -668,7 +663,14 @@ class TestPostMergeShapesValidation:
             visibility=None,
             shared_with=None,
             deployment_shapes=[
-                {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
+                {
+                    "type": "rect",
+                    "border": "north",
+                    "x": 0,
+                    "y": 0,
+                    "width": 1200,
+                    "height": 100,
+                }
             ],
         )
 
@@ -705,6 +707,7 @@ class TestPostMergeShapesValidation:
             deployment_shapes=[
                 {
                     "type": "rect",
+                    "border": "north",
                     "x": 1100,
                     "y": 0,
                     "width": 200,  # x + width = 1300 > 1200mm

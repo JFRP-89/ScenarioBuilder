@@ -15,6 +15,11 @@ from application.ports.scenario_generation import (
 )
 from application.use_cases._validation import validate_actor_id
 from domain.cards.card import Card, GameMode, parse_game_mode
+from domain.cards.card_content_validation import (
+    validate_objectives,
+    validate_shared_with_visibility,
+    validate_special_rules,
+)
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
@@ -58,8 +63,9 @@ class GenerateScenarioCardRequest:
     objectives: Optional[Union[str, dict]] = None
     initial_priority: Optional[str] = None
     name: Optional[str] = None
-    special_rules: Optional[str] = None
+    special_rules: Optional[Union[str, list[dict]]] = None
     map_specs: Optional[list[dict]] = None
+    scenography_specs: Optional[list[dict]] = None
     deployment_shapes: Optional[list[dict]] = None
     objective_shapes: Optional[list[dict]] = None
 
@@ -144,6 +150,15 @@ class GenerateScenarioCard:
         # 5) Resolve visibility
         visibility = self._resolve_visibility(request.visibility)
 
+        # 5a) Validate content fields
+        validate_objectives(request.objectives)
+        validate_special_rules(
+            request.special_rules
+            if not isinstance(request.special_rules, str)
+            else None
+        )
+        validate_shared_with_visibility(visibility, request.shared_with)
+
         # 6) Generate shapes via port
         shapes = self._scenario_generator.generate_shapes(
             seed=seed, table=table, mode=mode
@@ -189,20 +204,8 @@ class GenerateScenarioCard:
             mode=mode,
             visibility=visibility,
             table=table,
-            shapes=shapes,
             card=card,
-            table_preset=request.table_preset,
-            armies=request.armies,
-            deployment=request.deployment,
-            layout=request.layout,
-            objectives=request.objectives,
-            initial_priority=request.initial_priority,
-            provided_name=request.name,
-            special_rules=request.special_rules,
-            shared_with=request.shared_with,
-            map_specs=request.map_specs,
-            deployment_shapes=request.deployment_shapes,
-            objective_shapes=request.objective_shapes,
+            request=request,
         )
 
     def _build_response(
@@ -213,20 +216,8 @@ class GenerateScenarioCard:
         mode: GameMode,
         visibility: Visibility,
         table: TableSize,
-        shapes: list[dict],
         card: Card,
-        table_preset: Optional[str] = None,
-        armies: Optional[str] = None,
-        deployment: Optional[str] = None,
-        layout: Optional[str] = None,
-        objectives: Optional[Union[str, dict]] = None,
-        initial_priority: Optional[str] = None,
-        provided_name: Optional[str] = None,
-        special_rules: Optional[Union[str, list[dict]]] = None,
-        shared_with: Optional[Collection[str]] = None,
-        map_specs: Optional[list[dict]] = None,
-        deployment_shapes: Optional[list[dict]] = None,
-        objective_shapes: Optional[list[dict]] = None,
+        request: GenerateScenarioCardRequest,
     ) -> GenerateScenarioCardResponse:
         """Build response DTO from components.
 
@@ -236,60 +227,11 @@ class GenerateScenarioCard:
         - scenography_specs
         - card: validated Card domain entity ready for persistence
         """
-        # Use provided name or generate from layout and deployment
-        if provided_name and provided_name.strip():
-            name = provided_name.strip()
-        else:
-            name = self._generate_card_name(layout, deployment)
-
-        # Use provided initial_priority or default
-        priority = initial_priority or "Check the rulebook rules for it"
-
-        # Separate shapes into deployment_shapes and scenography_specs
-        # Start with auto-generated shapes from seed
-        auto_deployment_shapes = [
-            s for s in shapes if s.get("type") == "rect" and "borders" in s
-        ]
-
-        # Merge with user-provided shapes (user-provided takes precedence)
-        # For deployment_shapes: use user-provided if available, else auto-generated
-        # For scenography_specs: only include if explicitly provided by user
-        final_deployment_shapes = (
-            deployment_shapes if deployment_shapes else auto_deployment_shapes
-        )
-        final_scenography_specs = map_specs if map_specs else []
-        final_objective_shapes = objective_shapes if objective_shapes else []
-
-        # Validate final merged shapes with domain (post-merge validation)
-        # This ensures that user-provided shapes + auto-generated shapes together
-        # don't violate domain constraints (bounds, limits, etc.)
-        all_map_shapes = final_deployment_shapes + final_scenography_specs
-        try:
-            MapSpec(
-                table=table,
-                shapes=all_map_shapes,
-                objective_shapes=final_objective_shapes,
-            )
-        except ValidationError as e:
-            # Re-raise with context about merge validation
-            raise ValidationError(
-                "Final shapes validation failed after merging user input "
-                f"with generated shapes: {e}"
-            ) from e
-
-        # Parse special_rules to list[dict] if it's a string
-        final_special_rules = None
-        if special_rules:
-            if isinstance(special_rules, list):
-                final_special_rules = special_rules
-            elif isinstance(special_rules, str):
-                # Parse string to list of dicts (simplified for now, can be enhanced)
-                final_special_rules = [
-                    {"name": "Custom Rule", "description": special_rules}
-                ]
-
-        # Convert shared_with to list if needed
-        final_shared_with = list(shared_with) if shared_with else []
+        name = self._resolve_name(request.name, request.layout, request.deployment)
+        priority = request.initial_priority or "Check the rulebook rules for it"
+        final_shapes = self._resolve_final_shapes(request, table)
+        final_special_rules = self._resolve_special_rules(request.special_rules)
+        final_shared_with = list(request.shared_with) if request.shared_with else []
 
         return GenerateScenarioCardResponse(
             card_id=card_id,
@@ -300,20 +242,67 @@ class GenerateScenarioCard:
             table_mm={"width_mm": table.width_mm, "height_mm": table.height_mm},
             initial_priority=priority,
             visibility=visibility.value,
-            shapes={
-                "deployment_shapes": final_deployment_shapes,
-                "objective_shapes": final_objective_shapes,
-                "scenography_specs": final_scenography_specs,
-            },
+            shapes=final_shapes,
             card=card,
-            table_preset=table_preset,
-            armies=armies,
-            layout=layout,
-            deployment=deployment,
-            objectives=objectives,
+            table_preset=request.table_preset,
+            armies=request.armies,
+            layout=request.layout,
+            deployment=request.deployment,
+            objectives=request.objectives,
             special_rules=final_special_rules,
             shared_with=final_shared_with,
         )
+
+    def _resolve_final_shapes(
+        self, request: GenerateScenarioCardRequest, table: TableSize
+    ) -> dict:
+        """Resolve and validate final shape lists from request."""
+        final_deployment = request.deployment_shapes or []
+        final_scenography = request.scenography_specs or request.map_specs or []
+        final_objectives = request.objective_shapes or []
+
+        try:
+            MapSpec(
+                table=table,
+                shapes=final_scenography,
+                objective_shapes=final_objectives,
+                deployment_shapes=final_deployment or None,
+            )
+        except ValidationError as e:
+            raise ValidationError(
+                "Final shapes validation failed after merging user input "
+                f"with generated shapes: {e}"
+            ) from e
+
+        return {
+            "deployment_shapes": final_deployment,
+            "objective_shapes": final_objectives,
+            "scenography_specs": final_scenography,
+        }
+
+    @staticmethod
+    def _resolve_special_rules(
+        special_rules: Optional[Union[str, list[dict]]],
+    ) -> Optional[list[dict]]:
+        """Parse special_rules to list[dict] format."""
+        if not special_rules:
+            return None
+        if isinstance(special_rules, list):
+            return special_rules
+        if isinstance(special_rules, str):
+            return [{"name": "Custom Rule", "description": special_rules}]
+        return None
+
+    def _resolve_name(
+        self,
+        provided_name: Optional[str],
+        layout: Optional[str],
+        deployment: Optional[str],
+    ) -> str:
+        """Resolve card name from provided name or layout/deployment."""
+        if provided_name and provided_name.strip():
+            return provided_name.strip()
+        return self._generate_card_name(layout, deployment)
 
     def _generate_card_name(
         self, layout: Optional[str], deployment: Optional[str]

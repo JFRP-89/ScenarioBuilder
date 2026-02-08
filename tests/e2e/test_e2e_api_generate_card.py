@@ -87,11 +87,24 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
         "width_mm" in table_mm and "height_mm" in table_mm
     ), f"table_mm debe tener width_mm y height_mm. Recibido: {table_mm}"
 
-    # Validar shapes es lista (aunque sea vacía)
+    # Validar shapes es dict con sub-listas (nuevo formato)
     shapes = card_data["shapes"]
     assert isinstance(
-        shapes, list
-    ), f"shapes debe ser lista, recibido {type(shapes).__name__}"
+        shapes, dict
+    ), f"shapes debe ser dict, recibido {type(shapes).__name__}"
+
+    expected_shape_keys = {"deployment_shapes", "objective_shapes", "scenography_specs"}
+    actual_shape_keys = set(shapes.keys())
+    missing_shape_keys = expected_shape_keys - actual_shape_keys
+    assert not missing_shape_keys, (
+        f"Faltan keys en shapes: {missing_shape_keys}. "
+        f"Keys presentes: {actual_shape_keys}"
+    )
+
+    for key in expected_shape_keys:
+        assert isinstance(
+            shapes[key], list
+        ), f"shapes['{key}'] debe ser lista, recibido {type(shapes[key]).__name__}"
 
     # Guardar card_id en fixture para reuso en otros tests
     generated_card_id["card_id"] = card_id
@@ -101,7 +114,7 @@ def test_api_generate_card_post(e2e_services, wait_for_health, generated_card_id
     print(f"   - seed: {card_data['seed']}")
     print(f"   - mode: {card_data['mode']}")
     print(f"   - table_mm: {table_mm}")
-    print(f"   - shapes count: {len(shapes)}")
+    print(f"   - shapes: {list(shapes.keys())}")
 
 
 @pytest.mark.e2e
