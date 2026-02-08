@@ -19,6 +19,7 @@ from adapters.http_flask.constants import (
     KEY_CARD_ID,
     KEY_CARDS,
     KEY_DEPLOYMENT,
+    KEY_DEPLOYMENT_SHAPES,
     KEY_FILTER,
     KEY_INITIAL_PRIORITY,
     KEY_LAYOUT,
@@ -27,6 +28,7 @@ from adapters.http_flask.constants import (
     KEY_OBJECTIVE_SHAPES,
     KEY_OBJECTIVES,
     KEY_OWNER_ID,
+    KEY_SCENOGRAPHY_SPECS,
     KEY_SEED,
     KEY_SHAPES,
     KEY_SHARED_WITH,
@@ -68,9 +70,19 @@ def create_card():
     initial_priority = payload.get(KEY_INITIAL_PRIORITY)
     name = payload.get(KEY_NAME)
     special_rules = payload.get(KEY_SPECIAL_RULES)
+
+    # Parse shapes from nested 'shapes' dict or top-level fields
+    shapes_dict = payload.get(KEY_SHAPES) or {}
+    deployment_shapes = payload.get(KEY_DEPLOYMENT_SHAPES) or shapes_dict.get(
+        KEY_DEPLOYMENT_SHAPES
+    )
+    objective_shapes = payload.get(KEY_OBJECTIVE_SHAPES) or shapes_dict.get(
+        KEY_OBJECTIVE_SHAPES
+    )
+    scenography_specs = payload.get(KEY_SCENOGRAPHY_SPECS) or shapes_dict.get(
+        KEY_SCENOGRAPHY_SPECS
+    )
     map_specs = payload.get("map_specs")
-    deployment_shapes = payload.get("deployment_shapes")
-    objective_shapes = payload.get(KEY_OBJECTIVE_SHAPES)
 
     # 3) Get services
     services = get_services()
@@ -91,6 +103,7 @@ def create_card():
         name=name,
         special_rules=special_rules,
         map_specs=map_specs,
+        scenography_specs=scenography_specs,
         deployment_shapes=deployment_shapes,
         objective_shapes=objective_shapes,
     )
@@ -319,12 +332,24 @@ def _local_svg_name(name: str) -> str:
 
 
 def _allowed_svg_attrs() -> dict[str, set[str]]:
-    """Return allowed attributes per tag (minimal subset)."""
+    """Return allowed attributes per tag (safe presentation subset)."""
+    _common_paint = {"fill", "stroke", "stroke-width"}
     return {
         "svg": {"xmlns", "width", "height", "viewBox"},
-        "rect": {"x", "y", "width", "height"},
-        "circle": {"cx", "cy", "r"},
-        "polygon": {"points"},
+        "rect": {"x", "y", "width", "height"} | _common_paint,
+        "circle": {"cx", "cy", "r"} | _common_paint,
+        "polygon": {"points"} | _common_paint,
+        "text": {
+            "x",
+            "y",
+            "fill",
+            "font-size",
+            "font-family",
+            "text-anchor",
+            "dominant-baseline",
+            "font-weight",
+        },
+        "g": {"transform"},
     }
 
 
@@ -332,7 +357,7 @@ def _enforce_svg_tag_allowed(tag: str) -> None:
     """Enforce allowlist for SVG tags."""
     from domain.errors import ValidationError
 
-    allowed_tags = {"svg", "rect", "circle", "polygon"}
+    allowed_tags = {"svg", "rect", "circle", "polygon", "text", "g"}
     if tag not in allowed_tags:
         raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
 
@@ -341,7 +366,8 @@ def _validate_svg_numeric_attr(tag: str, attr_name: str, attr_value: str) -> Non
     """Validate numeric SVG attribute values for specific tags."""
     from domain.errors import ValidationError
 
-    if tag not in {"svg", "rect", "circle"} or attr_name == "xmlns":
+    _NUMERIC_ATTRS = {"x", "y", "width", "height", "cx", "cy", "r"}
+    if attr_name not in _NUMERIC_ATTRS:
         return
 
     if attr_name == "viewBox":
@@ -394,10 +420,25 @@ def _validate_svg_attribute(
             f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
         )
 
+    # Validate paint attributes don't contain dangerous references
+    if lower_attr in {"fill", "stroke"}:
+        _validate_paint_value(clean_attr, attr_value)
+
     _validate_svg_numeric_attr(tag, clean_attr, attr_value)
 
     if tag == "polygon" and clean_attr == "points":
         _validate_svg_polygon_points(attr_value)
+
+
+def _validate_paint_value(attr_name: str, attr_value: str) -> None:
+    """Validate fill/stroke values don't contain dangerous references."""
+    from domain.errors import ValidationError
+
+    lower = attr_value.lower()
+    if "url(" in lower or "javascript:" in lower or "expression(" in lower:
+        raise ValidationError(
+            f"SVG attribute '{attr_name}' contains forbidden reference"
+        )
 
 
 def _validate_svg_allowlist(element: DET.Element) -> None:

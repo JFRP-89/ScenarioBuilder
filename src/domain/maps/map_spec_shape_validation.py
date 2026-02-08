@@ -8,9 +8,12 @@ from domain.errors import ValidationError
 
 _MAX_POLYGON_POINTS = 200
 _MAX_OBJECTIVE_POINTS = 10
+_MAX_DEPLOYMENT_SHAPES = 4
 _OBJECTIVE_POINT_RADIUS = 25
 _ALLOWED_TYPES = {"circle", "rect", "polygon"}
 _OBJECTIVE_POINT_TYPE = "objective_point"
+_ALLOWED_BORDERS = frozenset({"north", "south", "east", "west"})
+_ALLOWED_CORNERS = frozenset({"north-east", "north-west", "south-east", "south-west"})
 
 
 def _require_int(field_name: str, value: Any) -> int:
@@ -146,3 +149,89 @@ def validate_objective_shapes(
         if not isinstance(shape, dict):
             raise ValidationError("objective_shape must be dict")
         _validate_objective_point(shape, width_mm, height_mm)
+
+
+def _validate_border_deployment(shape: dict, width_mm: int, height_mm: int) -> None:
+    """Validate a border-based deployment shape (type='rect')."""
+    border = shape["border"]
+    if not isinstance(border, str):
+        raise ValidationError("border must be a string")
+    if border not in _ALLOWED_BORDERS:
+        raise ValidationError(
+            f"unknown border '{border}', must be one of: "
+            f"{', '.join(sorted(_ALLOWED_BORDERS))}"
+        )
+    shape_type = shape.get("type")
+    if shape_type != "rect":
+        raise ValidationError("border deployment_shape must be type 'rect'")
+    _validate_rect(shape, width_mm, height_mm)
+
+
+def _validate_corner_deployment(shape: dict, width_mm: int, height_mm: int) -> None:
+    """Validate a corner-based deployment shape (type='polygon')."""
+    corner = shape["corner"]
+    if not isinstance(corner, str):
+        raise ValidationError("corner must be a string")
+    if corner not in _ALLOWED_CORNERS:
+        raise ValidationError(
+            f"unknown corner '{corner}', must be one of: "
+            f"{', '.join(sorted(_ALLOWED_CORNERS))}"
+        )
+    shape_type = shape.get("type")
+    if shape_type != "polygon":
+        raise ValidationError("corner deployment_shape must be type 'polygon'")
+    _validate_polygon(shape, width_mm, height_mm)
+
+
+def _validate_deployment_shape(shape: dict, width_mm: int, height_mm: int) -> None:
+    """Validate a single deployment shape.
+
+    A deployment shape must have either 'border' or 'corner' (not both).
+    - border-based: type='rect' with border in {north, south, east, west}
+    - corner-based: type='polygon' with corner in {north-east, ..., south-west}
+    """
+    if not isinstance(shape, dict):
+        raise ValidationError("deployment_shape must be dict")
+
+    has_border = "border" in shape
+    has_corner = "corner" in shape
+
+    if has_border and has_corner:
+        raise ValidationError(
+            "deployment_shape must have either 'border' or 'corner', not both"
+        )
+    if not has_border and not has_corner:
+        raise ValidationError("deployment_shape must have either 'border' or 'corner'")
+
+    if has_border:
+        _validate_border_deployment(shape, width_mm, height_mm)
+    else:
+        _validate_corner_deployment(shape, width_mm, height_mm)
+
+
+def validate_deployment_shapes(
+    shapes: list[dict] | None, width_mm: int, height_mm: int
+) -> None:
+    """Validate deployment_shapes array.
+
+    Args:
+        shapes: List of deployment shape dicts or None.
+        width_mm: Table width in mm.
+        height_mm: Table height in mm.
+
+    Raises:
+        ValidationError: If validation fails.
+    """
+    if shapes is None:
+        return
+
+    if not isinstance(shapes, list):
+        raise ValidationError("deployment_shapes must be list")
+
+    if len(shapes) > _MAX_DEPLOYMENT_SHAPES:
+        raise ValidationError(
+            f"too many deployment shapes (max {_MAX_DEPLOYMENT_SHAPES})"
+        )
+
+    for shape in shapes:
+        _validate_deployment_shape(shape, width_mm, height_mm)

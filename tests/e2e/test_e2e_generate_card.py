@@ -12,7 +12,7 @@ from tests.e2e.utils import dump_debug_artifacts
 ACTOR_LABELS = ["actor", "x-actor-id", "actor id"]
 MODE_LABELS = ["mode"]
 SEED_LABELS = ["seed"]
-TABLE_PRESET_LABELS = ["table", "preset"]
+TABLE_PRESET_LABELS = ["table preset"]
 VISIBILITY_LABELS = ["visibility"]
 
 
@@ -28,6 +28,7 @@ def test_generate_card_happy_path(e2e_services, wait_for_health, page):
         _fill_actor_id(page)
         _fill_mode(page)
         _fill_seed(page)
+        _fill_required_text_fields(page)
         _fill_table_preset_if_present(page)
         _fill_visibility_if_present(page)
 
@@ -75,6 +76,13 @@ def _fill_seed(page) -> None:
 
 
 def _fill_table_preset_if_present(page) -> None:
+    """Select 'standard' table preset. It's a Gradio radio so click the label."""
+    standard_label = page.locator("#table-preset label", has_text=re.compile(r"^standard$", re.I))
+    if standard_label.count() > 0 and standard_label.first.is_visible():
+        standard_label.first.click()
+        return
+
+    # Fallback: try generic label/placeholder search
     locator = _find_by_labels_or_placeholder(page, TABLE_PRESET_LABELS)
     if locator is None:
         return
@@ -82,9 +90,22 @@ def _fill_table_preset_if_present(page) -> None:
     tag = locator.evaluate("el => el.tagName.toLowerCase()")
     if tag == "select":
         _select_first_available_option(locator, ["standard", "massive"])
-        return
 
-    locator.fill("standard")
+
+def _fill_required_text_fields(page) -> None:
+    """Fill required text fields so the API accepts the request."""
+    _fields = {
+        "scenario-name-input": "E2E Test Scenario",
+        "armies-input": "Test armies",
+        "deployment": "Standard",
+        "layout": "Open Field",
+        "objectives": "Hold Ground",
+        "initial_priority": "None",
+    }
+    for elem_id, value in _fields.items():
+        locator = page.locator(f"#{elem_id} input, #{elem_id} textarea")
+        if locator.count() > 0:
+            locator.first.fill(value)
 
 
 def _fill_visibility_if_present(page) -> None:

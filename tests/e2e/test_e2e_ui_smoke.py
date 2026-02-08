@@ -41,6 +41,9 @@ def test_ui_smoke_loads(e2e_services, wait_for_health, page):
         if seed_input is not None:
             seed_input.fill("123")
 
+        # Fill required text fields so the API accepts the request
+        _fill_required_text_fields(page)
+
         generate_button = page.get_by_role(
             "button",
             name=re.compile("generate card|generate|generar", re.IGNORECASE),
@@ -65,8 +68,8 @@ def _assert_page_has_visible_content(page: Page) -> None:
 
 
 def _wait_for_ui_ready(page: Page) -> None:
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(500)
+    page.wait_for_load_state("domcontentloaded")
+    page.wait_for_timeout(1000)
 
     actor_placeholder = page.locator("input[placeholder*='actor' i]")
     if actor_placeholder.count() > 0:
@@ -136,6 +139,22 @@ def _select_mode(mode_control: Locator, value: str) -> None:
             return
 
     mode_control.fill(value)
+
+
+def _fill_required_text_fields(page: Page) -> None:
+    """Fill required form fields so the API accepts the request."""
+    _fields = {
+        "scenario-name-input": "Smoke Test Scenario",
+        "armies-input": "Test armies",
+        "deployment": "Standard",
+        "layout": "Open Field",
+        "objectives": "Hold Ground",
+        "initial_priority": "None",
+    }
+    for elem_id, value in _fields.items():
+        locator = page.locator(f"#{elem_id} input, #{elem_id} textarea")
+        if locator.count() > 0:
+            locator.first.fill(value)
 
 
 def _assert_generation_result(page: Page) -> None:

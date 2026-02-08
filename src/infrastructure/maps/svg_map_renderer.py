@@ -439,8 +439,7 @@ class SvgMapRenderer:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" '
             f'width="{width}" height="{height}" '
-            f'viewBox="0 0 {width} {height}" '
-            'style="background:#f5f5f5;">'
+            f'viewBox="0 0 {width} {height}">'
         )
 
     def _rect_svg(self, shape: dict) -> str:
@@ -532,6 +531,11 @@ class SvgMapRenderer:
 
         # SVG header
         parts.append(self._svg_header(width, height))
+
+        # Canvas background (replaces CSS style="background" for security)
+        parts.append(
+            f'<rect x="0" y="0" width="{width}" height="{height}" ' 'fill="#f5f5f5" />'
+        )
 
         # Table background (white playing area with border)
         parts.append(

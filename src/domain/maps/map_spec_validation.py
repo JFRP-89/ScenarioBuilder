@@ -12,10 +12,12 @@ from domain.maps.map_spec_shape_validation import (
     _validate_circle,
     _validate_polygon,
     _validate_rect,
+    validate_deployment_shapes,
     validate_objective_shapes,
 )
 
 __all__ = [
+    "validate_deployment_shapes",
     "validate_objective_shapes",
     "_validate_shape",
     "_validate_shapes_count",

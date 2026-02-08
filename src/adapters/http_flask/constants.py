@@ -25,6 +25,8 @@ KEY_OBJECTIVE_SHAPES = "objective_shapes"
 KEY_INITIAL_PRIORITY = "initial_priority"
 KEY_NAME = "name"
 KEY_SPECIAL_RULES = "special_rules"
+KEY_DEPLOYMENT_SHAPES = "deployment_shapes"
+KEY_SCENOGRAPHY_SPECS = "scenography_specs"
 
 # Defaults
 DEFAULT_MODE = "casual"
