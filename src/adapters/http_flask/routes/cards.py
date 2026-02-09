@@ -71,6 +71,21 @@ def create_card():
     name = payload.get(KEY_NAME)
     special_rules = payload.get(KEY_SPECIAL_RULES)
 
+    # Parse custom table dimensions if preset is "custom"
+    table_width_mm = None
+    table_height_mm = None
+    if table_preset == "custom":
+        # Frontend sends table_cm, convert to mm
+        table_cm = payload.get("table_cm")
+        if table_cm:
+            table_width_mm = int(table_cm.get("width_cm", 0) * 10)
+            table_height_mm = int(table_cm.get("height_cm", 0) * 10)
+        # Also support direct table_mm
+        table_mm = payload.get(KEY_TABLE_MM)
+        if table_mm:
+            table_width_mm = table_mm.get("width_mm")
+            table_height_mm = table_mm.get("height_mm")
+
     # Parse shapes from nested 'shapes' dict or top-level fields
     shapes_dict = payload.get(KEY_SHAPES) or {}
     deployment_shapes = payload.get(KEY_DEPLOYMENT_SHAPES) or shapes_dict.get(
@@ -93,6 +108,8 @@ def create_card():
         mode=mode,
         seed=seed,
         table_preset=table_preset,
+        table_width_mm=table_width_mm,
+        table_height_mm=table_height_mm,
         visibility=visibility,
         shared_with=shared_with,
         armies=armies,
@@ -150,18 +167,24 @@ def get_card(card_id: str):
     response = services.get_card.execute(get_request)
 
     # 4) Return response
-    return (
-        jsonify(
-            {
-                KEY_CARD_ID: response.card_id,
-                KEY_OWNER_ID: response.owner_id,
-                KEY_SEED: response.seed,
-                KEY_MODE: response.mode,
-                KEY_VISIBILITY: response.visibility,
-            }
-        ),
-        200,
-    )
+    response_data = {
+        KEY_CARD_ID: response.card_id,
+        KEY_OWNER_ID: response.owner_id,
+        KEY_SEED: response.seed,
+        KEY_MODE: response.mode,
+        KEY_VISIBILITY: response.visibility,
+        KEY_TABLE_MM: response.table_mm,
+        KEY_TABLE_PRESET: response.table_preset,
+        KEY_NAME: response.name,
+        KEY_SHARED_WITH: response.shared_with or [],
+        KEY_ARMIES: response.armies,
+        KEY_DEPLOYMENT: response.deployment,
+        KEY_LAYOUT: response.layout,
+        KEY_OBJECTIVES: response.objectives,
+        KEY_INITIAL_PRIORITY: response.initial_priority,
+        KEY_SPECIAL_RULES: response.special_rules,
+    }
+    return jsonify(response_data), 200
 
 
 @cards_bp.get("")
@@ -188,6 +211,9 @@ def list_cards():
             KEY_SEED: c.seed,
             KEY_MODE: c.mode,
             KEY_VISIBILITY: c.visibility,
+            KEY_NAME: c.name,
+            KEY_TABLE_PRESET: c.table_preset,
+            KEY_TABLE_MM: c.table_mm,
         }
         for c in response.cards
     ]

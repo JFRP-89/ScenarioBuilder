@@ -24,6 +24,7 @@ def test_generate_card_happy_path(e2e_services, wait_for_health, page):
     try:
         page.goto("http://localhost:7860", wait_until="domcontentloaded")
         _wait_for_ui_ready(page)
+        _navigate_to_create_page(page)
 
         _fill_actor_id(page)
         _fill_mode(page)
@@ -142,7 +143,7 @@ def _read_json_text(page) -> str:
     locator = page.locator("[data-testid='json']")
     if locator.count() == 0:
         return ""
-    return locator.inner_text()
+    return str(locator.inner_text())
 
 
 def _wait_for_ui_ready(page) -> None:
@@ -150,6 +151,19 @@ def _wait_for_ui_ready(page) -> None:
     with contextlib.suppress(PlaywrightError):
         # Si el loader no desaparece, al menos seguimos con inputs visibles.
         page.locator("p.loading").first.wait_for(state="hidden", timeout=20000)
+
+
+def _navigate_to_create_page(page) -> None:
+    """Click the '+ Create New Scenario' button on the home page to reach the form."""
+    create_btn = page.get_by_role(
+        "button", name=re.compile(r"create new scenario", re.I)
+    )
+    if create_btn.count() == 0:
+        # Fallback: try by elem_id
+        create_btn = page.locator("#home-create-btn")
+    create_btn.first.click()
+    # Wait for the create form to become visible (actor input should appear)
+    page.wait_for_selector("input, textarea", state="visible", timeout=10000)
 
 
 def _extract_card_id(html: str) -> str:
@@ -164,7 +178,7 @@ def _extract_card_id(html: str) -> str:
     return ""
 
 
-def _find_by_labels_or_placeholder(page, labels: list[str]) -> Locator | None:
+def _find_by_labels_or_placeholder(page, labels: list[str]):
     lower_labels = [label.lower() for label in labels]
     for label in labels:
         locator = page.get_by_label(re.compile(label, re.I))
@@ -192,7 +206,7 @@ def _find_by_labels_or_placeholder(page, labels: list[str]) -> Locator | None:
     return None
 
 
-def _find_by_attribute(page, attribute: str, labels: list[str]) -> Locator | None:
+def _find_by_attribute(page, attribute: str, labels: list[str]):
     candidates = page.locator(
         f"input[{attribute}], textarea[{attribute}], select[{attribute}]"
     )
@@ -208,7 +222,7 @@ def _find_by_attribute(page, attribute: str, labels: list[str]) -> Locator | Non
 def _select_first_available_option(select_locator: Locator, options: list[str]) -> None:
     for option in options:
         try:
-            select_locator.select_option(label=re.compile(option, re.I))
+            select_locator.select_option(label=option)
             return
         except PlaywrightError:
             continue

@@ -106,6 +106,22 @@ class FakeGetCardResponse:
     seed: int = 123
     mode: str = "matched"
     visibility: str = "private"
+    table_mm: Optional[dict] = None
+    name: str = "Test Scenario"
+    table_preset: str = "standard"
+    shared_with: Optional[list] = None
+    armies: Optional[str] = None
+    deployment: Optional[str] = None
+    layout: Optional[str] = None
+    objectives: Optional[str] = None
+    initial_priority: Optional[str] = None
+    special_rules: Optional[list] = None
+
+    def __post_init__(self):
+        if self.table_mm is None:
+            self.table_mm = {"width_mm": 1200, "height_mm": 1200}
+        if self.shared_with is None:
+            self.shared_with = []
 
 
 class FakeGetCard:
@@ -138,6 +154,13 @@ class FakeCardSnapshot:
     seed: int
     mode: str
     visibility: str
+    name: str = ""
+    table_preset: str = "standard"
+    table_mm: Optional[dict] = None
+
+    def __post_init__(self):
+        if self.table_mm is None:
+            self.table_mm = {"width_mm": 1200, "height_mm": 1200}
 
 
 @dataclass
@@ -180,10 +203,10 @@ class FakeListCards:
 class FakeServices:
     """Fake Services container for testing."""
 
-    generate_scenario_card: FakeGenerateScenarioCard = None
-    save_card: FakeSaveCard = None
-    get_card: FakeGetCard = None
-    list_cards: FakeListCards = None
+    generate_scenario_card: Optional[FakeGenerateScenarioCard] = None
+    save_card: Optional[FakeSaveCard] = None
+    get_card: Optional[FakeGetCard] = None
+    list_cards: Optional[FakeListCards] = None
     # Other use cases not needed for these tests
     toggle_favorite: object = None
     list_favorites: object = None

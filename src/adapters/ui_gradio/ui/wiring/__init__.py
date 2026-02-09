@@ -152,6 +152,13 @@ def wire_events(
     generate_btn: gr.Button,
     svg_preview: gr.HTML,
     output: gr.JSON,
+    # Create Scenario (optional)
+    create_scenario_btn: gr.Button | None = None,
+    create_scenario_status: gr.Textbox | None = None,
+    # Navigation widgets for post-create redirect
+    page_state: gr.State | None = None,
+    page_containers: list[gr.Column] | None = None,
+    home_recent_html: gr.HTML | None = None,
 ) -> None:
     """Hook every UI event to its handler by dispatching to section wirers."""
 
@@ -313,4 +320,9 @@ def wire_events(
         generate_btn=generate_btn,
         svg_preview=svg_preview,
         output=output,
+        create_scenario_btn=create_scenario_btn,
+        create_scenario_status=create_scenario_status,
+        page_state=page_state,
+        page_containers=page_containers,
+        home_recent_html=home_recent_html,
     )

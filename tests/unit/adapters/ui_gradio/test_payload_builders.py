@@ -51,7 +51,10 @@ class TestApplyTableConfig:
         )
         assert custom_table == {"width_cm": 120, "height_cm": 120}
         assert error is None
-        assert payload == {"table_cm": {"width_cm": 120, "height_cm": 120}}
+        assert payload == {
+            "table_preset": "custom",
+            "table_cm": {"width_cm": 120, "height_cm": 120},
+        }
 
     def test_custom_valid_inches_converts_to_cm(self):
         payload = {}

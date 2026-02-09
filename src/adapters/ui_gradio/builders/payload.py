@@ -80,6 +80,7 @@ def apply_table_config(
             }
 
         custom_table = {"width_cm": width_cm, "height_cm": height_cm}
+        payload["table_preset"] = "custom"  # Send preset as "custom"
         payload["table_cm"] = custom_table
         return custom_table, None
 
