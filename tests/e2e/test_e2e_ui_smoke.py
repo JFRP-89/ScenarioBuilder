@@ -28,6 +28,7 @@ def test_ui_smoke_loads(e2e_services, wait_for_health, page):
 
         _assert_page_has_visible_content(page)
         _wait_for_ui_ready(page)
+        _navigate_to_create_page(page)
 
         actor_input = _find_actor_input(page)
         assert actor_input is not None, "No se encontró input de actor_id"
@@ -71,14 +72,22 @@ def _wait_for_ui_ready(page: Page) -> None:
     page.wait_for_load_state("domcontentloaded")
     page.wait_for_timeout(1000)
 
-    actor_placeholder = page.locator("input[placeholder*='actor' i]")
-    if actor_placeholder.count() > 0:
-        actor_placeholder.first.wait_for(state="visible", timeout=30_000)
-        return
+    # Home page has radio buttons and action buttons — wait for any visible input
+    page.wait_for_selector(
+        "input, textarea, select, button", state="visible", timeout=30_000
+    )
 
-    actor_label = page.get_by_text(re.compile("actor id|actor", re.IGNORECASE))
-    if actor_label.count() > 0:
-        actor_label.first.wait_for(state="visible", timeout=30_000)
+
+def _navigate_to_create_page(page: Page) -> None:
+    """Click the '+ Create New Scenario' button on the home page to reach the form."""
+    create_btn = page.get_by_role(
+        "button", name=re.compile(r"create new scenario", re.IGNORECASE)
+    )
+    if create_btn.count() == 0:
+        create_btn = page.locator("#home-create-btn")
+    create_btn.first.click()
+    # Wait for the create form to become visible
+    page.wait_for_timeout(1000)
 
 
 def _find_actor_input(page: Page) -> Locator | None:

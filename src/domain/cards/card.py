@@ -6,9 +6,9 @@ game mode, and ownership/visibility rules.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Collection, Optional, cast
+from typing import Any, Collection, Optional, Union, cast
 
 from domain.cards.card_validation import (
     validate_ids,
@@ -77,6 +77,7 @@ class Card:
         seed: Deterministic seed for reproducibility.
         table: Table dimensions.
         map_spec: Map specification with shapes.
+        name: Optional human-readable name for the scenario.
     """
 
     card_id: str
@@ -87,6 +88,13 @@ class Card:
     seed: int
     table: TableSize
     map_spec: MapSpec
+    name: Optional[str] = None
+    armies: Optional[str] = None
+    deployment: Optional[str] = None
+    layout: Optional[str] = None
+    objectives: Optional[Union[str, dict[str, Any]]] = None
+    initial_priority: Optional[str] = None
+    special_rules: Optional[list[dict[str, Any]]] = field(default=None)
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""

@@ -28,15 +28,38 @@ from domain.security.authz import Visibility, parse_visibility
 # =============================================================================
 # TABLE PRESETS
 # =============================================================================
-_TABLE_PRESETS = frozenset(["standard", "massive"])
+_TABLE_PRESETS = frozenset(["standard", "massive", "custom"])
 
 
-def _resolve_table(preset: str) -> TableSize:
-    """Resolve table preset to TableSize."""
+def _resolve_table(
+    preset: str,
+    width_mm: Optional[int] = None,
+    height_mm: Optional[int] = None,
+) -> TableSize:
+    """Resolve table preset to TableSize.
+
+    Args:
+        preset: Table preset ("standard", "massive", or "custom")
+        width_mm: Width in mm (required if preset is "custom")
+        height_mm: Height in mm (required if preset is "custom")
+
+    Returns:
+        TableSize instance
+
+    Raises:
+        ValidationError: If preset is unknown or custom dimensions are invalid
+    """
     if preset == "standard":
         return TableSize.standard()
     elif preset == "massive":
         return TableSize.massive()
+    elif preset == "custom":
+        if width_mm is None or height_mm is None:
+            raise ValidationError(
+                "Custom table preset requires table_width_mm and table_height_mm"
+            )
+        # TableSize constructor validates dimensions
+        return TableSize(width_mm=width_mm, height_mm=height_mm)
     else:
         raise ValidationError(
             f"unknown table preset '{preset}', "
@@ -68,6 +91,9 @@ class GenerateScenarioCardRequest:
     scenography_specs: Optional[list[dict]] = None
     deployment_shapes: Optional[list[dict]] = None
     objective_shapes: Optional[list[dict]] = None
+    # Custom table dimensions (when table_preset is "custom")
+    table_width_mm: Optional[int] = None
+    table_height_mm: Optional[int] = None
 
 
 @dataclass
@@ -134,8 +160,12 @@ class GenerateScenarioCard:
         # 1) Validate actor_id
         actor_id = validate_actor_id(request.actor_id)
 
-        # 2) Resolve table from preset
-        table = _resolve_table(request.table_preset)
+        # 2) Resolve table from preset (and custom dimensions if applicable)
+        table = _resolve_table(
+            request.table_preset,
+            width_mm=request.table_width_mm,
+            height_mm=request.table_height_mm,
+        )
 
         # 3) Resolve seed
         seed = (
@@ -184,16 +214,31 @@ class GenerateScenarioCard:
         # 8) Generate card_id
         card_id = self._id_generator.generate_card_id()
 
-        # 9) Construct Card to validate invariants
+        # 8a) Resolve name for the scenario
+        name = self._resolve_name(request.name, request.layout, request.deployment)
+
+        # 8b) Resolve content fields
+        final_special_rules = self._resolve_special_rules(request.special_rules)
+        final_shared_with = list(request.shared_with) if request.shared_with else None
+
+        # 9) Construct Card to validate invariants (now includes content fields)
         card = Card(
             card_id=card_id,
             owner_id=actor_id,
             visibility=visibility,
-            shared_with=request.shared_with,
+            shared_with=final_shared_with,
             mode=mode,
             seed=seed,
             table=table,
             map_spec=map_spec,
+            name=name,
+            armies=request.armies,
+            deployment=request.deployment,
+            layout=request.layout,
+            objectives=request.objectives,
+            initial_priority=request.initial_priority
+            or "Check the rulebook rules for it",
+            special_rules=final_special_rules,
         )
 
         # 10) Build response DTO
@@ -227,7 +272,8 @@ class GenerateScenarioCard:
         - scenography_specs
         - card: validated Card domain entity ready for persistence
         """
-        name = self._resolve_name(request.name, request.layout, request.deployment)
+        # Name is already in the Card object
+        name = card.name or ""
         priority = request.initial_priority or "Check the rulebook rules for it"
         final_shapes = self._resolve_final_shapes(request, table)
         final_special_rules = self._resolve_special_rules(request.special_rules)

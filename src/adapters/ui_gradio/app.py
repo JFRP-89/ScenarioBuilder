@@ -1,10 +1,10 @@
 """Gradio UI adapter for ScenarioBuilder.
 
 This module contains ONLY:
-- ``build_app()`` -- assembles the Gradio layout and calls ``wire_events()``
+- ``build_app()`` -- assembles the multi-page Gradio layout
 - ``__main__`` launcher
 
-All helpers, handlers, constants and event wiring live in sibling modules.
+Pages are built in ``ui/pages/``, wiring in ``ui/wiring/``.
 """
 
 from __future__ import annotations
@@ -26,6 +26,12 @@ if __name__ == "__main__":
 import gradio as gr
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components import build_svg_preview
+from adapters.ui_gradio.ui.pages.edit_scenario import build_edit_page
+from adapters.ui_gradio.ui.pages.favorites import build_favorites_page
+from adapters.ui_gradio.ui.pages.home import build_home_page
+from adapters.ui_gradio.ui.pages.list_scenarios import build_list_page
+from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
+from adapters.ui_gradio.ui.router import build_detail_card_id_state, build_page_state
 from adapters.ui_gradio.ui.sections import (
     actor_section,
     deployment_zones_section,
@@ -38,174 +44,400 @@ from adapters.ui_gradio.ui.sections import (
     visibility_section,
 )
 from adapters.ui_gradio.ui.wiring import wire_events
+from adapters.ui_gradio.ui.wiring.wire_detail import wire_detail_page
+from adapters.ui_gradio.ui.wiring.wire_fav_toggle import wire_fav_toggle
+from adapters.ui_gradio.ui.wiring.wire_favorites import wire_favorites_page
+from adapters.ui_gradio.ui.wiring.wire_home import wire_home_page
+from adapters.ui_gradio.ui.wiring.wire_list import wire_list_page
+from adapters.ui_gradio.ui.wiring.wire_navigation import wire_navigation
+from adapters.ui_gradio.ui.wiring.wire_view import wire_view_navigation
 
 
 # =============================================================================
 # App builder
 # =============================================================================
 def build_app() -> gr.Blocks:
-    """Build and return the Gradio Blocks app.
+    """Build and return the multi-page Gradio Blocks app.
 
-    This function constructs the UI without making any HTTP calls.
-    HTTP calls only happen when user interacts with the UI.
+    Pages: Home, List Scenarios, Scenario Detail, Create Scenario,
+           Edit Scenario, Favorites.
+
+    Navigation uses gr.State to track the current page and show/hide
+    gr.Column containers.
 
     Returns:
         A gradio.Blocks instance ready to launch
     """
     with gr.Blocks(title="Scenario Card Generator") as app:
-        gr.Markdown("# Scenario Card Generator")
+        # ── Global state ─────────────────────────────────────────────
+        page_state = build_page_state()
+        detail_card_id_state = build_detail_card_id_state()
 
-        # Actor ID
-        actor_id = actor_section.build_actor_section(get_default_actor_id())
+        # ════════════════════════════════════════════════════════════
+        # PAGE 1: Home (visible by default)
+        # ════════════════════════════════════════════════════════════
+        (
+            home_container,
+            home_create_btn,
+            home_browse_btn,
+            home_favorites_btn,
+            home_mode_filter,
+            home_preset_filter,
+            home_unit_selector,
+            home_reload_btn,
+            home_recent_html,
+            home_prev_btn,
+            home_page_info,
+            home_next_btn,
+            home_page_state,
+            home_cards_cache_state,
+            home_fav_ids_cache_state,
+        ) = build_home_page()
 
-        # Scenario Name, Mode, Seed, Armies
-        scenario_name, mode, seed, armies = (
-            scenario_meta_section.build_scenario_meta_section()
+        # ════════════════════════════════════════════════════════════
+        # PAGE 2: List Scenarios
+        # ════════════════════════════════════════════════════════════
+        (
+            list_container,
+            list_filter,
+            list_unit_selector,
+            list_reload_btn,
+            list_cards_html,
+            list_back_btn,
+            list_cards_cache_state,
+            list_fav_ids_cache_state,
+            list_loaded_state,
+        ) = build_list_page()
+
+        # ════════════════════════════════════════════════════════════
+        # PAGE 3: Scenario Detail
+        # ════════════════════════════════════════════════════════════
+        (
+            detail_container,
+            detail_title_md,
+            detail_svg_preview,
+            detail_content_html,
+            detail_edit_btn,
+            detail_favorite_btn,
+            detail_back_btn,
+        ) = build_detail_page()
+
+        # ════════════════════════════════════════════════════════════
+        # PAGE 4: Create Scenario (wraps the existing form)
+        # ════════════════════════════════════════════════════════════
+        with gr.Column(
+            visible=False, elem_id="page-create-scenario"
+        ) as create_container:
+            with gr.Row():
+                create_back_btn = gr.Button(
+                    "← Home",
+                    variant="secondary",
+                    size="sm",
+                    elem_id="create-back-btn",
+                )
+                gr.Markdown("## Create New Scenario")
+
+            # ── Existing form sections (unchanged) ───────────────
+            actor_id = actor_section.build_actor_section(get_default_actor_id())
+
+            scenario_name, mode, seed, armies = (
+                scenario_meta_section.build_scenario_meta_section()
+            )
+
+            visibility, shared_with_row, shared_with = (
+                visibility_section.build_visibility_section()
+            )
+
+            (
+                table_preset,
+                prev_unit_state,
+                custom_table_row,
+                table_width,
+                table_height,
+                table_unit,
+            ) = table_section.build_table_section()
+
+            (
+                deployment,
+                layout,
+                objectives,
+                initial_priority,
+                objectives_with_vp_toggle,
+                vp_group,
+                vp_state,
+                vp_input,
+                add_vp_btn,
+                remove_vp_btn,
+                vp_list,
+                remove_selected_vp_btn,
+                _,
+            ) = scenario_details_section.build_scenario_details_section()
+
+            (
+                special_rules_state,
+                special_rules_toggle,
+                rules_group,
+                rule_type_radio,
+                rule_name_input,
+                rule_value_input,
+                add_rule_btn,
+                remove_rule_btn,
+                rules_list,
+                remove_selected_rule_btn,
+                _,
+                _,
+            ) = special_rules_section.build_special_rules_section()
+
+            (
+                deployment_zones_toggle,
+                deployment_zones_state,
+                zone_table_width_state,
+                zone_table_height_state,
+                zone_unit_state,
+                zones_group,
+                zone_type_select,
+                border_row,
+                zone_border_select,
+                corner_row,
+                zone_corner_select,
+                fill_side_row,
+                zone_fill_side_checkbox,
+                perfect_triangle_row,
+                zone_perfect_triangle_checkbox,
+                zone_unit,
+                zone_description,
+                rect_dimensions_row,
+                zone_width,
+                zone_height,
+                triangle_dimensions_row,
+                zone_triangle_side1,
+                zone_triangle_side2,
+                circle_dimensions_row,
+                zone_circle_radius,
+                separation_row,
+                zone_sep_x,
+                zone_sep_y,
+                add_zone_btn,
+                remove_last_zone_btn,
+                deployment_zones_list,
+                remove_selected_zone_btn,
+            ) = deployment_zones_section.build_deployment_zones_section()
+
+            (
+                objective_points_toggle,
+                objective_points_state,
+                objective_unit_state,
+                objective_description,
+                objective_cx_input,
+                objective_cy_input,
+                objective_unit,
+                add_objective_btn,
+                objective_points_list,
+                remove_last_objective_btn,
+                remove_selected_objective_btn,
+                objective_points_group,
+            ) = objective_points_section.build_objective_points_section()
+
+            (
+                scenography_toggle,
+                scenography_state,
+                scenography_unit_state,
+                scenography_description,
+                scenography_type,
+                scenography_unit,
+                circle_form_row,
+                circle_cx,
+                circle_cy,
+                circle_r,
+                rect_form_row,
+                rect_x,
+                rect_y,
+                rect_width,
+                rect_height,
+                polygon_form_col,
+                polygon_preset,
+                polygon_points,
+                delete_polygon_row_btn,
+                polygon_delete_msg,
+                allow_overlap_checkbox,
+                add_scenography_btn,
+                remove_last_scenography_btn,
+                scenography_list,
+                remove_selected_scenography_btn,
+                scenography_group,
+            ) = scenography_section.build_scenography_section()
+
+            svg_preview = build_svg_preview(
+                elem_id_prefix="card-svg-preview",
+                label="Map Preview",
+            )
+
+            generate_btn = gr.Button(
+                "Generate Card",
+                variant="primary",
+                elem_id="generate-button",
+            )
+            output = gr.JSON(label="Generated Card", elem_id="result-json")
+
+            create_scenario_btn = gr.Button(
+                "Create Scenario",
+                variant="primary",
+                elem_id="create-scenario-button",
+            )
+            create_scenario_status = gr.Textbox(
+                label="",
+                elem_id="create-scenario-status",
+                interactive=False,
+                visible=False,
+            )
+
+        # ════════════════════════════════════════════════════════════
+        # PAGE 5: Edit Scenario
+        # ════════════════════════════════════════════════════════════
+        (
+            edit_container,
+            edit_title_md,
+            edit_svg_preview,
+            edit_card_json,
+            edit_back_btn,
+        ) = build_edit_page()
+
+        # ════════════════════════════════════════════════════════════
+        # PAGE 6: Favorites
+        # ════════════════════════════════════════════════════════════
+        (
+            favorites_container,
+            favorites_unit_selector,
+            favorites_reload_btn,
+            favorites_cards_html,
+            favorites_back_btn,
+            favorites_cards_cache_state,
+            favorites_fav_ids_cache_state,
+            favorites_loaded_state,
+        ) = build_favorites_page()
+
+        # ── Collect page containers (order must match ALL_PAGES) ──
+        page_containers = [
+            home_container,  # PAGE_HOME
+            list_container,  # PAGE_LIST
+            detail_container,  # PAGE_DETAIL
+            create_container,  # PAGE_CREATE
+            edit_container,  # PAGE_EDIT
+            favorites_container,  # PAGE_FAVORITES
+        ]
+
+        # ── Global hidden components for favorite toggle via JS ──
+        fav_toggle_card_id = gr.Textbox(
+            value="",
+            visible=False,
+            elem_id="fav-toggle-card-id",
+        )
+        fav_toggle_btn = gr.Button(
+            "toggle",
+            visible=False,
+            elem_id="fav-toggle-btn",
         )
 
-        # Visibility
-        visibility, shared_with_row, shared_with = (
-            visibility_section.build_visibility_section()
+        # ── Global hidden components for View button via JS ──
+        view_card_id = gr.Textbox(
+            value="",
+            visible=False,
+            elem_id="view-card-id",
+        )
+        view_card_btn = gr.Button(
+            "view",
+            visible=False,
+            elem_id="view-card-btn",
         )
 
-        # Table Configuration
-        (
-            table_preset,
-            prev_unit_state,
-            custom_table_row,
-            table_width,
-            table_height,
-            table_unit,
-        ) = table_section.build_table_section()
-
-        # Scenario Details
-        (
-            deployment,
-            layout,
-            objectives,
-            initial_priority,
-            objectives_with_vp_toggle,
-            vp_group,
-            vp_state,
-            vp_input,
-            add_vp_btn,
-            remove_vp_btn,
-            vp_list,
-            remove_selected_vp_btn,
-            _,  # vp_buttons_row (unused)
-        ) = scenario_details_section.build_scenario_details_section()
-
-        # Special Rules Builder
-        (
-            special_rules_state,
-            special_rules_toggle,
-            rules_group,
-            rule_type_radio,
-            rule_name_input,
-            rule_value_input,
-            add_rule_btn,
-            remove_rule_btn,
-            rules_list,
-            remove_selected_rule_btn,
-            _,  # rule_name_state (unused)
-            _,  # rule_value_state (unused)
-        ) = special_rules_section.build_special_rules_section()
-
-        # Deployment Zones Builder
-        (
-            deployment_zones_toggle,
-            deployment_zones_state,
-            zone_table_width_state,
-            zone_table_height_state,
-            zone_unit_state,
-            zones_group,
-            zone_type_select,
-            border_row,
-            zone_border_select,
-            corner_row,
-            zone_corner_select,
-            fill_side_row,
-            zone_fill_side_checkbox,
-            perfect_triangle_row,
-            zone_perfect_triangle_checkbox,
-            zone_unit,
-            zone_description,
-            rect_dimensions_row,
-            zone_width,
-            zone_height,
-            triangle_dimensions_row,
-            zone_triangle_side1,
-            zone_triangle_side2,
-            circle_dimensions_row,
-            zone_circle_radius,
-            separation_row,
-            zone_sep_x,
-            zone_sep_y,
-            add_zone_btn,
-            remove_last_zone_btn,
-            deployment_zones_list,
-            remove_selected_zone_btn,
-        ) = deployment_zones_section.build_deployment_zones_section()
-
-        # Objective Points Builder (max 10 markers)
-        (
-            objective_points_toggle,
-            objective_points_state,
-            objective_unit_state,
-            objective_description,
-            objective_cx_input,
-            objective_cy_input,
-            objective_unit,
-            add_objective_btn,
-            objective_points_list,
-            remove_last_objective_btn,
-            remove_selected_objective_btn,
-            objective_points_group,
-        ) = objective_points_section.build_objective_points_section()
-
-        # Scenography Builder
-        (
-            scenography_toggle,
-            scenography_state,
-            scenography_unit_state,
-            scenography_description,
-            scenography_type,
-            scenography_unit,
-            circle_form_row,
-            circle_cx,
-            circle_cy,
-            circle_r,
-            rect_form_row,
-            rect_x,
-            rect_y,
-            rect_width,
-            rect_height,
-            polygon_form_col,
-            polygon_preset,
-            polygon_points,
-            delete_polygon_row_btn,
-            polygon_delete_msg,
-            allow_overlap_checkbox,
-            add_scenography_btn,
-            remove_last_scenography_btn,
-            scenography_list,
-            remove_selected_scenography_btn,
-            scenography_group,
-        ) = scenography_section.build_scenography_section()
-
-        # SVG Map Preview
-        svg_preview = build_svg_preview(
-            elem_id_prefix="card-svg-preview",
-            label="Map Preview",
+        # ── Wire navigation ──────────────────────────────────────
+        wire_navigation(
+            page_state=page_state,
+            page_containers=page_containers,
+            home_create_btn=home_create_btn,
+            home_browse_btn=home_browse_btn,
+            home_favorites_btn=home_favorites_btn,
+            list_back_btn=list_back_btn,
+            detail_back_btn=detail_back_btn,
+            create_back_btn=create_back_btn,
+            edit_back_btn=edit_back_btn,
+            favorites_back_btn=favorites_back_btn,
         )
 
-        # Generate button and output
-        generate_btn = gr.Button(
-            "Generate Card", variant="primary", elem_id="generate-button"
+        # ── Wire home page (initial load) ────────────────────────
+        wire_home_page(
+            home_recent_html=home_recent_html,
+            home_mode_filter=home_mode_filter,
+            home_preset_filter=home_preset_filter,
+            home_unit_selector=home_unit_selector,
+            home_reload_btn=home_reload_btn,
+            home_prev_btn=home_prev_btn,
+            home_page_info=home_page_info,
+            home_next_btn=home_next_btn,
+            home_page_state=home_page_state,
+            home_cards_cache_state=home_cards_cache_state,
+            home_fav_ids_cache_state=home_fav_ids_cache_state,
+            app=app,
         )
-        output = gr.JSON(label="Generated Card", elem_id="result-json")
 
-        # ── Wire all events ──────────────────────────────────────────────
+        # ── Wire list page (filter + load) ───────────────────────
+        wire_list_page(
+            page_state=page_state,
+            page_containers=page_containers,
+            list_filter=list_filter,
+            list_unit_selector=list_unit_selector,
+            list_reload_btn=list_reload_btn,
+            list_cards_html=list_cards_html,
+            home_browse_btn=home_browse_btn,
+            list_cards_cache_state=list_cards_cache_state,
+            list_fav_ids_cache_state=list_fav_ids_cache_state,
+            list_loaded_state=list_loaded_state,
+        )
+
+        # ── Wire detail page (load card, fav, edit) ──────────────
+        wire_detail_page(
+            page_state=page_state,
+            page_containers=page_containers,
+            detail_card_id_state=detail_card_id_state,
+            detail_title_md=detail_title_md,
+            detail_svg_preview=detail_svg_preview,
+            detail_content_html=detail_content_html,
+            detail_edit_btn=detail_edit_btn,
+            detail_favorite_btn=detail_favorite_btn,
+            edit_title_md=edit_title_md,
+            edit_svg_preview=edit_svg_preview,
+            edit_card_json=edit_card_json,
+        )
+
+        # ── Wire favorites page ──────────────────────────────────
+        wire_favorites_page(
+            page_state=page_state,
+            page_containers=page_containers,
+            favorites_unit_selector=favorites_unit_selector,
+            favorites_reload_btn=favorites_reload_btn,
+            favorites_cards_html=favorites_cards_html,
+            home_favorites_btn=home_favorites_btn,
+            favorites_cards_cache_state=favorites_cards_cache_state,
+            favorites_fav_ids_cache_state=favorites_fav_ids_cache_state,
+            favorites_loaded_state=favorites_loaded_state,
+        )
+
+        # ── Wire global favorite toggle (star clicks) ────────────
+        wire_fav_toggle(
+            fav_toggle_card_id=fav_toggle_card_id,
+            fav_toggle_btn=fav_toggle_btn,
+        )
+
+        # ── Wire global View button (card View clicks) ──────────
+        wire_view_navigation(
+            view_card_id=view_card_id,
+            view_card_btn=view_card_btn,
+            page_state=page_state,
+            detail_card_id_state=detail_card_id_state,
+            page_containers=page_containers,
+        )
+
+        # ── Wire existing create-form events (unchanged) ─────────
         wire_events(
             actor_id=actor_id,
             scenario_name=scenario_name,
@@ -316,6 +548,11 @@ def build_app() -> gr.Blocks:
             generate_btn=generate_btn,
             svg_preview=svg_preview,
             output=output,
+            create_scenario_btn=create_scenario_btn,
+            create_scenario_status=create_scenario_status,
+            page_state=page_state,
+            page_containers=page_containers,
+            home_recent_html=home_recent_html,
         )
 
     return app
