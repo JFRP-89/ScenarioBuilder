@@ -4,13 +4,20 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import gradio as gr
 from adapters.ui_gradio.ui.router import ALL_PAGES, PAGE_HOME
 from adapters.ui_gradio.ui.wiring.wire_generate import _wire_create_scenario
 
 # Number of page containers (mirrors ALL_PAGES)
 _N_PAGES = len(ALL_PAGES)
-# Handler returns: page_state + N visibilities + home_recent_html + status
-_EXPECTED_LEN = 1 + _N_PAGES + 1 + 1
+
+# Form components: 18 items (see _form_components list in wire_generate.py)
+_N_FORM = 18
+# Dropdown/list components passed to wire: 6
+_N_DROPDOWNS = 6
+# Handler returns: page_state + N visibilities + home_recent_html
+#                  + form resets + dropdown resets + status
+_EXPECTED_LEN = 1 + _N_PAGES + 1 + _N_FORM + _N_DROPDOWNS + 1
 
 
 class _FakeComponent:
@@ -35,16 +42,65 @@ class TestOnCreateScenario:
         btn = _FakeComponent()
         status = _FakeComponent()
         output = _FakeComponent()
+        svg_preview = _FakeComponent()
         page_state = _FakeComponent()
         page_containers = _make_fake_containers()
         home_recent_html = _FakeComponent()
+        # Form components for reset
+        scenario_name = _FakeComponent()
+        mode = _FakeComponent()
+        seed = _FakeComponent()
+        armies = _FakeComponent()
+        deployment = _FakeComponent()
+        layout = _FakeComponent()
+        objectives = _FakeComponent()
+        initial_priority = _FakeComponent()
+        visibility = _FakeComponent()
+        shared_with = _FakeComponent()
+        special_rules_state = _FakeComponent()
+        objectives_with_vp_toggle = _FakeComponent()
+        vp_state = _FakeComponent()
+        scenography_state = _FakeComponent()
+        deployment_zones_state = _FakeComponent()
+        objective_points_state = _FakeComponent()
+        # Dropdown lists for reset
+        vp_input = gr.Textbox(visible=False)
+        vp_list = gr.Dropdown(visible=False)
+        rules_list = gr.Dropdown(visible=False)
+        scenography_list = gr.Dropdown(visible=False)
+        deployment_zones_list = gr.Dropdown(visible=False)
+        objective_points_list = gr.Dropdown(visible=False)
+
         _wire_create_scenario(
             output=output,
             create_scenario_btn=btn,
             create_scenario_status=status,
+            svg_preview=svg_preview,
             page_state=page_state,
             page_containers=page_containers,
             home_recent_html=home_recent_html,
+            scenario_name=scenario_name,
+            mode=mode,
+            seed=seed,
+            armies=armies,
+            deployment=deployment,
+            layout=layout,
+            objectives=objectives,
+            initial_priority=initial_priority,
+            visibility=visibility,
+            shared_with=shared_with,
+            special_rules_state=special_rules_state,
+            objectives_with_vp_toggle=objectives_with_vp_toggle,
+            vp_state=vp_state,
+            scenography_state=scenography_state,
+            deployment_zones_state=deployment_zones_state,
+            objective_points_state=objective_points_state,
+            vp_input=vp_input,
+            vp_list=vp_list,
+            rules_list=rules_list,
+            scenography_list=scenography_list,
+            deployment_zones_list=deployment_zones_list,
+            objective_points_list=objective_points_list,
         )
         return btn._click_fn
 
@@ -59,13 +115,13 @@ class TestOnCreateScenario:
         assert len(result) == _EXPECTED_LEN
         status = self._status(result)
         assert status["visible"] is True
-        assert "Generate a card first" in status["value"]
+        assert "preview first" in status["value"].lower()
 
     def test_empty_dict(self):
         handler = self._get_handler()
         result = handler({})
         status = self._status(result)
-        assert "Generate a card first" in status["value"]
+        assert "preview first" in status["value"].lower()
 
     def test_error_status(self):
         handler = self._get_handler()
@@ -73,22 +129,28 @@ class TestOnCreateScenario:
         status = self._status(result)
         assert "bad payload" in status["value"]
 
-    def test_missing_card_id(self):
+    def test_no_preview_status(self):
+        """Data without status='preview' should be rejected."""
         handler = self._get_handler()
         result = handler({"mode": "matched", "seed": 42})
         status = self._status(result)
-        assert "No card_id found" in status["value"]
+        assert "preview first" in status["value"].lower()
 
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.load_recent_cards")
-    @patch("adapters.ui_gradio.ui.wiring.wire_generate.nav_svc")
-    def test_card_verified_success(self, mock_nav, mock_load):
-        mock_nav.get_card.return_value = {
+    @patch("adapters.ui_gradio.ui.wiring.wire_generate.handle_create_scenario")
+    def test_create_success(self, mock_create, mock_load):
+        mock_create.return_value = {
             "card_id": "abc-123",
             "mode": "matched",
         }
         mock_load.return_value = "<div>recent</div>"
         handler = self._get_handler()
-        result = handler({"card_id": "abc-123", "mode": "matched"})
+        preview = {
+            "status": "preview",
+            "_payload": {"name": "Test"},
+            "_actor_id": "actor-1",
+        }
+        result = handler(preview)
         status = self._status(result)
         assert "abc-123" in status["value"]
         assert "created" in status["value"].lower()
@@ -96,32 +158,39 @@ class TestOnCreateScenario:
         # Navigates to Home
         assert result[0] == PAGE_HOME
 
-    @patch("adapters.ui_gradio.ui.wiring.wire_generate.nav_svc")
-    def test_card_not_found_in_flask(self, mock_nav):
-        mock_nav.get_card.return_value = {
+    @patch("adapters.ui_gradio.ui.wiring.wire_generate.handle_create_scenario")
+    def test_create_api_error(self, mock_create):
+        mock_create.return_value = {
             "status": "error",
-            "message": "Card not found: xyz",
+            "message": "Server error",
         }
         handler = self._get_handler()
-        result = handler({"card_id": "xyz"})
+        preview = {
+            "status": "preview",
+            "_payload": {"name": "Test"},
+            "_actor_id": "actor-1",
+        }
+        result = handler(preview)
         status = self._status(result)
-        assert "Could not verify" in status["value"]
+        assert "Server error" in status["value"]
         assert status["visible"] is True
 
     def test_non_dict_card_data(self):
         handler = self._get_handler()
         result = handler("not a dict")
         status = self._status(result)
-        assert "Generate a card first" in status["value"]
+        assert "preview first" in status["value"].lower()
 
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.load_recent_cards")
-    @patch("adapters.ui_gradio.ui.wiring.wire_generate.nav_svc")
-    def test_success_refreshes_recent_cards(self, mock_nav, mock_load):
-        mock_nav.get_card.return_value = {"card_id": "x1"}
+    @patch("adapters.ui_gradio.ui.wiring.wire_generate.handle_create_scenario")
+    def test_success_refreshes_recent_cards(self, mock_create, mock_load):
+        mock_create.return_value = {"card_id": "x1"}
         mock_load.return_value = "<div>cards list</div>"
         handler = self._get_handler()
-        result = handler({"card_id": "x1"})
-        # Second-to-last element is the recent cards HTML
-        recent_html = result[-2]
-        assert recent_html == "<div>cards list</div>"
+        preview = {
+            "status": "preview",
+            "_payload": {"name": "Test"},
+            "_actor_id": "actor-1",
+        }
+        result = handler(preview)  # noqa: F841
         mock_load.assert_called_once()

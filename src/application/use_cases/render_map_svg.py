@@ -79,10 +79,18 @@ class RenderMapSvg:
             "width_mm": card.table.width_mm,
             "height_mm": card.table.height_mm,
         }
-        shapes = card.map_spec.shapes
+
+        # Combine all shape categories into a single list for rendering
+        all_shapes: list[dict] = []
+        if card.map_spec.shapes:
+            all_shapes.extend(card.map_spec.shapes)
+        if card.map_spec.deployment_shapes:
+            all_shapes.extend(card.map_spec.deployment_shapes)
+        if card.map_spec.objective_shapes:
+            all_shapes.extend(card.map_spec.objective_shapes)
 
         # 5) Delegate rendering to renderer port
-        svg = self._renderer.render(table_mm=table_mm, shapes=shapes)
+        svg = self._renderer.render(table_mm=table_mm, shapes=all_shapes)
 
         # 6) Return response
         return RenderMapSvgResponse(svg=svg)

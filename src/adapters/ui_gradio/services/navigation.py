@@ -75,6 +75,29 @@ def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
 
 
 # ============================================================================
+# Delete card
+# ============================================================================
+def delete_card(actor_id: str, card_id: str) -> dict[str, Any]:
+    """DELETE /cards/<card_id> — delete a card.
+
+    Returns:
+        ``{"card_id": ..., "deleted": True}`` on success,
+        or ``{"status": "error", ...}`` on failure.
+    """
+    if not requests:
+        return {"status": "error", "message": "requests library not available"}
+    try:
+        url = f"{get_api_base_url()}/cards/{card_id}"
+        headers = build_headers(actor_id)
+        resp = requests.delete(url, headers=headers, timeout=_TIMEOUT)
+        if resp.status_code == 200:
+            return cast(dict[str, Any], resp.json())
+        return cast(dict[str, Any], normalize_error(resp))
+    except Exception as exc:
+        return cast(dict[str, Any], normalize_error(None, exc))
+
+
+# ============================================================================
 # Toggle favorite
 # ============================================================================
 def toggle_favorite(actor_id: str, card_id: str) -> dict[str, Any]:

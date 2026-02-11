@@ -55,6 +55,17 @@ def build_detail_card_id_state() -> gr.State:
     return gr.State("")
 
 
+def build_previous_page_state() -> gr.State:
+    """Create a State to track where the user navigated from.
+
+    Used by the Back button on detail page to return to the correct origin.
+
+    Returns:
+        gr.State initialized to PAGE_HOME.
+    """
+    return gr.State(PAGE_HOME)
+
+
 def page_visibility(target_page: str) -> list[Any]:
     """Return a list of gr.update(visible=...) for each page container.
 
@@ -84,22 +95,24 @@ def navigate_to(target_page: str) -> tuple[Any, ...]:
     return (target_page, *visibility)
 
 
-def navigate_to_detail(card_id: str) -> tuple[Any, ...]:
+def navigate_to_detail(card_id: str, from_page: str = PAGE_HOME) -> tuple[Any, ...]:
     """Navigate to the detail page for a specific card.
 
     Returns:
       - new page state
       - card_id state
+      - previous page state (for Back button)
       - one visibility update per page container
 
     Args:
         card_id: ID of the card to show.
+        from_page: Page the user is navigating from (for Back button).
 
     Returns:
-        Tuple: (page_state, card_id_state, *visibility_updates)
+        Tuple: (page_state, card_id_state, previous_page_state, *visibility_updates)
     """
     visibility = page_visibility(PAGE_DETAIL)
-    return (PAGE_DETAIL, card_id, *visibility)
+    return (PAGE_DETAIL, card_id, from_page, *visibility)
 
 
 def navigate_to_edit(card_id: str) -> tuple[Any, ...]:

@@ -163,8 +163,16 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
                 interactive=True,
             )
 
+        zone_editing_state = gr.State(None)
+
         with gr.Row():
             add_zone_btn = gr.Button("+ Add Zone", size="sm", elem_id="add-zone-btn")
+            cancel_edit_zone_btn = gr.Button(
+                "Cancel Edit",
+                size="sm",
+                visible=False,
+                elem_id="cancel-edit-zone-btn",
+            )
             remove_last_zone_btn = gr.Button(
                 "- Remove Last", size="sm", elem_id="remove-last-zone-btn"
             )
@@ -215,4 +223,6 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
         remove_last_zone_btn,
         deployment_zones_list,
         remove_selected_zone_btn,
+        zone_editing_state,
+        cancel_edit_zone_btn,
     )

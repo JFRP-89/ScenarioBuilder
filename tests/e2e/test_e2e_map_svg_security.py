@@ -1,5 +1,7 @@
 """E2E test: /cards/{id}/map.svg - seguridad y headers."""
 
+from typing import Any
+
 import pytest
 import requests
 
@@ -72,7 +74,7 @@ def test_map_svg_content_type_and_security_headers(
     _assert_no_dangerous_svg_content(svg_body)
 
 
-def _assert_security_headers(headers: dict) -> None:
+def _assert_security_headers(headers: Any) -> None:
     """Validar headers de seguridad."""
     # X-Content-Type-Options: nosniff
     x_content_type_options = headers.get("X-Content-Type-Options", "")

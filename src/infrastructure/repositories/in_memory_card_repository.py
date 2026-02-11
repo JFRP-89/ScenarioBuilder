@@ -44,6 +44,20 @@ class InMemoryCardRepository:
         """
         return self._cards.get(card_id)
 
+    def delete(self, card_id: str) -> bool:
+        """Delete a card by its id.
+
+        Args:
+            card_id: The card id to delete.
+
+        Returns:
+            True if the card was deleted, False if not found.
+        """
+        if card_id in self._cards:
+            del self._cards[card_id]
+            return True
+        return False
+
     def list_all(self) -> list[Card]:
         """List all cards in the repository.
 

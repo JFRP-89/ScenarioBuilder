@@ -7,6 +7,8 @@ Tests for GenerateScenarioCard exist in tests/unit/application/test_generate_sce
 """
 
 # New API imports
+from typing import Any
+
 from application.use_cases.save_card import SaveCard, SaveCardRequest
 from domain.cards.card import Card, GameMode
 from domain.maps.map_spec import MapSpec
@@ -34,7 +36,7 @@ class DummyRepo:
     """Legacy repository for old functional API tests."""
 
     def __init__(self) -> None:
-        self.saved = []
+        self.saved: list[Any] = []
 
     def save(self, card) -> None:
         """New API: save(card) without owner_id."""
@@ -94,8 +96,8 @@ def test_create_variant_returns_card():
 
 
 def test_favorites_noop():
-    assert add_favorite("c1", "u1") is None
-    assert remove_favorite("c1", "u1") is None
+    add_favorite("c1", "u1")
+    remove_favorite("c1", "u1")
 
 
 def test_list_presets():

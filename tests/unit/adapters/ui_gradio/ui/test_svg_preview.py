@@ -133,11 +133,11 @@ class TestRenderSvgFromCard:
         assert render_svg_from_card(card) == _PLACEHOLDER_HTML
 
     def test_missing_table_mm_returns_placeholder(self):
-        card = {"shapes": []}
+        card: dict[str, object] = {"shapes": []}
         assert render_svg_from_card(card) == _PLACEHOLDER_HTML
 
     def test_table_mm_not_dict_returns_placeholder(self):
-        card = {"table_mm": "invalid"}
+        card: dict[str, object] = {"table_mm": "invalid"}
         assert render_svg_from_card(card) == _PLACEHOLDER_HTML
 
     def test_missing_width_mm_returns_placeholder(self):

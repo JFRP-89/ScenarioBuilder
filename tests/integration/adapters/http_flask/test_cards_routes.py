@@ -116,6 +116,7 @@ class FakeGetCardResponse:
     objectives: Optional[str] = None
     initial_priority: Optional[str] = None
     special_rules: Optional[list] = None
+    shapes: Optional[dict] = None
 
     def __post_init__(self):
         if self.table_mm is None:

@@ -22,7 +22,7 @@ MVP Contract (8 test cases):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import pytest
@@ -70,10 +70,7 @@ class SpyScenarioGenerator:
     """Spy ScenarioGenerator that records calls and returns configurable shapes."""
 
     shapes: list[dict]
-    calls: list[tuple[int, TableSize, GameMode]] = None
-
-    def __post_init__(self) -> None:
-        self.calls = []
+    calls: list[tuple[int, TableSize, GameMode]] = field(default_factory=list)
 
     def generate_shapes(
         self, seed: int, table: TableSize, mode: GameMode
@@ -356,17 +353,22 @@ class TestInvalidVisibility:
 
 
 # =============================================================================
-# 8) INVALID SHAPES FROM GENERATOR
+# 8) GENERATOR SHAPES ARE NOT USED AS FALLBACK
 # =============================================================================
-class TestInvalidShapesFromGenerator:
-    """ScenarioGenerator returns invalid shape → ValidationError."""
+class TestGeneratorShapesNotUsedAsFallback:
+    """Generator shapes are not injected into the card when user provides none.
 
-    def test_invalid_shape_raises_validation_error(
+    The use case no longer uses generator shapes as fallback for scenography.
+    Even if the generator returns invalid shapes, the card is still created
+    successfully with empty scenography.
+    """
+
+    def test_invalid_generator_shapes_ignored_when_user_provides_none(
         self,
         fake_id_generator: FakeIdGenerator,
         fake_seed_generator: FakeSeedGenerator,
     ):
-        # Shape outside table bounds (cx + r > 1200)
+        # Shape outside table bounds — would fail if used
         invalid_shapes = [{"type": "circle", "cx": 1150, "cy": 600, "r": 100}]
         bad_generator = SpyScenarioGenerator(shapes=invalid_shapes)
         use_case = GenerateScenarioCard(
@@ -384,8 +386,11 @@ class TestInvalidShapesFromGenerator:
             shared_with=None,
         )
 
-        with pytest.raises(ValidationError, match="(?i)shape|bounds|map"):
-            use_case.execute(request)
+        # Should succeed — generator shapes are not used
+        response = use_case.execute(request)
+        assert response.card_id == "card-001"
+        # scenography is empty (not from generator)
+        assert response.shapes["scenography_specs"] == []
 
 
 # =============================================================================
@@ -594,10 +599,10 @@ class TestPostMergeShapesValidation:
             ],
         )
 
-        # Act & Assert - post-merge validation catches out-of-bounds
+        # Act & Assert - validation catches out-of-bounds
         with pytest.raises(
             ValidationError,
-            match="(?i)final shapes validation failed.*out of bounds",
+            match="(?i)out of bounds",
         ):
             use_case.execute(request)
 
@@ -633,10 +638,8 @@ class TestPostMergeShapesValidation:
             scenography_specs=user_scenography,
         )
 
-        # Act & Assert - post-merge validation catches too many shapes
-        with pytest.raises(
-            ValidationError, match="(?i)final shapes validation failed.*too many"
-        ):
+        # Act & Assert - validation catches too many shapes
+        with pytest.raises(ValidationError, match="(?i)too many"):
             use_case.execute(request)
 
     def test_valid_deployment_shapes_plus_generated_succeeds(
@@ -719,7 +722,7 @@ class TestPostMergeShapesValidation:
         # Act & Assert
         with pytest.raises(
             ValidationError,
-            match="(?i)final shapes validation failed.*out of bounds",
+            match="(?i)out of bounds",
         ):
             use_case.execute(request)
 

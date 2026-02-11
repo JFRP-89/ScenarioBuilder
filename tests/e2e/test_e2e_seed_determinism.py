@@ -84,7 +84,7 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
         "Content-Type", ""
     ), f"Content-Type incorrecto: {svg_response.headers.get('Content-Type')}"
 
-    return svg_response.text
+    return str(svg_response.text)
 
 
 def _save_artifact(content: str, filename: str) -> None:

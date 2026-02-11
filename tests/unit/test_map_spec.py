@@ -291,10 +291,10 @@ def test_mapspec_rejects_objective_shape_missing_cy(table: TableSize):
 def test_mapspec_rejects_objective_shapes_not_list(table: TableSize):
     """MapSpec rejects objective_shapes that is not a list."""
     with pytest.raises(ValidationError, match="must be list"):
-        MapSpec(table=table, shapes=[], objective_shapes={"cx": 600, "cy": 600})  # type: ignore
+        MapSpec(table=table, shapes=[], objective_shapes={"cx": 600, "cy": 600})
 
 
 def test_mapspec_rejects_objective_shape_not_dict(table: TableSize):
     """MapSpec rejects objective_shape that is not a dict."""
     with pytest.raises(ValidationError, match="must be dict"):
-        MapSpec(table=table, shapes=[], objective_shapes=["not_a_dict"])  # type: ignore
+        MapSpec(table=table, shapes=[], objective_shapes=["not_a_dict"])

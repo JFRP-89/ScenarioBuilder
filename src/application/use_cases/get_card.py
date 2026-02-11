@@ -41,6 +41,7 @@ class GetCardResponse:
     objectives: Optional[Union[str, dict[str, Any]]] = None
     initial_priority: Optional[str] = None
     special_rules: Optional[list[dict[str, Any]]] = None
+    shapes: Optional[dict[str, Any]] = None
 
 
 # =============================================================================
@@ -102,7 +103,24 @@ class GetCard:
             objectives=card.objectives,
             initial_priority=card.initial_priority,
             special_rules=card.special_rules,
+            shapes=self._extract_shapes(card),
         )
+
+    @staticmethod
+    def _extract_shapes(card: Any) -> dict[str, Any]:
+        """Extract shapes dict from card's map_spec."""
+        ms = getattr(card, "map_spec", None)
+        if ms is None:
+            return {}
+        return {
+            "scenography_specs": list(ms.shapes) if ms.shapes else [],
+            "deployment_shapes": (
+                list(ms.deployment_shapes) if ms.deployment_shapes else []
+            ),
+            "objective_shapes": (
+                list(ms.objective_shapes) if ms.objective_shapes else []
+            ),
+        }
 
     def _detect_table_preset(self, table: Any) -> str:
         """Detect table preset based on dimensions.

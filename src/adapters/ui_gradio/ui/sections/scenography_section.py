@@ -132,9 +132,17 @@ def build_scenography_section() -> tuple[Any, ...]:
                 elem_id="allow-overlap",
             )
 
+        scenography_editing_state = gr.State(None)
+
         with gr.Row():
             add_scenography_btn = gr.Button(
                 "+ Add Element", size="sm", elem_id="add-scenography-btn"
+            )
+            cancel_edit_scenography_btn = gr.Button(
+                "Cancel Edit",
+                size="sm",
+                visible=False,
+                elem_id="cancel-edit-scenography-btn",
             )
             remove_last_scenography_btn = gr.Button(
                 "- Remove Last", size="sm", elem_id="remove-last-scenography-btn"
@@ -181,4 +189,6 @@ def build_scenography_section() -> tuple[Any, ...]:
         scenography_list,
         remove_selected_scenography_btn,
         scenography_group,
+        scenography_editing_state,
+        cancel_edit_scenography_btn,
     )

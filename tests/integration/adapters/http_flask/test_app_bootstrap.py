@@ -23,14 +23,14 @@ from domain.errors import ValidationError
 class FakeServices:
     """Fake services container for testing."""
 
-    generate_scenario_card: MagicMock = None
-    save_card: MagicMock = None
-    get_card: MagicMock = None
-    list_cards: MagicMock = None
-    toggle_favorite: MagicMock = None
-    list_favorites: MagicMock = None
-    create_variant: MagicMock = None
-    render_map_svg: MagicMock = None
+    generate_scenario_card: MagicMock = None  # type: ignore[assignment]
+    save_card: MagicMock = None  # type: ignore[assignment]
+    get_card: MagicMock = None  # type: ignore[assignment]
+    list_cards: MagicMock = None  # type: ignore[assignment]
+    toggle_favorite: MagicMock = None  # type: ignore[assignment]
+    list_favorites: MagicMock = None  # type: ignore[assignment]
+    create_variant: MagicMock = None  # type: ignore[assignment]
+    render_map_svg: MagicMock = None  # type: ignore[assignment]
 
 
 # =============================================================================

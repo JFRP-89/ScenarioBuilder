@@ -263,7 +263,7 @@ def _docker_available() -> bool:
         return False
 
 
-def _start_local_api(base_url: str) -> subprocess.Popen[str]:
+def _start_local_api(base_url: str) -> subprocess.Popen[bytes]:
     parsed = urlparse(base_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 8000
@@ -287,7 +287,7 @@ def _start_local_api(base_url: str) -> subprocess.Popen[str]:
     )
 
 
-def _terminate_process(process: subprocess.Popen[str]) -> None:
+def _terminate_process(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
     process.terminate()
@@ -301,7 +301,11 @@ def _terminate_process(process: subprocess.Popen[str]) -> None:
 def _is_ui_test(request: pytest.FixtureRequest) -> bool:
     """Verifica si el test es un test de UI."""
     filename = request.node.fspath.basename
-    return filename in {"test_e2e_ui_smoke.py", "test_e2e_generate_card.py"}
+    return filename in {
+        "test_e2e_ui_smoke.py",
+        "test_e2e_generate_card.py",
+        "test_e2e_edit_button_ownership.py",
+    }
 
 
 # ============================================================================

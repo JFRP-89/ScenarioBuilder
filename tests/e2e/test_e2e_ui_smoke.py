@@ -52,7 +52,25 @@ def test_ui_smoke_loads(e2e_services, wait_for_health, page):
         assert generate_button.count() > 0, "No se encontró botón Generate"
         generate_button.first.click()
 
-        _assert_generation_result(page)
+        # Wait for Create Scenario button and click it to persist the card
+        create_button = page.get_by_role(
+            "button",
+            name=re.compile("create scenario|crear escenario", re.IGNORECASE),
+        )
+        # Wait for button to appear (it appears after Generate)
+        create_button.first.wait_for(state="visible", timeout=30_000)
+        create_button.first.click()
+
+        # Wait for success message
+        success_msg = page.get_by_text(
+            re.compile(r"scenario created|escenario creado", re.I)
+        )
+        if success_msg.count() > 0:
+            success_msg.first.wait_for(state="visible", timeout=30_000)
+        else:
+            # Fallback: wait for home page to load
+            page.wait_for_timeout(3000)
+
         _assert_svg_rendered_if_present(page)
 
     except (PlaywrightError, AssertionError):

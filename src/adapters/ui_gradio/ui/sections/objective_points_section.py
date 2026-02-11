@@ -63,12 +63,20 @@ def build_objective_points_section() -> tuple[Any, ...]:
                 elem_id="objective-cy",
             )
 
+        objective_editing_state = gr.State(None)
+
         # Add point button
         with gr.Row():
             add_objective_btn = gr.Button(
                 "Add Objective Point",
                 variant="primary",
                 elem_id="add-objective-btn",
+            )
+            cancel_edit_objective_btn = gr.Button(
+                "Cancel Edit",
+                size="sm",
+                visible=False,
+                elem_id="cancel-edit-objective-btn",
             )
 
         # List of points
@@ -105,4 +113,6 @@ def build_objective_points_section() -> tuple[Any, ...]:
         remove_last_objective_btn,
         remove_selected_objective_btn,
         objective_points_group,
+        objective_editing_state,
+        cancel_edit_objective_btn,
     )
