@@ -6,7 +6,7 @@ import gradio as gr
 
 
 def build_special_rules_section() -> (
-    tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]
+    tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]
 ):
     """Build special rules builder UI components.
 
@@ -60,8 +60,13 @@ def build_special_rules_section() -> (
                 interactive=True,
             )
 
+        rule_editing_state = gr.State(None)
+
         with gr.Row():
             add_rule_btn = gr.Button("+ Add Rule", size="sm", elem_id="add-rule-btn")
+            cancel_edit_rule_btn = gr.Button(
+                "Cancel Edit", size="sm", visible=False, elem_id="cancel-edit-rule-btn"
+            )
             remove_rule_btn = gr.Button(
                 "- Remove Last", size="sm", elem_id="remove-rule-btn"
             )
@@ -93,4 +98,6 @@ def build_special_rules_section() -> (
         remove_selected_rule_btn,
         rule_name_state,
         rule_value_state,
+        rule_editing_state,
+        cancel_edit_rule_btn,
     )

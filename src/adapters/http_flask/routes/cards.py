@@ -38,6 +38,7 @@ from adapters.http_flask.constants import (
     KEY_VISIBILITY,
 )
 from adapters.http_flask.context import get_actor_id, get_services
+from application.use_cases.delete_card import DeleteCardRequest
 from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
 from application.use_cases.get_card import GetCardRequest
 from application.use_cases.list_cards import ListCardsRequest
@@ -183,8 +184,149 @@ def get_card(card_id: str):
         KEY_OBJECTIVES: response.objectives,
         KEY_INITIAL_PRIORITY: response.initial_priority,
         KEY_SPECIAL_RULES: response.special_rules,
+        KEY_SHAPES: response.shapes or {},
     }
     return jsonify(response_data), 200
+
+
+@cards_bp.put("/<card_id>")
+def update_card(card_id: str):
+    """PUT /cards/<card_id> - Update an existing scenario card.
+
+    Only the card owner may update. Re-generates the card with the
+    same card_id and saves (overwrites) the existing entry.
+    """
+    actor_id = get_actor_id()
+    services = get_services()
+
+    # 1) Verify card exists and actor is owner
+    existing = services.get_card.execute(
+        GetCardRequest(actor_id=actor_id, card_id=card_id)
+    )
+    if existing.owner_id != actor_id:
+        return jsonify({"status": "error", "message": "Forbidden: not the owner"}), 403
+
+    # 2) Parse request body (same as create_card)
+    payload = request.get_json(force=True) or {}
+    mode = payload.get(KEY_MODE, DEFAULT_MODE)
+    seed = payload.get(KEY_SEED)
+    table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
+    visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
+    shared_with = payload.get(KEY_SHARED_WITH)
+    armies = payload.get(KEY_ARMIES)
+    deployment = payload.get(KEY_DEPLOYMENT)
+    layout = payload.get(KEY_LAYOUT)
+    objectives = payload.get(KEY_OBJECTIVES)
+    initial_priority = payload.get(KEY_INITIAL_PRIORITY)
+    name = payload.get(KEY_NAME)
+    special_rules = payload.get(KEY_SPECIAL_RULES)
+
+    table_width_mm = None
+    table_height_mm = None
+    if table_preset == "custom":
+        table_cm = payload.get("table_cm")
+        if table_cm:
+            table_width_mm = int(table_cm.get("width_cm", 0) * 10)
+            table_height_mm = int(table_cm.get("height_cm", 0) * 10)
+        table_mm = payload.get(KEY_TABLE_MM)
+        if table_mm:
+            table_width_mm = table_mm.get("width_mm")
+            table_height_mm = table_mm.get("height_mm")
+
+    shapes_dict = payload.get(KEY_SHAPES) or {}
+    deployment_shapes = payload.get(KEY_DEPLOYMENT_SHAPES) or shapes_dict.get(
+        KEY_DEPLOYMENT_SHAPES
+    )
+    objective_shapes = payload.get(KEY_OBJECTIVE_SHAPES) or shapes_dict.get(
+        KEY_OBJECTIVE_SHAPES
+    )
+    scenography_specs = payload.get(KEY_SCENOGRAPHY_SPECS) or shapes_dict.get(
+        KEY_SCENOGRAPHY_SPECS
+    )
+    map_specs = payload.get("map_specs")
+
+    # 3) Re-generate with same card_id
+    gen_request = GenerateScenarioCardRequest(
+        actor_id=actor_id,
+        mode=mode,
+        seed=seed,
+        table_preset=table_preset,
+        table_width_mm=table_width_mm,
+        table_height_mm=table_height_mm,
+        visibility=visibility,
+        shared_with=shared_with,
+        armies=armies,
+        deployment=deployment,
+        layout=layout,
+        objectives=objectives,
+        initial_priority=initial_priority,
+        name=name,
+        special_rules=special_rules,
+        map_specs=map_specs,
+        scenography_specs=scenography_specs,
+        deployment_shapes=deployment_shapes,
+        objective_shapes=objective_shapes,
+        card_id=card_id,
+    )
+    gen_response = services.generate_scenario_card.execute(gen_request)
+
+    # 4) Save (overwrite)
+    save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
+    services.save_card.execute(save_request)
+
+    # 5) Return response
+    response_data = {
+        KEY_CARD_ID: gen_response.card_id,
+        KEY_SEED: gen_response.seed,
+        KEY_OWNER_ID: gen_response.owner_id,
+        KEY_NAME: gen_response.name,
+        KEY_MODE: gen_response.mode,
+        KEY_ARMIES: gen_response.armies,
+        KEY_TABLE_PRESET: gen_response.table_preset,
+        KEY_TABLE_MM: gen_response.table_mm,
+        KEY_LAYOUT: gen_response.layout,
+        KEY_DEPLOYMENT: gen_response.deployment,
+        KEY_INITIAL_PRIORITY: gen_response.initial_priority,
+        KEY_OBJECTIVES: gen_response.objectives,
+        KEY_SPECIAL_RULES: gen_response.special_rules,
+        KEY_VISIBILITY: gen_response.visibility,
+        KEY_SHARED_WITH: gen_response.shared_with or [],
+        KEY_SHAPES: gen_response.shapes,
+    }
+
+    return jsonify(response_data), 200
+
+
+@cards_bp.delete("/<card_id>")
+def delete_card(card_id: str):
+    """DELETE /cards/<card_id> - Delete a scenario card.
+
+    Only the card owner may delete. Returns 200 on success.
+    """
+    actor_id = get_actor_id()
+    services = get_services()
+
+    try:
+        result = services.delete_card.execute(
+            DeleteCardRequest(actor_id=actor_id, card_id=card_id)
+        )
+    except Exception as exc:
+        msg = str(exc)
+        if "not found" in msg.lower():
+            return jsonify({"status": "error", "message": msg}), 404
+        if "forbidden" in msg.lower():
+            return jsonify({"status": "error", "message": msg}), 403
+        return jsonify({"status": "error", "message": msg}), 500
+
+    return (
+        jsonify(
+            {
+                "card_id": result.card_id,
+                "deleted": result.deleted,
+            }
+        ),
+        200,
+    )
 
 
 @cards_bp.get("")

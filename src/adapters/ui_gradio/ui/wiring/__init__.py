@@ -60,6 +60,8 @@ def wire_events(
     remove_vp_btn: gr.Button,
     vp_list: gr.Dropdown,
     remove_selected_vp_btn: gr.Button,
+    vp_editing_state: gr.State,
+    cancel_edit_vp_btn: gr.Button,
     # Special rules
     special_rules_state: gr.State,
     special_rules_toggle: gr.Checkbox,
@@ -71,6 +73,8 @@ def wire_events(
     remove_rule_btn: gr.Button,
     rules_list: gr.Dropdown,
     remove_selected_rule_btn: gr.Button,
+    rule_editing_state: gr.State,
+    cancel_edit_rule_btn: gr.Button,
     # Visibility
     visibility: gr.Radio,
     shared_with_row: gr.Row,
@@ -108,6 +112,8 @@ def wire_events(
     remove_last_zone_btn: gr.Button,
     deployment_zones_list: gr.Dropdown,
     remove_selected_zone_btn: gr.Button,
+    zone_editing_state: gr.State,
+    cancel_edit_zone_btn: gr.Button,
     # Objective points
     objective_points_toggle: gr.Checkbox,
     objective_points_group: gr.Group,
@@ -121,6 +127,8 @@ def wire_events(
     objective_points_list: gr.Dropdown,
     remove_last_objective_btn: gr.Button,
     remove_selected_objective_btn: gr.Button,
+    objective_editing_state: gr.State,
+    cancel_edit_objective_btn: gr.Button,
     # Scenography
     scenography_toggle: gr.Checkbox,
     scenography_group: gr.Group,
@@ -148,6 +156,8 @@ def wire_events(
     remove_last_scenography_btn: gr.Button,
     scenography_list: gr.Dropdown,
     remove_selected_scenography_btn: gr.Button,
+    scenography_editing_state: gr.State,
+    cancel_edit_scenography_btn: gr.Button,
     # Generate
     generate_btn: gr.Button,
     svg_preview: gr.HTML,
@@ -159,6 +169,9 @@ def wire_events(
     page_state: gr.State | None = None,
     page_containers: list[gr.Column] | None = None,
     home_recent_html: gr.HTML | None = None,
+    # Edit mode state
+    editing_card_id: gr.State | None = None,
+    create_heading_md: gr.Markdown | None = None,
 ) -> None:
     """Hook every UI event to its handler by dispatching to section wirers."""
 
@@ -184,6 +197,8 @@ def wire_events(
         remove_rule_btn=remove_rule_btn,
         rules_list=rules_list,
         remove_selected_rule_btn=remove_selected_rule_btn,
+        rule_editing_state=rule_editing_state,
+        cancel_edit_rule_btn=cancel_edit_rule_btn,
         output=output,
     )
 
@@ -196,6 +211,8 @@ def wire_events(
         remove_vp_btn=remove_vp_btn,
         vp_list=vp_list,
         remove_selected_vp_btn=remove_selected_vp_btn,
+        vp_editing_state=vp_editing_state,
+        cancel_edit_vp_btn=cancel_edit_vp_btn,
     )
 
     wire_scenography(
@@ -228,6 +245,8 @@ def wire_events(
         table_width=table_width,
         table_height=table_height,
         table_unit=table_unit,
+        scenography_editing_state=scenography_editing_state,
+        cancel_edit_scenography_btn=cancel_edit_scenography_btn,
         output=output,
     )
 
@@ -268,6 +287,8 @@ def wire_events(
         table_width=table_width,
         table_height=table_height,
         table_unit=table_unit,
+        zone_editing_state=zone_editing_state,
+        cancel_edit_zone_btn=cancel_edit_zone_btn,
         output=output,
     )
 
@@ -287,6 +308,8 @@ def wire_events(
         table_width=table_width,
         table_height=table_height,
         table_unit=table_unit,
+        objective_editing_state=objective_editing_state,
+        cancel_edit_objective_btn=cancel_edit_objective_btn,
         output=output,
     )
 
@@ -325,4 +348,12 @@ def wire_events(
         page_state=page_state,
         page_containers=page_containers,
         home_recent_html=home_recent_html,
+        vp_input=vp_input,
+        vp_list=vp_list,
+        rules_list=rules_list,
+        scenography_list=scenography_list,
+        deployment_zones_list=deployment_zones_list,
+        objective_points_list=objective_points_list,
+        editing_card_id=editing_card_id,
+        create_heading_md=create_heading_md,
     )

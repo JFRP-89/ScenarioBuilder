@@ -6,7 +6,7 @@ import gradio as gr
 
 
 def build_scenario_details_section() -> (
-    tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]
+    tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]
 ):
     """Build scenario details UI components.
 
@@ -64,9 +64,14 @@ def build_scenario_details_section() -> (
                 interactive=True,
             )
 
+        vp_editing_state = gr.State(None)
+
         with gr.Row() as vp_buttons_row:
             add_vp_btn = gr.Button(
                 "+ Add Victory Point", size="sm", elem_id="add-vp-btn"
+            )
+            cancel_edit_vp_btn = gr.Button(
+                "Cancel Edit", size="sm", visible=False, elem_id="cancel-edit-vp-btn"
             )
             remove_vp_btn = gr.Button(
                 "- Remove Last", size="sm", elem_id="remove-vp-btn"
@@ -102,4 +107,6 @@ def build_scenario_details_section() -> (
         vp_list,
         remove_selected_vp_btn,
         vp_buttons_row,
+        vp_editing_state,
+        cancel_edit_vp_btn,
     )

@@ -41,7 +41,7 @@ class TestApplyTableConfig:
         """preset='custom' with valid dimensions adds table_cm to payload."""
         from adapters.ui_gradio.builders.payload import apply_table_config
 
-        payload = {}
+        payload: dict[str, object] = {}
         custom_table, error = apply_table_config(payload, "custom", 120.0, 120.0, "cm")
 
         assert error is None
@@ -52,7 +52,7 @@ class TestApplyTableConfig:
         """preset='custom' with invalid dimensions returns error."""
         from adapters.ui_gradio.builders.payload import apply_table_config
 
-        payload = {}
+        payload: dict[str, object] = {}
         custom_table, error = apply_table_config(payload, "custom", 0.0, 120.0, "cm")
 
         assert custom_table is None
@@ -65,7 +65,7 @@ class TestApplyTableConfig:
         """preset='standard' adds table_preset to payload."""
         from adapters.ui_gradio.builders.payload import apply_table_config
 
-        payload = {}
+        payload: dict[str, object] = {}
         custom_table, error = apply_table_config(payload, "standard", 0.0, 0.0, "cm")
 
         assert error is None
@@ -76,7 +76,7 @@ class TestApplyTableConfig:
         """preset='massive' adds table_preset to payload."""
         from adapters.ui_gradio.builders.payload import apply_table_config
 
-        payload = {}
+        payload: dict[str, object] = {}
         custom_table, error = apply_table_config(payload, "massive", 0.0, 0.0, "cm")
 
         assert error is None
@@ -91,7 +91,7 @@ class TestApplyOptionalTextFields:
         """Non-empty fields are added to payload."""
         from adapters.ui_gradio.builders.payload import apply_optional_text_fields
 
-        payload = {}
+        payload: dict[str, object] = {}
         apply_optional_text_fields(
             payload,
             armies="Warriors 500",
@@ -109,7 +109,7 @@ class TestApplyOptionalTextFields:
         """Whitespace is stripped from field values."""
         from adapters.ui_gradio.builders.payload import apply_optional_text_fields
 
-        payload = {}
+        payload: dict[str, object] = {}
         apply_optional_text_fields(
             payload,
             armies="  Warriors  ",
@@ -127,7 +127,7 @@ class TestApplyOptionalTextFields:
         """Empty or whitespace-only fields are not added."""
         from adapters.ui_gradio.builders.payload import apply_optional_text_fields
 
-        payload = {}
+        payload: dict[str, object] = {}
         apply_optional_text_fields(
             payload, armies="", deployment="   ", layout="layout", objectives=""
         )

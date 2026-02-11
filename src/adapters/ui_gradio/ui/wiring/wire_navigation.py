@@ -18,6 +18,7 @@ from adapters.ui_gradio.ui.router import (
 def wire_navigation(
     *,
     page_state: gr.State,
+    previous_page_state: gr.State,
     page_containers: list[gr.Column],
     # Home page buttons
     home_create_btn: gr.Button,
@@ -34,6 +35,9 @@ def wire_navigation(
 
     When navigating back to Home, recent cards are reloaded from Flask
     so newly created or changed cards appear immediately.
+
+    The detail Back button uses previous_page_state to return to the
+    page the user came from (Home, List, or Favorites).
     """
     nav_outputs = [page_state, *page_containers]
 
@@ -59,11 +63,19 @@ def wire_navigation(
     create_back_btn.click(fn=_go_home, inputs=[], outputs=nav_outputs)
     favorites_back_btn.click(fn=_go_home, inputs=[], outputs=nav_outputs)
 
-    # Back from detail → list
-    def _detail_back():
-        return navigate_to(PAGE_LIST)
+    # Back from detail → previous page (Home, List, or Favorites)
+    def _detail_back(from_page: str):
+        """Return to the page user came from before viewing detail."""
+        # Fallback to list if previous page is unknown/invalid
+        if from_page not in [PAGE_HOME, PAGE_LIST, PAGE_FAVORITES]:
+            from_page = PAGE_LIST
+        return navigate_to(from_page)
 
-    detail_back_btn.click(fn=_detail_back, inputs=[], outputs=nav_outputs)
+    detail_back_btn.click(
+        fn=_detail_back, inputs=[previous_page_state], outputs=nav_outputs
+    )
 
-    # Back from edit → detail (or list)
-    edit_back_btn.click(fn=_detail_back, inputs=[], outputs=nav_outputs)
+    # Back from edit → previous page (same as detail back)
+    edit_back_btn.click(
+        fn=_detail_back, inputs=[previous_page_state], outputs=nav_outputs
+    )

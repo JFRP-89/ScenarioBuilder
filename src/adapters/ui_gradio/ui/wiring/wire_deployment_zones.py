@@ -11,6 +11,7 @@ from adapters.ui_gradio.state_helpers import (
     get_deployment_zones_choices,
     remove_last_deployment_zone,
     remove_selected_deployment_zone,
+    update_deployment_zone,
     validate_separation_coords,
 )
 from adapters.ui_gradio.units import (
@@ -58,9 +59,11 @@ def wire_deployment_zones(  # noqa: C901
     table_width: gr.Number,
     table_height: gr.Number,
     table_unit: gr.Radio,
+    zone_editing_state: gr.State,
+    cancel_edit_zone_btn: gr.Button,
     output: gr.JSON,
 ) -> None:
-    """Wire deployment-zone add/remove/border-fill events."""
+    """Wire deployment-zone add/remove/border-fill/edit events."""
 
     # -- helpers -----------------------------------------------------------
 
@@ -170,7 +173,201 @@ def wire_deployment_zones(  # noqa: C901
 
     # -- closures ----------------------------------------------------------
 
-    def _add_deployment_zone_wrapper(  # noqa: C901
+    def _build_error_result(
+        current_state: list[dict[str, Any]],
+        message: str,
+        editing_id: str | None = None,
+    ) -> dict[Any, Any]:
+        """Build a standard error result dict."""
+        return {
+            deployment_zones_state: current_state,
+            deployment_zones_list: gr.update(),
+            zone_editing_state: editing_id,
+            add_zone_btn: gr.update(),
+            cancel_edit_zone_btn: gr.update(),
+            output: {"status": "error", "message": message},
+        }
+
+    def _on_zone_selected(
+        selected_id: str | None,
+        current_state: list[dict[str, Any]],
+        zone_unit_val: str,
+    ) -> dict[Any, Any]:
+        """Populate form when a zone is selected from dropdown."""
+        _default_reset: dict[Any, Any] = {
+            zone_type_select: gr.update(value="rectangle"),
+            zone_border_select: gr.update(value="north"),
+            zone_corner_select: gr.update(value="north-west"),
+            zone_fill_side_checkbox: gr.update(value=True),
+            zone_perfect_triangle_checkbox: gr.update(value=True),
+            zone_description: gr.update(value=""),
+            zone_width: gr.update(value=120),
+            zone_height: gr.update(value=20),
+            zone_triangle_side1: gr.update(value=30),
+            zone_triangle_side2: gr.update(value=30),
+            zone_circle_radius: gr.update(value=30),
+            zone_sep_x: gr.update(value=0),
+            zone_sep_y: gr.update(value=0),
+            border_row: gr.update(visible=True),
+            corner_row: gr.update(visible=False),
+            fill_side_row: gr.update(visible=True),
+            perfect_triangle_row: gr.update(visible=False),
+            rect_dimensions_row: gr.update(visible=True),
+            triangle_dimensions_row: gr.update(visible=False),
+            circle_dimensions_row: gr.update(visible=False),
+            separation_row: gr.update(visible=True),
+            zone_editing_state: None,
+            add_zone_btn: gr.update(value="+ Add Zone"),
+            cancel_edit_zone_btn: gr.update(visible=False),
+        }
+        if not selected_id:
+            return _default_reset
+
+        zone = next((z for z in current_state if z["id"] == selected_id), None)
+        if not zone:
+            return _default_reset
+
+        form_params = zone.get("form_params", {})
+        form_type = zone.get("form_type", "rectangle")
+        data = zone.get("data", {})
+        desc = data.get("description", "")
+
+        is_rect = form_type == "rectangle"
+        is_triangle = form_type == "triangle"
+        is_circle = form_type == "circle"
+
+        result: dict[Any, Any] = {
+            zone_description: gr.update(value=desc),
+            zone_type_select: gr.update(value=form_type),
+            border_row: gr.update(visible=is_rect),
+            corner_row: gr.update(visible=is_triangle or is_circle),
+            fill_side_row: gr.update(visible=is_rect),
+            perfect_triangle_row: gr.update(visible=is_triangle),
+            rect_dimensions_row: gr.update(visible=is_rect),
+            triangle_dimensions_row: gr.update(visible=is_triangle),
+            circle_dimensions_row: gr.update(visible=is_circle),
+            separation_row: gr.update(visible=is_rect),
+            zone_editing_state: selected_id,
+            add_zone_btn: gr.update(value="✏️ Update Zone"),
+            cancel_edit_zone_btn: gr.update(visible=True),
+        }
+
+        if form_params:
+            # Reconstruct form from stored params
+            stored_unit = form_params.get("unit", "cm")
+            if is_rect:
+                w_val = form_params.get("width", 120)
+                h_val = form_params.get("height", 20)
+                sx_val = form_params.get("sep_x", 0)
+                sy_val = form_params.get("sep_y", 0)
+                if stored_unit != zone_unit_val:
+                    w_val = convert_unit_to_unit(w_val, stored_unit, zone_unit_val)
+                    h_val = convert_unit_to_unit(h_val, stored_unit, zone_unit_val)
+                    sx_val = convert_unit_to_unit(sx_val, stored_unit, zone_unit_val)
+                    sy_val = convert_unit_to_unit(sy_val, stored_unit, zone_unit_val)
+                result[zone_border_select] = gr.update(
+                    value=form_params.get("border", "north")
+                )
+                result[zone_fill_side_checkbox] = gr.update(
+                    value=form_params.get("fill_side", True)
+                )
+                result[zone_width] = gr.update(value=round(w_val, 2))
+                result[zone_height] = gr.update(value=round(h_val, 2))
+                result[zone_sep_x] = gr.update(value=round(sx_val, 2))
+                result[zone_sep_y] = gr.update(value=round(sy_val, 2))
+                # Set defaults for non-rect fields
+                result[zone_corner_select] = gr.update()
+                result[zone_perfect_triangle_checkbox] = gr.update()
+                result[zone_triangle_side1] = gr.update()
+                result[zone_triangle_side2] = gr.update()
+                result[zone_circle_radius] = gr.update()
+            elif is_triangle:
+                s1_val = form_params.get("side1", 30)
+                s2_val = form_params.get("side2", 30)
+                if stored_unit != zone_unit_val:
+                    s1_val = convert_unit_to_unit(s1_val, stored_unit, zone_unit_val)
+                    s2_val = convert_unit_to_unit(s2_val, stored_unit, zone_unit_val)
+                result[zone_corner_select] = gr.update(
+                    value=form_params.get("corner", "north-west")
+                )
+                result[zone_perfect_triangle_checkbox] = gr.update(
+                    value=form_params.get("perfect_triangle", True)
+                )
+                result[zone_triangle_side1] = gr.update(value=round(s1_val, 2))
+                result[zone_triangle_side2] = gr.update(value=round(s2_val, 2))
+                # Set defaults for non-triangle fields
+                result[zone_border_select] = gr.update()
+                result[zone_fill_side_checkbox] = gr.update()
+                result[zone_width] = gr.update()
+                result[zone_height] = gr.update()
+                result[zone_sep_x] = gr.update()
+                result[zone_sep_y] = gr.update()
+                result[zone_circle_radius] = gr.update()
+            elif is_circle:
+                r_val = form_params.get("radius", 30)
+                if stored_unit != zone_unit_val:
+                    r_val = convert_unit_to_unit(r_val, stored_unit, zone_unit_val)
+                result[zone_corner_select] = gr.update(
+                    value=form_params.get("corner", "north-west")
+                )
+                result[zone_circle_radius] = gr.update(value=round(r_val, 2))
+                # Set defaults for non-circle fields
+                result[zone_border_select] = gr.update()
+                result[zone_fill_side_checkbox] = gr.update()
+                result[zone_perfect_triangle_checkbox] = gr.update()
+                result[zone_width] = gr.update()
+                result[zone_height] = gr.update()
+                result[zone_sep_x] = gr.update()
+                result[zone_sep_y] = gr.update()
+                result[zone_triangle_side1] = gr.update()
+                result[zone_triangle_side2] = gr.update()
+        else:
+            # No form_params stored — fill from data as best we can
+            result[zone_border_select] = gr.update()
+            result[zone_corner_select] = gr.update()
+            result[zone_fill_side_checkbox] = gr.update()
+            result[zone_perfect_triangle_checkbox] = gr.update()
+            result[zone_width] = gr.update()
+            result[zone_height] = gr.update()
+            result[zone_sep_x] = gr.update()
+            result[zone_sep_y] = gr.update()
+            result[zone_triangle_side1] = gr.update()
+            result[zone_triangle_side2] = gr.update()
+            result[zone_circle_radius] = gr.update()
+
+        return result
+
+    def _cancel_edit_zone() -> dict[Any, Any]:
+        """Cancel editing and return to add mode."""
+        return {
+            zone_type_select: gr.update(value="rectangle"),
+            zone_border_select: gr.update(value="north"),
+            zone_corner_select: gr.update(value="north-west"),
+            zone_fill_side_checkbox: gr.update(value=True),
+            zone_perfect_triangle_checkbox: gr.update(value=True),
+            zone_description: gr.update(value=""),
+            zone_width: gr.update(value=120),
+            zone_height: gr.update(value=20),
+            zone_triangle_side1: gr.update(value=30),
+            zone_triangle_side2: gr.update(value=30),
+            zone_circle_radius: gr.update(value=30),
+            zone_sep_x: gr.update(value=0),
+            zone_sep_y: gr.update(value=0),
+            border_row: gr.update(visible=True),
+            corner_row: gr.update(visible=False),
+            fill_side_row: gr.update(visible=True),
+            perfect_triangle_row: gr.update(visible=False),
+            rect_dimensions_row: gr.update(visible=True),
+            triangle_dimensions_row: gr.update(visible=False),
+            circle_dimensions_row: gr.update(visible=False),
+            separation_row: gr.update(visible=True),
+            zone_editing_state: None,
+            add_zone_btn: gr.update(value="+ Add Zone"),
+            cancel_edit_zone_btn: gr.update(visible=False),
+            deployment_zones_list: gr.update(value=None),
+        }
+
+    def _add_or_update_deployment_zone_wrapper(  # noqa: C901
         zone_type: str,
         border: str,
         corner: str,
@@ -188,18 +385,16 @@ def wire_deployment_zones(  # noqa: C901
         th: float,
         tu: str,
         zone_unit_val: str,
+        editing_id: str | None = None,
     ) -> dict[Any, Any]:
-        """Add deployment zone (rectangle, triangle, or circle)."""
+        """Add or update deployment zone (rectangle, triangle, or circle)."""
         description_stripped = (desc or "").strip()
         if not description_stripped:
-            return {
-                deployment_zones_state: current_state,
-                deployment_zones_list: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Deployment Zone requires Description to be filled.",
-                },
-            }
+            return _build_error_result(
+                current_state,
+                "Deployment Zone requires Description to be filled.",
+                editing_id,
+            )
 
         table_w_mm = int(convert_to_cm(tw, tu) * 10)
         table_h_mm = int(convert_to_cm(th, tu) * 10)
@@ -208,32 +403,19 @@ def wire_deployment_zones(  # noqa: C901
         if zone_type == "triangle":
             # Validate triangle parameters
             if not corner or not corner.strip():
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Triangle requires Corner to be selected.",
-                    },
-                }
+                return _build_error_result(
+                    current_state,
+                    "Triangle requires Corner to be selected.",
+                    editing_id,
+                )
             if not tri_side1 or tri_side1 <= 0:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Triangle requires Side Length 1 > 0.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Triangle requires Side Length 1 > 0.", editing_id
+                )
             if not tri_side2 or tri_side2 <= 0:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Triangle requires Side Length 2 > 0.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Triangle requires Side Length 2 > 0.", editing_id
+                )
 
             # Convert triangle sides from user unit to mm
             side1_mm = int(convert_to_cm(tri_side1, zone_unit_val) * 10)
@@ -245,26 +427,18 @@ def wire_deployment_zones(  # noqa: C901
                     corner, side1_mm, side2_mm, table_w_mm, table_h_mm
                 )
             except ValueError as e:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": f"Invalid triangle configuration: {e}",
-                    },
-                }
+                return _build_error_result(
+                    current_state, f"Invalid triangle configuration: {e}", editing_id
+                )
 
             # Validate all vertices are within table bounds
             for x, y in vertices:
                 if x < 0 or x > table_w_mm or y < 0 or y > table_h_mm:
-                    return {
-                        deployment_zones_state: current_state,
-                        deployment_zones_list: gr.update(),
-                        output: {
-                            "status": "error",
-                            "message": f"Triangle extends beyond table bounds: vertex ({x}, {y})",
-                        },
-                    }
+                    return _build_error_result(
+                        current_state,
+                        f"Triangle extends beyond table bounds: vertex ({x}, {y})",
+                        editing_id,
+                    )
 
             # Convert vertices from tuples to dict format required by SVG renderer
             points_dict = [{"x": int(x), "y": int(y)} for x, y in vertices]
@@ -279,23 +453,13 @@ def wire_deployment_zones(  # noqa: C901
         elif zone_type == "circle":
             # Validate circle parameters
             if not corner or not corner.strip():
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Circle requires Corner to be selected.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Circle requires Corner to be selected.", editing_id
+                )
             if not circle_radius or circle_radius <= 0:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Circle requires Radius > 0.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Circle requires Radius > 0.", editing_id
+                )
 
             # Convert radius from user unit to mm
             radius_mm = int(convert_to_cm(circle_radius, zone_unit_val) * 10)
@@ -306,26 +470,18 @@ def wire_deployment_zones(  # noqa: C901
                     corner, radius_mm, table_w_mm, table_h_mm
                 )
             except ValueError as e:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": f"Invalid circle configuration: {e}",
-                    },
-                }
+                return _build_error_result(
+                    current_state, f"Invalid circle configuration: {e}", editing_id
+                )
 
             # Validate all vertices are within table bounds
             for x, y in vertices:
                 if x < 0 or x > table_w_mm or y < 0 or y > table_h_mm:
-                    return {
-                        deployment_zones_state: current_state,
-                        deployment_zones_list: gr.update(),
-                        output: {
-                            "status": "error",
-                            "message": f"Circle extends beyond table bounds: vertex ({x}, {y})",
-                        },
-                    }
+                    return _build_error_result(
+                        current_state,
+                        f"Circle extends beyond table bounds: vertex ({x}, {y})",
+                        editing_id,
+                    )
 
             # Convert vertices from tuples to dict format required by SVG renderer
             points_dict = [{"x": int(x), "y": int(y)} for x, y in vertices]
@@ -340,32 +496,19 @@ def wire_deployment_zones(  # noqa: C901
         else:  # rectangle
             # Validate rectangle parameters
             if not border or not border.strip():
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Deployment Zone requires Border to be selected.",
-                    },
-                }
+                return _build_error_result(
+                    current_state,
+                    "Deployment Zone requires Border to be selected.",
+                    editing_id,
+                )
             if not w or w <= 0:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Deployment Zone requires Width > 0.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Deployment Zone requires Width > 0.", editing_id
+                )
             if not h or h <= 0:
-                return {
-                    deployment_zones_state: current_state,
-                    deployment_zones_list: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Deployment Zone requires Height > 0.",
-                    },
-                }
+                return _build_error_result(
+                    current_state, "Deployment Zone requires Height > 0.", editing_id
+                )
 
             # Convert zone dimensions from user unit to mm
             w_mm = int(convert_to_cm(w, zone_unit_val) * 10)
@@ -395,19 +538,63 @@ def wire_deployment_zones(  # noqa: C901
                 "border": border,
             }
 
-        new_state, error_msg = add_deployment_zone(
-            current_state, zone_data, table_w_mm, table_h_mm
-        )
+        # Build form_params for later reconstruction during editing
+        _form_params: dict[str, Any] = {
+            "description": description_stripped,
+            "unit": zone_unit_val,
+        }
+        if zone_type == "triangle":
+            _form_params.update(
+                corner=corner,
+                side1=tri_side1,
+                side2=tri_side2,
+                perfect_triangle=(tri_side1 == tri_side2),
+            )
+        elif zone_type == "circle":
+            _form_params.update(corner=corner, radius=circle_radius)
+        else:  # rectangle
+            _form_params.update(
+                border=border,
+                fill_side=fill_side,
+                width=w,
+                height=h,
+                sep_x=sx,
+                sep_y=sy,
+            )
+
+        if editing_id:
+            # Update existing zone
+            new_state, error_msg = update_deployment_zone(
+                current_state, editing_id, zone_data, table_w_mm, table_h_mm
+            )
+        else:
+            # Add new zone
+            new_state, error_msg = add_deployment_zone(
+                current_state, zone_data, table_w_mm, table_h_mm
+            )
+
         if error_msg:
-            return {
-                deployment_zones_state: current_state,
-                deployment_zones_list: gr.update(),
-                output: {"status": "error", "message": error_msg},
-            }
+            return _build_error_result(current_state, error_msg, editing_id)
+
+        # Store form_type and form_params in the state entry
+        if editing_id:
+            for z in new_state:
+                if z["id"] == editing_id:
+                    z["form_type"] = zone_type
+                    z["form_params"] = _form_params
+                    break
+        else:
+            # Newly added zone is always the last entry
+            new_state[-1]["form_type"] = zone_type
+            new_state[-1]["form_params"] = _form_params
+
         choices = get_deployment_zones_choices(new_state)
         return {
             deployment_zones_state: new_state,
-            deployment_zones_list: gr.update(choices=choices),
+            deployment_zones_list: gr.update(choices=choices, value=None),
+            zone_editing_state: None,
+            add_zone_btn: gr.update(value="+ Add Zone"),
+            cancel_edit_zone_btn: gr.update(visible=False),
             output: {"status": "success"},
         }
 
@@ -418,7 +605,10 @@ def wire_deployment_zones(  # noqa: C901
         choices = get_deployment_zones_choices(new_state)
         return {
             deployment_zones_state: new_state,
-            deployment_zones_list: gr.update(choices=choices),
+            deployment_zones_list: gr.update(choices=choices, value=None),
+            zone_editing_state: None,
+            add_zone_btn: gr.update(value="+ Add Zone"),
+            cancel_edit_zone_btn: gr.update(visible=False),
         }
 
     def _remove_selected_deployment_zone_wrapper(
@@ -428,12 +618,18 @@ def wire_deployment_zones(  # noqa: C901
             return {
                 deployment_zones_state: current_state,
                 deployment_zones_list: gr.update(),
+                zone_editing_state: None,
+                add_zone_btn: gr.update(value="+ Add Zone"),
+                cancel_edit_zone_btn: gr.update(visible=False),
             }
         new_state = remove_selected_deployment_zone(current_state, selected_id)
         choices = get_deployment_zones_choices(new_state)
         return {
             deployment_zones_state: new_state,
-            deployment_zones_list: gr.update(choices=choices),
+            deployment_zones_list: gr.update(choices=choices, value=None),
+            zone_editing_state: None,
+            add_zone_btn: gr.update(value="+ Add Zone"),
+            cancel_edit_zone_btn: gr.update(visible=False),
         }
 
     def _on_zone_border_or_fill_change(
@@ -544,6 +740,46 @@ def wire_deployment_zones(  # noqa: C901
 
     # -- bindings ----------------------------------------------------------
 
+    # Wire zone selection (edit mode)
+    _zone_select_outputs = [
+        zone_type_select,
+        zone_border_select,
+        zone_corner_select,
+        zone_fill_side_checkbox,
+        zone_perfect_triangle_checkbox,
+        zone_description,
+        zone_width,
+        zone_height,
+        zone_triangle_side1,
+        zone_triangle_side2,
+        zone_circle_radius,
+        zone_sep_x,
+        zone_sep_y,
+        border_row,
+        corner_row,
+        fill_side_row,
+        perfect_triangle_row,
+        rect_dimensions_row,
+        triangle_dimensions_row,
+        circle_dimensions_row,
+        separation_row,
+        zone_editing_state,
+        add_zone_btn,
+        cancel_edit_zone_btn,
+    ]
+    deployment_zones_list.change(
+        fn=_on_zone_selected,
+        inputs=[deployment_zones_list, deployment_zones_state, zone_unit],
+        outputs=_zone_select_outputs,
+    )
+
+    # Wire cancel edit
+    cancel_edit_zone_btn.click(
+        fn=_cancel_edit_zone,
+        inputs=[],
+        outputs=[*_zone_select_outputs, deployment_zones_list],
+    )
+
     # Wire zone type selection
     zone_type_select.change(
         fn=_on_zone_type_change,
@@ -598,7 +834,7 @@ def wire_deployment_zones(  # noqa: C901
         )
 
     add_zone_btn.click(
-        fn=_add_deployment_zone_wrapper,
+        fn=_add_or_update_deployment_zone_wrapper,
         inputs=[
             zone_type_select,
             zone_border_select,
@@ -617,18 +853,33 @@ def wire_deployment_zones(  # noqa: C901
             table_height,
             table_unit,
             zone_unit,
+            zone_editing_state,
         ],
-        outputs=[deployment_zones_state, deployment_zones_list, output],
+        outputs=[
+            deployment_zones_state,
+            deployment_zones_list,
+            zone_editing_state,
+            add_zone_btn,
+            cancel_edit_zone_btn,
+            output,
+        ],
     )
+    _remove_outputs = [
+        deployment_zones_state,
+        deployment_zones_list,
+        zone_editing_state,
+        add_zone_btn,
+        cancel_edit_zone_btn,
+    ]
     remove_last_zone_btn.click(
         fn=_remove_last_deployment_zone_wrapper,
         inputs=[deployment_zones_state],
-        outputs=[deployment_zones_state, deployment_zones_list],
+        outputs=_remove_outputs,
     )
     remove_selected_zone_btn.click(
         fn=_remove_selected_deployment_zone_wrapper,
         inputs=[deployment_zones_list, deployment_zones_state],
-        outputs=[deployment_zones_state, deployment_zones_list],
+        outputs=_remove_outputs,
     )
 
     # Wire toggle for Deployment Zones section

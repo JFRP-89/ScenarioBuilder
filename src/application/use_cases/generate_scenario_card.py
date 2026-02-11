@@ -94,6 +94,8 @@ class GenerateScenarioCardRequest:
     # Custom table dimensions (when table_preset is "custom")
     table_width_mm: Optional[int] = None
     table_height_mm: Optional[int] = None
+    # If provided, reuses this card_id (for update/edit flows)
+    card_id: Optional[str] = None
 
 
 @dataclass
@@ -206,13 +208,22 @@ class GenerateScenarioCard:
                 "ScenarioGenerator contract violation: shapes list contains non-dict elements"
             )
 
-        # 7) Validate shapes with domain MapSpec (includes objective_shapes from request)
+        # 7) Resolve scenography: user-specified scenography_specs take priority.
+        #    Generator shapes are NOT used as fallback — if the user doesn't
+        #    provide scenography, the card gets none. This prevents unwanted
+        #    random shapes from polluting cards.
+        final_scenography = request.scenography_specs or request.map_specs or []
+
+        # 8) Validate shapes with domain MapSpec (all shape categories)
         map_spec = MapSpec(
-            table=table, shapes=shapes, objective_shapes=request.objective_shapes
+            table=table,
+            shapes=final_scenography,
+            objective_shapes=request.objective_shapes,
+            deployment_shapes=request.deployment_shapes,
         )
 
-        # 8) Generate card_id
-        card_id = self._id_generator.generate_card_id()
+        # 8) Use provided card_id or generate a new one
+        card_id = request.card_id or self._id_generator.generate_card_id()
 
         # 8a) Resolve name for the scenario
         name = self._resolve_name(request.name, request.layout, request.deployment)

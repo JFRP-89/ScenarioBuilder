@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 # Use cases
 from application.use_cases.create_variant import CreateVariant
+from application.use_cases.delete_card import DeleteCard
 from application.use_cases.generate_scenario_card import GenerateScenarioCard
 from application.use_cases.get_card import GetCard
 from application.use_cases.list_cards import ListCards
@@ -54,6 +55,7 @@ class Services:
     list_favorites: ListFavorites
     create_variant: CreateVariant
     render_map_svg: RenderMapSvg
+    delete_card: DeleteCard
 
 
 # =============================================================================
@@ -111,6 +113,8 @@ def build_services() -> Services:
         renderer=renderer,
     )
 
+    delete_card = DeleteCard(repository=card_repo)
+
     # 3) Return services container
     return Services(
         generate_scenario_card=generate_scenario_card,
@@ -121,4 +125,5 @@ def build_services() -> Services:
         list_favorites=list_favorites,
         create_variant=create_variant,
         render_map_svg=render_map_svg,
+        delete_card=delete_card,
     )

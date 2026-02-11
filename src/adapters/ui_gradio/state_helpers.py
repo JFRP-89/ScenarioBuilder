@@ -754,3 +754,195 @@ def get_objective_points_choices(
         )
         for point in state
     ]
+
+
+# =============================================================================
+# Update helpers (for inline editing of existing elements)
+# =============================================================================
+
+
+def update_special_rule(
+    current_state: list[dict[str, Any]],
+    rule_id: str,
+    name: str,
+    rule_type: str,
+    value: str,
+) -> list[dict[str, Any]]:
+    """Update an existing special rule in place."""
+    return [
+        (
+            {**rule, "name": name, "rule_type": rule_type, "value": value}
+            if rule["id"] == rule_id
+            else rule
+        )
+        for rule in current_state
+    ]
+
+
+def update_victory_point(
+    current_state: list[dict[str, Any]],
+    vp_id: str,
+    description: str,
+) -> list[dict[str, Any]]:
+    """Update an existing victory point in place."""
+    return [
+        {**vp, "description": description} if vp["id"] == vp_id else vp
+        for vp in current_state
+    ]
+
+
+def update_objective_point(
+    current_state: list[dict[str, Any]],
+    point_id: str,
+    cx: float,
+    cy: float,
+    table_width_mm: int,
+    table_height_mm: int,
+    description: str = "",
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Update an existing objective point in place.
+
+    Validates bounds and duplicate coords, excluding the point being edited.
+    """
+    if cx < 0 or cx > table_width_mm:
+        return (
+            current_state,
+            f"Objective point X coordinate {cx} out of bounds (0-{table_width_mm})",
+        )
+    if cy < 0 or cy > table_height_mm:
+        return (
+            current_state,
+            f"Objective point Y coordinate {cy} out of bounds (0-{table_height_mm})",
+        )
+
+    for existing_point in current_state:
+        if existing_point["id"] == point_id:
+            continue
+        if existing_point["cx"] == cx and existing_point["cy"] == cy:
+            return (
+                current_state,
+                f"Objective point already exists at coordinates ({cx:.0f}, {cy:.0f})",
+            )
+
+    description = description.strip() if description else ""
+    updated: list[dict[str, Any]] = []
+    for point in current_state:
+        if point["id"] == point_id:
+            new_point: dict[str, Any] = {**point, "cx": cx, "cy": cy}
+            if description:
+                new_point["description"] = description
+            elif "description" in new_point:
+                del new_point["description"]
+            updated.append(new_point)
+        else:
+            updated.append(point)
+    return updated, None
+
+
+def update_scenography_element(  # noqa: C901
+    current_state: list[dict[str, Any]],
+    elem_id: str,
+    element_type: str,
+    form_data: dict[str, Any],
+    allow_overlap: bool,
+    table_width_mm: int,
+    table_height_mm: int,
+    description: str = "",
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Update an existing scenography element in place.
+
+    Validates bounds and overlap with other elements (excluding self).
+    """
+    data: dict[str, Any] = {"type": element_type}
+
+    description = description.strip() if description else ""
+    if description:
+        data["description"] = description
+
+    if element_type == "circle":
+        data["cx"] = int(form_data.get("cx", 0))
+        data["cy"] = int(form_data.get("cy", 0))
+        data["r"] = int(form_data.get("r", 0))
+        label = (
+            f"{description} (Circle {elem_id})" if description else f"Circle {elem_id}"
+        )
+    elif element_type == "rect":
+        data["x"] = int(form_data.get("x", 0))
+        data["y"] = int(form_data.get("y", 0))
+        data["width"] = int(form_data.get("width", 0))
+        data["height"] = int(form_data.get("height", 0))
+        label = f"{description} (Rect {elem_id})" if description else f"Rect {elem_id}"
+    elif element_type == "polygon":
+        points = form_data.get("points", [])
+        data["points"] = points
+        label = (
+            f"{description} (Polygon {elem_id} - {len(points)} pts)"
+            if description
+            else f"Polygon {elem_id} ({len(points)} pts)"
+        )
+    else:
+        return current_state, f"Unknown element type: {element_type}"
+
+    error = validate_shape_within_table(data, table_width_mm, table_height_mm)
+    if error:
+        return current_state, error
+
+    if not allow_overlap:
+        for existing in current_state:
+            if existing["id"] == elem_id:
+                continue
+            if not existing.get("allow_overlap", False) and shapes_overlap(
+                data, existing["data"]
+            ):
+                return current_state, f"Shape overlaps with {existing['label']}"
+
+    updated_state: list[dict[str, Any]] = []
+    for elem in current_state:
+        if elem["id"] == elem_id:
+            updated_state.append(
+                {
+                    "id": elem_id,
+                    "type": element_type,
+                    "label": label,
+                    "data": data,
+                    "allow_overlap": allow_overlap,
+                }
+            )
+        else:
+            updated_state.append(elem)
+    return updated_state, None
+
+
+def update_deployment_zone(
+    current_state: list[dict[str, Any]],
+    zone_id: str,
+    zone_data: dict[str, Any],
+    table_width_mm: int,
+    table_height_mm: int,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Update an existing deployment zone in place.
+
+    Validates bounds and overlap with other zones (excluding self).
+    """
+    error = validate_deployment_zone_within_table(
+        zone_data, table_width_mm, table_height_mm
+    )
+    if error:
+        return current_state, error
+
+    for existing in current_state:
+        if existing["id"] == zone_id:
+            continue
+        if deployment_zones_overlap(zone_data, existing["data"]):
+            return current_state, "Deployment zones cannot overlap"
+
+    description = zone_data.get("description", "").strip()
+    label = f"{description} (Zone {zone_id})" if description else f"Zone {zone_id}"
+
+    updated_state: list[dict[str, Any]] = []
+    for zone in current_state:
+        if zone["id"] == zone_id:
+            updated_state.append({**zone, "label": label, "data": zone_data})
+        else:
+            updated_state.append(zone)
+    return updated_state, None

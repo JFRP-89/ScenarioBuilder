@@ -31,7 +31,11 @@ from adapters.ui_gradio.ui.pages.favorites import build_favorites_page
 from adapters.ui_gradio.ui.pages.home import build_home_page
 from adapters.ui_gradio.ui.pages.list_scenarios import build_list_page
 from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
-from adapters.ui_gradio.ui.router import build_detail_card_id_state, build_page_state
+from adapters.ui_gradio.ui.router import (
+    build_detail_card_id_state,
+    build_page_state,
+    build_previous_page_state,
+)
 from adapters.ui_gradio.ui.sections import (
     actor_section,
     deployment_zones_section,
@@ -72,6 +76,8 @@ def build_app() -> gr.Blocks:
         # ── Global state ─────────────────────────────────────────────
         page_state = build_page_state()
         detail_card_id_state = build_detail_card_id_state()
+        previous_page_state = build_previous_page_state()
+        editing_card_id = gr.State(value="")
 
         # ════════════════════════════════════════════════════════════
         # PAGE 1: Home (visible by default)
@@ -118,6 +124,11 @@ def build_app() -> gr.Blocks:
             detail_svg_preview,
             detail_content_html,
             detail_edit_btn,
+            detail_delete_btn,
+            detail_delete_confirm_row,
+            detail_delete_confirm_msg,
+            detail_delete_confirm_btn,
+            detail_delete_cancel_btn,
             detail_favorite_btn,
             detail_back_btn,
         ) = build_detail_page()
@@ -135,7 +146,10 @@ def build_app() -> gr.Blocks:
                     size="sm",
                     elem_id="create-back-btn",
                 )
-                gr.Markdown("## Create New Scenario")
+                create_heading_md = gr.Markdown(
+                    "## Create New Scenario",
+                    elem_id="create-heading",
+                )
 
             # ── Existing form sections (unchanged) ───────────────
             actor_id = actor_section.build_actor_section(get_default_actor_id())
@@ -171,6 +185,8 @@ def build_app() -> gr.Blocks:
                 vp_list,
                 remove_selected_vp_btn,
                 _,
+                vp_editing_state,
+                cancel_edit_vp_btn,
             ) = scenario_details_section.build_scenario_details_section()
 
             (
@@ -186,6 +202,8 @@ def build_app() -> gr.Blocks:
                 remove_selected_rule_btn,
                 _,
                 _,
+                rule_editing_state,
+                cancel_edit_rule_btn,
             ) = special_rules_section.build_special_rules_section()
 
             (
@@ -221,6 +239,8 @@ def build_app() -> gr.Blocks:
                 remove_last_zone_btn,
                 deployment_zones_list,
                 remove_selected_zone_btn,
+                zone_editing_state,
+                cancel_edit_zone_btn,
             ) = deployment_zones_section.build_deployment_zones_section()
 
             (
@@ -236,6 +256,8 @@ def build_app() -> gr.Blocks:
                 remove_last_objective_btn,
                 remove_selected_objective_btn,
                 objective_points_group,
+                objective_editing_state,
+                cancel_edit_objective_btn,
             ) = objective_points_section.build_objective_points_section()
 
             (
@@ -265,6 +287,8 @@ def build_app() -> gr.Blocks:
                 scenography_list,
                 remove_selected_scenography_btn,
                 scenography_group,
+                scenography_editing_state,
+                cancel_edit_scenography_btn,
             ) = scenography_section.build_scenography_section()
 
             svg_preview = build_svg_preview(
@@ -353,6 +377,7 @@ def build_app() -> gr.Blocks:
         # ── Wire navigation ──────────────────────────────────────
         wire_navigation(
             page_state=page_state,
+            previous_page_state=previous_page_state,
             page_containers=page_containers,
             home_create_btn=home_create_btn,
             home_browse_btn=home_browse_btn,
@@ -394,19 +419,62 @@ def build_app() -> gr.Blocks:
             list_loaded_state=list_loaded_state,
         )
 
-        # ── Wire detail page (load card, fav, edit) ──────────────
+        # ── Wire detail page (load card, fav, edit, delete) ─────
         wire_detail_page(
             page_state=page_state,
             page_containers=page_containers,
+            previous_page_state=previous_page_state,
             detail_card_id_state=detail_card_id_state,
             detail_title_md=detail_title_md,
             detail_svg_preview=detail_svg_preview,
             detail_content_html=detail_content_html,
             detail_edit_btn=detail_edit_btn,
+            detail_delete_btn=detail_delete_btn,
+            detail_delete_confirm_row=detail_delete_confirm_row,
+            detail_delete_confirm_btn=detail_delete_confirm_btn,
+            detail_delete_cancel_btn=detail_delete_cancel_btn,
             detail_favorite_btn=detail_favorite_btn,
             edit_title_md=edit_title_md,
             edit_svg_preview=edit_svg_preview,
             edit_card_json=edit_card_json,
+            # Form fields for populate-on-edit
+            editing_card_id=editing_card_id,
+            create_heading_md=create_heading_md,
+            scenario_name=scenario_name,
+            mode=mode,
+            seed=seed,
+            armies=armies,
+            table_preset=table_preset,
+            deployment=deployment,
+            layout=layout,
+            objectives=objectives,
+            initial_priority=initial_priority,
+            objectives_with_vp_toggle=objectives_with_vp_toggle,
+            vp_state=vp_state,
+            visibility=visibility,
+            shared_with=shared_with,
+            special_rules_state=special_rules_state,
+            scenography_state=scenography_state,
+            deployment_zones_state=deployment_zones_state,
+            objective_points_state=objective_points_state,
+            svg_preview=svg_preview,
+            output=output,
+            # Dropdowns, toggles, groups for shape sections
+            deployment_zones_list=deployment_zones_list,
+            deployment_zones_toggle=deployment_zones_toggle,
+            zones_group=zones_group,
+            objective_points_list=objective_points_list,
+            objective_points_toggle=objective_points_toggle,
+            objective_points_group=objective_points_group,
+            scenography_list=scenography_list,
+            scenography_toggle=scenography_toggle,
+            scenography_group=scenography_group,
+            # Dropdowns, toggles, groups for VP / special rules
+            vp_list=vp_list,
+            vp_group=vp_group,
+            rules_list=rules_list,
+            special_rules_toggle=special_rules_toggle,
+            rules_group=rules_group,
         )
 
         # ── Wire favorites page ──────────────────────────────────
@@ -434,6 +502,7 @@ def build_app() -> gr.Blocks:
             view_card_btn=view_card_btn,
             page_state=page_state,
             detail_card_id_state=detail_card_id_state,
+            previous_page_state=previous_page_state,
             page_containers=page_containers,
         )
 
@@ -462,6 +531,8 @@ def build_app() -> gr.Blocks:
             remove_vp_btn=remove_vp_btn,
             vp_list=vp_list,
             remove_selected_vp_btn=remove_selected_vp_btn,
+            vp_editing_state=vp_editing_state,
+            cancel_edit_vp_btn=cancel_edit_vp_btn,
             special_rules_state=special_rules_state,
             special_rules_toggle=special_rules_toggle,
             rules_group=rules_group,
@@ -472,6 +543,8 @@ def build_app() -> gr.Blocks:
             remove_rule_btn=remove_rule_btn,
             rules_list=rules_list,
             remove_selected_rule_btn=remove_selected_rule_btn,
+            rule_editing_state=rule_editing_state,
+            cancel_edit_rule_btn=cancel_edit_rule_btn,
             visibility=visibility,
             shared_with_row=shared_with_row,
             shared_with=shared_with,
@@ -507,6 +580,8 @@ def build_app() -> gr.Blocks:
             remove_last_zone_btn=remove_last_zone_btn,
             deployment_zones_list=deployment_zones_list,
             remove_selected_zone_btn=remove_selected_zone_btn,
+            zone_editing_state=zone_editing_state,
+            cancel_edit_zone_btn=cancel_edit_zone_btn,
             objective_points_toggle=objective_points_toggle,
             objective_points_group=objective_points_group,
             objective_points_state=objective_points_state,
@@ -519,6 +594,8 @@ def build_app() -> gr.Blocks:
             objective_points_list=objective_points_list,
             remove_last_objective_btn=remove_last_objective_btn,
             remove_selected_objective_btn=remove_selected_objective_btn,
+            objective_editing_state=objective_editing_state,
+            cancel_edit_objective_btn=cancel_edit_objective_btn,
             scenography_toggle=scenography_toggle,
             scenography_group=scenography_group,
             scenography_state=scenography_state,
@@ -545,6 +622,8 @@ def build_app() -> gr.Blocks:
             remove_last_scenography_btn=remove_last_scenography_btn,
             scenography_list=scenography_list,
             remove_selected_scenography_btn=remove_selected_scenography_btn,
+            scenography_editing_state=scenography_editing_state,
+            cancel_edit_scenography_btn=cancel_edit_scenography_btn,
             generate_btn=generate_btn,
             svg_preview=svg_preview,
             output=output,
@@ -553,6 +632,8 @@ def build_app() -> gr.Blocks:
             page_state=page_state,
             page_containers=page_containers,
             home_recent_html=home_recent_html,
+            editing_card_id=editing_card_id,
+            create_heading_md=create_heading_md,
         )
 
     return app

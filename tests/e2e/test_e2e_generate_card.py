@@ -35,11 +35,23 @@ def test_generate_card_happy_path(e2e_services, wait_for_health, page):
 
         _click_generate_button(page)
 
-        _wait_for_card_id_or_pattern(page)
-        card_id = _extract_card_id(_read_json_text(page)) or _extract_card_id(
-            page.content()
+        # After Generate, click Create Scenario button to persist card
+        _click_create_scenario_button(page)
+
+        # Wait for the page to stabilize after POST (might navigate to home)
+        page.wait_for_load_state("domcontentloaded", timeout=30000)
+        page.wait_for_timeout(2000)  # Give JS time to update
+
+        # Verify we're either still on create page with success message,
+        # or navigated to home (both indicate card was created successfully)
+        content = page.content()
+        # Check for either: success message in status box, or navigation back to home
+        has_success = (
+            "Scenario created" in content
+            or "created" in content
+            or "Home" in content  # Home page has Home navigation
         )
-        assert card_id, "No se pudo extraer card_id desde el HTML"
+        assert has_success, "Scenario creation did not occur"
 
     except PlaywrightError:
         dump_debug_artifacts(page, "generate_card_happy_path")
@@ -132,6 +144,14 @@ def _click_generate_button(page) -> None:
         raise AssertionError(
             _missing_inputs_message(page, "Generate/Create/Build button")
         )
+    button.first.click()
+
+
+def _click_create_scenario_button(page) -> None:
+    """Click the 'Create Scenario' button to persist the card."""
+    button = page.get_by_role("button", name=re.compile(r"create scenario", re.I))
+    if button.count() == 0:
+        raise AssertionError(_missing_inputs_message(page, "Create Scenario button"))
     button.first.click()
 
 

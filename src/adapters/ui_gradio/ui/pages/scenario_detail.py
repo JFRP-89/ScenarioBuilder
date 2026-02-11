@@ -20,13 +20,21 @@ def build_detail_page() -> tuple[
     gr.HTML,
     gr.Button,
     gr.Button,
+    gr.Row,
+    gr.Markdown,
+    gr.Button,
+    gr.Button,
+    gr.Button,
     gr.Button,
 ]:
     """Build the scenario-detail page layout.
 
     Returns:
         Tuple of (page_container, card_title_md, svg_preview,
-                  detail_content_html, edit_btn, favorite_btn, back_btn).
+                  detail_content_html, edit_btn, delete_btn,
+                  delete_confirm_row, delete_confirm_msg,
+                  delete_confirm_btn, delete_cancel_btn,
+                  favorite_btn, back_btn).
     """
     with gr.Column(visible=False, elem_id="page-scenario-detail") as container:
         with gr.Row():
@@ -63,12 +71,39 @@ def build_detail_page() -> tuple[
             edit_btn = gr.Button(
                 "✏️ Edit",
                 variant="secondary",
+                visible=False,
                 elem_id="detail-edit-btn",
+            )
+            delete_btn = gr.Button(
+                "🗑️ Delete",
+                variant="stop",
+                visible=False,
+                elem_id="detail-delete-btn",
             )
             favorite_btn = gr.Button(
                 "⭐ Toggle Favorite",
                 variant="secondary",
                 elem_id="detail-favorite-btn",
+            )
+
+        # Confirmation row (hidden by default)
+        with gr.Row(visible=False, elem_id="delete-confirm-row") as delete_confirm_row:
+            delete_confirm_msg = gr.Markdown(
+                "⚠️ **Are you sure you want to delete this scenario? "
+                "This action cannot be undone.**",
+                elem_id="delete-confirm-msg",
+            )
+            delete_confirm_btn = gr.Button(
+                "Yes, delete",
+                variant="stop",
+                size="sm",
+                elem_id="delete-confirm-btn",
+            )
+            delete_cancel_btn = gr.Button(
+                "Cancel",
+                variant="secondary",
+                size="sm",
+                elem_id="delete-cancel-btn",
             )
 
     return (
@@ -77,6 +112,11 @@ def build_detail_page() -> tuple[
         svg_preview,
         detail_content_html,
         edit_btn,
+        delete_btn,
+        delete_confirm_row,
+        delete_confirm_msg,
+        delete_confirm_btn,
+        delete_cancel_btn,
         favorite_btn,
         back_btn,
     )

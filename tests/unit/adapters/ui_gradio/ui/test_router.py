@@ -83,14 +83,22 @@ class TestNavigateTo:
 
 
 class TestNavigateToDetail:
-    """navigate_to_detail() includes card_id in output."""
+    """navigate_to_detail() includes card_id and previous_page in output."""
 
     def test_returns_card_id(self):
         result = navigate_to_detail("card-abc-123")
         assert result[0] == PAGE_DETAIL
         assert result[1] == "card-abc-123"
-        # 1 page_state + 1 card_id + 6 visibility
-        assert len(result) == 2 + len(ALL_PAGES)
+        # 1 page_state + 1 card_id + 1 previous_page + 6 visibility
+        assert len(result) == 3 + len(ALL_PAGES)
+
+    def test_returns_default_from_page(self):
+        result = navigate_to_detail("card-abc-123")
+        assert result[2] == PAGE_HOME, "Default from_page should be HOME"
+
+    def test_returns_custom_from_page(self):
+        result = navigate_to_detail("card-abc-123", from_page=PAGE_LIST)
+        assert result[2] == PAGE_LIST
 
 
 class TestNavigateToEdit:

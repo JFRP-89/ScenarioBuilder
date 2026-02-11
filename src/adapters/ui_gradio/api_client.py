@@ -85,6 +85,27 @@ def call_generate_card(
     return post_generate_card(base_url, headers, payload)
 
 
+def put_update_card(
+    base_url: str,
+    headers: dict[str, str],
+    card_id: str,
+    payload: dict[str, Any],
+) -> requests.Response | None:
+    """Call the API to update an existing card (PUT /cards/<card_id>)."""
+    if not requests:
+        return None
+    try:
+        response = requests.put(
+            f"{base_url}{ENDPOINT_GENERATE_CARD}/{card_id}",
+            json=payload,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        return response
+    except requests.RequestException:
+        return None
+
+
 def normalize_error(
     response: requests.Response | None = None, exc: Exception | None = None
 ) -> dict[str, Any]:
