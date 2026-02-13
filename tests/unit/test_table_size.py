@@ -74,6 +74,20 @@ class TestPresets:
         assert from_ft.height_mm == preset.height_mm
 
 
+class TestPresetName:
+    """Preset name detection for standard, massive, and custom sizes."""
+
+    def test_standard_preset_name(self) -> None:
+        assert TableSize.standard().preset_name == "standard"
+
+    def test_massive_preset_name(self) -> None:
+        assert TableSize.massive().preset_name == "massive"
+
+    def test_custom_preset_name(self) -> None:
+        table = TableSize.from_cm("100", "80")
+        assert table.preset_name == "custom"
+
+
 # =============================================================================
 # 2) ROUNDING in cm (HALF_UP to 0.1 cm)
 # =============================================================================
@@ -296,6 +310,13 @@ class TestProperties:
         assert table.height_cm == Decimal("80.0")
         assert isinstance(table.height_cm, Decimal)
 
+    def test_properties_on_preset(self) -> None:
+        """Preset sizes should expose area and cm properties."""
+        table = TableSize.standard()
+        assert table.area_mm2 == 1200 * 1200
+        assert table.width_cm == Decimal("120.0")
+        assert table.height_cm == Decimal("120.0")
+
 
 # =============================================================================
 # 7) INVALID TYPES / INVALID INPUTS
@@ -395,6 +416,16 @@ class TestInvalidInputs:
         """Test that negative height is rejected in from_ft."""
         with pytest.raises(ValidationError):
             TableSize.from_ft("4", "-4")
+
+    def test_rejects_negative_height_in_from_in_int(self) -> None:
+        """Negative height should be rejected for int inputs in from_in."""
+        with pytest.raises(ValidationError):
+            TableSize.from_in(48, -1)
+
+    def test_rejects_negative_height_in_from_ft_int(self) -> None:
+        """Negative height should be rejected for int inputs in from_ft."""
+        with pytest.raises(ValidationError):
+            TableSize.from_ft(4, -1)
 
     def test_rejects_float_type(self):
         """Float type should be rejected for precision reasons."""
