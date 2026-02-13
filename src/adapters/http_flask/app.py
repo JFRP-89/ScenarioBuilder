@@ -19,7 +19,7 @@ from adapters.http_flask.routes.favorites import favorites_bp
 from adapters.http_flask.routes.health import health_bp
 from adapters.http_flask.routes.maps import maps_bp
 from adapters.http_flask.routes.presets import presets_bp
-from domain.errors import ValidationError
+from domain.errors import ForbiddenError, NotFoundError, ValidationError
 from flask import Flask, jsonify, request
 from infrastructure.bootstrap import build_services
 
@@ -60,6 +60,26 @@ def create_app() -> Flask:
         )
         return jsonify(body), status
 
+    @app.errorhandler(NotFoundError)
+    def handle_not_found_error(exc: NotFoundError):
+        """Map domain NotFoundError to 404."""
+        body, status = error_response(
+            ERROR_NOT_FOUND,
+            MSG_NOT_FOUND,
+            STATUS_NOT_FOUND,
+        )
+        return jsonify(body), status
+
+    @app.errorhandler(ForbiddenError)
+    def handle_forbidden_error(exc: ForbiddenError):
+        """Map domain ForbiddenError to 403."""
+        body, status = error_response(
+            ERROR_FORBIDDEN,
+            MSG_FORBIDDEN,
+            STATUS_FORBIDDEN,
+        )
+        return jsonify(body), status
+
     @app.errorhandler(Exception)
     def handle_generic_exception(exc: Exception):
         """Catch-all for unhandled exceptions.
@@ -70,7 +90,7 @@ def create_app() -> Flask:
         exc_type = type(exc).__name__
         exc_message = str(exc).lower()
 
-        # Map specific exception types to appropriate HTTP status codes
+        # Fallback string matching for legacy code paths
         if exc_type == "NotFound" or "not found" in exc_message:
             body, status = error_response(
                 ERROR_NOT_FOUND,

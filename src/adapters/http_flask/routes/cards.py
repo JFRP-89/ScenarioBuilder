@@ -6,9 +6,13 @@ delegates to use cases via app.config["services"], and returns JSON responses.
 
 from __future__ import annotations
 
-import re
 from io import BytesIO
-from typing import cast
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from application.use_cases.generate_scenario_card import (
+        GenerateScenarioCardResponse,
+    )
 
 from adapters.http_flask.constants import (
     DEFAULT_FILTER,
@@ -38,27 +42,27 @@ from adapters.http_flask.constants import (
     KEY_VISIBILITY,
 )
 from adapters.http_flask.context import get_actor_id, get_services
+from adapters.http_flask.svg_sanitizer import normalize_svg_xml
 from application.use_cases.delete_card import DeleteCardRequest
 from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
 from application.use_cases.get_card import GetCardRequest
 from application.use_cases.list_cards import ListCardsRequest
 from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.save_card import SaveCardRequest
-from defusedxml import ElementTree as DET
-from defusedxml.ElementTree import fromstring as defused_fromstring
 from flask import Blueprint, jsonify, request, send_file
 
 cards_bp = Blueprint("cards", __name__)
 
 
-@cards_bp.post("")
-def create_card():
-    """POST /cards - Generate and save a new scenario card."""
-    # 1) Get actor_id from header (raises ValidationError if missing)
-    actor_id = get_actor_id()
+# ── Shared helpers for create / update ────────────────────────────
 
-    # 2) Parse request body
-    payload = request.get_json(force=True) or {}
+
+def _parse_card_payload(payload: dict) -> dict:
+    """Extract and normalise card fields from a JSON request body.
+
+    Returns a dict suitable for unpacking into
+    :class:`GenerateScenarioCardRequest`.
+    """
     mode = payload.get(KEY_MODE, DEFAULT_MODE)
     seed = payload.get(KEY_SEED)
     table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
@@ -76,12 +80,10 @@ def create_card():
     table_width_mm = None
     table_height_mm = None
     if table_preset == "custom":
-        # Frontend sends table_cm, convert to mm
         table_cm = payload.get("table_cm")
         if table_cm:
             table_width_mm = int(table_cm.get("width_cm", 0) * 10)
             table_height_mm = int(table_cm.get("height_cm", 0) * 10)
-        # Also support direct table_mm
         table_mm = payload.get(KEY_TABLE_MM)
         if table_mm:
             table_width_mm = table_mm.get("width_mm")
@@ -100,39 +102,31 @@ def create_card():
     )
     map_specs = payload.get("map_specs")
 
-    # 3) Get services
-    services = get_services()
+    return {
+        "mode": mode,
+        "seed": seed,
+        "table_preset": table_preset,
+        "table_width_mm": table_width_mm,
+        "table_height_mm": table_height_mm,
+        "visibility": visibility,
+        "shared_with": shared_with,
+        "armies": armies,
+        "deployment": deployment,
+        "layout": layout,
+        "objectives": objectives,
+        "initial_priority": initial_priority,
+        "name": name,
+        "special_rules": special_rules,
+        "map_specs": map_specs,
+        "scenography_specs": scenography_specs,
+        "deployment_shapes": deployment_shapes,
+        "objective_shapes": objective_shapes,
+    }
 
-    # 4) Call generate use case
-    gen_request = GenerateScenarioCardRequest(
-        actor_id=actor_id,
-        mode=mode,
-        seed=seed,
-        table_preset=table_preset,
-        table_width_mm=table_width_mm,
-        table_height_mm=table_height_mm,
-        visibility=visibility,
-        shared_with=shared_with,
-        armies=armies,
-        deployment=deployment,
-        layout=layout,
-        objectives=objectives,
-        initial_priority=initial_priority,
-        name=name,
-        special_rules=special_rules,
-        map_specs=map_specs,
-        scenography_specs=scenography_specs,
-        deployment_shapes=deployment_shapes,
-        objective_shapes=objective_shapes,
-    )
-    gen_response = services.generate_scenario_card.execute(gen_request)
 
-    # 5) Save Card (already validated in use case) using SaveCard use case
-    save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
-    services.save_card.execute(save_request)
-
-    # 6) Return response with exact structure matching production schema
-    response_data = {
+def _build_gen_response_dict(gen_response: GenerateScenarioCardResponse) -> dict:
+    """Build the public JSON dict from a ``GenerateScenarioCardResponse``."""
+    return {
         KEY_CARD_ID: gen_response.card_id,
         KEY_SEED: gen_response.seed,
         KEY_OWNER_ID: gen_response.owner_id,
@@ -151,7 +145,22 @@ def create_card():
         KEY_SHAPES: gen_response.shapes,
     }
 
-    return jsonify(response_data), 201
+
+@cards_bp.post("")
+def create_card():
+    """POST /cards - Generate and save a new scenario card."""
+    actor_id = get_actor_id()
+    payload = request.get_json(force=True) or {}
+    parsed = _parse_card_payload(payload)
+
+    services = get_services()
+    gen_request = GenerateScenarioCardRequest(actor_id=actor_id, **parsed)
+    gen_response = services.generate_scenario_card.execute(gen_request)
+
+    save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
+    services.save_card.execute(save_request)
+
+    return jsonify(_build_gen_response_dict(gen_response)), 201
 
 
 @cards_bp.get("/<card_id>")
@@ -195,106 +204,30 @@ def update_card(card_id: str):
 
     Only the card owner may update. Re-generates the card with the
     same card_id and saves (overwrites) the existing entry.
+
+    Authorization is enforced by the use cases (get_card + save_card).
     """
     actor_id = get_actor_id()
     services = get_services()
 
-    # 1) Verify card exists and actor is owner
-    existing = services.get_card.execute(
-        GetCardRequest(actor_id=actor_id, card_id=card_id)
-    )
-    if existing.owner_id != actor_id:
-        return jsonify({"status": "error", "message": "Forbidden: not the owner"}), 403
+    # 1) Verify card exists and actor can read it
+    services.get_card.execute(GetCardRequest(actor_id=actor_id, card_id=card_id))
 
-    # 2) Parse request body (same as create_card)
+    # 2) Parse request body (same structure as create_card)
     payload = request.get_json(force=True) or {}
-    mode = payload.get(KEY_MODE, DEFAULT_MODE)
-    seed = payload.get(KEY_SEED)
-    table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
-    visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
-    shared_with = payload.get(KEY_SHARED_WITH)
-    armies = payload.get(KEY_ARMIES)
-    deployment = payload.get(KEY_DEPLOYMENT)
-    layout = payload.get(KEY_LAYOUT)
-    objectives = payload.get(KEY_OBJECTIVES)
-    initial_priority = payload.get(KEY_INITIAL_PRIORITY)
-    name = payload.get(KEY_NAME)
-    special_rules = payload.get(KEY_SPECIAL_RULES)
-
-    table_width_mm = None
-    table_height_mm = None
-    if table_preset == "custom":
-        table_cm = payload.get("table_cm")
-        if table_cm:
-            table_width_mm = int(table_cm.get("width_cm", 0) * 10)
-            table_height_mm = int(table_cm.get("height_cm", 0) * 10)
-        table_mm = payload.get(KEY_TABLE_MM)
-        if table_mm:
-            table_width_mm = table_mm.get("width_mm")
-            table_height_mm = table_mm.get("height_mm")
-
-    shapes_dict = payload.get(KEY_SHAPES) or {}
-    deployment_shapes = payload.get(KEY_DEPLOYMENT_SHAPES) or shapes_dict.get(
-        KEY_DEPLOYMENT_SHAPES
-    )
-    objective_shapes = payload.get(KEY_OBJECTIVE_SHAPES) or shapes_dict.get(
-        KEY_OBJECTIVE_SHAPES
-    )
-    scenography_specs = payload.get(KEY_SCENOGRAPHY_SPECS) or shapes_dict.get(
-        KEY_SCENOGRAPHY_SPECS
-    )
-    map_specs = payload.get("map_specs")
+    parsed = _parse_card_payload(payload)
 
     # 3) Re-generate with same card_id
     gen_request = GenerateScenarioCardRequest(
-        actor_id=actor_id,
-        mode=mode,
-        seed=seed,
-        table_preset=table_preset,
-        table_width_mm=table_width_mm,
-        table_height_mm=table_height_mm,
-        visibility=visibility,
-        shared_with=shared_with,
-        armies=armies,
-        deployment=deployment,
-        layout=layout,
-        objectives=objectives,
-        initial_priority=initial_priority,
-        name=name,
-        special_rules=special_rules,
-        map_specs=map_specs,
-        scenography_specs=scenography_specs,
-        deployment_shapes=deployment_shapes,
-        objective_shapes=objective_shapes,
-        card_id=card_id,
+        actor_id=actor_id, card_id=card_id, **parsed
     )
     gen_response = services.generate_scenario_card.execute(gen_request)
 
-    # 4) Save (overwrite)
+    # 4) Save (overwrite) — enforces ownership via save_card use case
     save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
     services.save_card.execute(save_request)
 
-    # 5) Return response
-    response_data = {
-        KEY_CARD_ID: gen_response.card_id,
-        KEY_SEED: gen_response.seed,
-        KEY_OWNER_ID: gen_response.owner_id,
-        KEY_NAME: gen_response.name,
-        KEY_MODE: gen_response.mode,
-        KEY_ARMIES: gen_response.armies,
-        KEY_TABLE_PRESET: gen_response.table_preset,
-        KEY_TABLE_MM: gen_response.table_mm,
-        KEY_LAYOUT: gen_response.layout,
-        KEY_DEPLOYMENT: gen_response.deployment,
-        KEY_INITIAL_PRIORITY: gen_response.initial_priority,
-        KEY_OBJECTIVES: gen_response.objectives,
-        KEY_SPECIAL_RULES: gen_response.special_rules,
-        KEY_VISIBILITY: gen_response.visibility,
-        KEY_SHARED_WITH: gen_response.shared_with or [],
-        KEY_SHAPES: gen_response.shapes,
-    }
-
-    return jsonify(response_data), 200
+    return jsonify(_build_gen_response_dict(gen_response)), 200
 
 
 @cards_bp.delete("/<card_id>")
@@ -302,21 +235,14 @@ def delete_card(card_id: str):
     """DELETE /cards/<card_id> - Delete a scenario card.
 
     Only the card owner may delete. Returns 200 on success.
+    Errors (not found / forbidden) are handled by the global error handler.
     """
     actor_id = get_actor_id()
     services = get_services()
 
-    try:
-        result = services.delete_card.execute(
-            DeleteCardRequest(actor_id=actor_id, card_id=card_id)
-        )
-    except Exception as exc:
-        msg = str(exc)
-        if "not found" in msg.lower():
-            return jsonify({"status": "error", "message": msg}), 404
-        if "forbidden" in msg.lower():
-            return jsonify({"status": "error", "message": msg}), 403
-        return jsonify({"status": "error", "message": msg}), 500
+    result = services.delete_card.execute(
+        DeleteCardRequest(actor_id=actor_id, card_id=card_id)
+    )
 
     return (
         jsonify(
@@ -380,7 +306,7 @@ def get_card_map_svg(card_id: str):
     svg_raw = uc_response.svg if hasattr(uc_response, "svg") else str(uc_response)
 
     # 5) Normalize SVG (validates + sanitizes: XXE/XSS prevention by construction)
-    svg_safe = _normalize_svg_xml(svg_raw)
+    svg_safe = normalize_svg_xml(svg_raw)
 
     # 6) Prepare safe SVG as bytes for send_file
     svg_bytes = BytesIO(svg_safe.encode("utf-8"))
@@ -400,227 +326,3 @@ def get_card_map_svg(card_id: str):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
 
     return response
-
-
-def _validate_no_dangerous_xml_entities(svg: str) -> None:
-    """Validate SVG does not contain dangerous XML entities (XXE prevention).
-
-    Args:
-        svg: SVG string to validate.
-
-    Raises:
-        ValidationError: If DOCTYPE or ENTITY declarations are found.
-    """
-    from domain.errors import ValidationError
-
-    # Block DOCTYPE declarations (XXE attack vector)
-    if re.search(r"<!DOCTYPE", svg, re.IGNORECASE):
-        raise ValidationError("SVG must not contain DOCTYPE declarations")
-
-    # Block ENTITY declarations (XXE attack vector)
-    if re.search(r"<!ENTITY", svg, re.IGNORECASE):
-        raise ValidationError("SVG must not contain ENTITY declarations")
-
-
-def _normalize_svg_xml(svg: str) -> str:
-    """Normalize SVG via XML parsing and re-serialization.
-
-    This ensures the SVG is well-formed XML and removes potential XSS vectors.
-    Static analysis tools (Sonar/Snyk) recognize this as sanitization.
-
-    Uses defusedxml to prevent XXE attacks (safer than stdlib ET.fromstring).
-    Validates SVG content against allowlist to block XSS vectors.
-    Strips namespaces to ensure deterministic output without ns0: prefixes.
-
-    Args:
-        svg: SVG string from renderer.
-
-    Returns:
-        Normalized SVG string (always contains literal <svg>, not <ns0:svg>).
-
-    Raises:
-        ValidationError: If SVG is not well-formed XML or contains dangerous content.
-    """
-    from domain.errors import ValidationError
-
-    try:
-        # 1) Validate no dangerous entities BEFORE parsing (defense in depth)
-        _validate_no_dangerous_xml_entities(svg)
-
-        # 2) Parse SVG as XML (validates well-formedness)
-        # Using defusedxml to prevent XXE/DoS attacks
-        root = defused_fromstring(svg)
-
-        # 3) Validate SVG content against allowlist (XSS prevention)
-        _validate_svg_allowlist(root)
-
-        # 4) Strip namespaces from entire tree (ensures deterministic output)
-        _strip_svg_namespaces_inplace(root)
-
-        # 5) Re-serialize to normalized XML
-        return cast(str, DET.tostring(root, encoding="unicode", method="xml"))
-
-    except DET.ParseError as e:
-        raise ValidationError(f"Invalid SVG XML: {e}") from e
-    except Exception as e:
-        # Catch defusedxml exceptions (EntitiesForbidden, etc.) and other parsing errors
-        if "defusedxml" in type(e).__module__ or "Forbidden" in type(e).__name__:
-            raise ValidationError(f"SVG contains forbidden XML features: {e}") from e
-        raise ValidationError(f"SVG parsing failed: {e}") from e
-
-
-def _strip_svg_namespaces_inplace(element: DET.Element) -> None:
-    """Strip namespaces from SVG element tree (in-place modification).
-
-    Converts tags like "{http://www.w3.org/2000/svg}rect" to "rect".
-    This ensures deterministic serialization without ns0: prefixes.
-
-    Args:
-        element: Root element to process (modified in-place).
-    """
-    # Strip namespace from tag if present
-    if "}" in element.tag:
-        element.tag = element.tag.split("}", 1)[1]
-
-    # Strip namespaces from attributes
-    for attr_name in list(element.attrib.keys()):
-        if "}" in attr_name:
-            # Move attribute to name without namespace
-            clean_name = attr_name.split("}", 1)[1]
-            element.attrib[clean_name] = element.attrib.pop(attr_name)
-
-    # Recursively process all children
-    for child in element:
-        _strip_svg_namespaces_inplace(child)
-
-
-def _local_svg_name(name: str) -> str:
-    """Strip SVG namespace from tag/attribute name."""
-    return name.split("}")[-1] if "}" in name else name
-
-
-def _allowed_svg_attrs() -> dict[str, set[str]]:
-    """Return allowed attributes per tag (safe presentation subset)."""
-    _common_paint = {"fill", "stroke", "stroke-width"}
-    return {
-        "svg": {"xmlns", "width", "height", "viewBox"},
-        "rect": {"x", "y", "width", "height"} | _common_paint,
-        "circle": {"cx", "cy", "r"} | _common_paint,
-        "polygon": {"points"} | _common_paint,
-        "text": {
-            "x",
-            "y",
-            "fill",
-            "font-size",
-            "font-family",
-            "text-anchor",
-            "dominant-baseline",
-            "font-weight",
-        },
-        "g": {"transform"},
-    }
-
-
-def _enforce_svg_tag_allowed(tag: str) -> None:
-    """Enforce allowlist for SVG tags."""
-    from domain.errors import ValidationError
-
-    allowed_tags = {"svg", "rect", "circle", "polygon", "text", "g"}
-    if tag not in allowed_tags:
-        raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
-
-
-def _validate_svg_numeric_attr(tag: str, attr_name: str, attr_value: str) -> None:
-    """Validate numeric SVG attribute values for specific tags."""
-    from domain.errors import ValidationError
-
-    _NUMERIC_ATTRS = {"x", "y", "width", "height", "cx", "cy", "r"}
-    if attr_name not in _NUMERIC_ATTRS:
-        return
-
-    if attr_name == "viewBox":
-        parts = attr_value.strip().split()
-        if len(parts) != 4 or any(not p.lstrip("-").isdigit() for p in parts):
-            raise ValidationError("SVG viewBox must be 4 integers")
-        return
-
-    if not attr_value.strip().lstrip("-").isdigit():
-        raise ValidationError(f"SVG attribute '{attr_name}' must be an integer")
-
-
-def _validate_svg_polygon_points(attr_value: str) -> None:
-    """Validate polygon points characters (digits, spaces, commas, minus only)."""
-    from domain.errors import ValidationError
-
-    for ch in attr_value:
-        if ch.isdigit() or ch in {" ", ",", "-"}:
-            continue
-        raise ValidationError("SVG polygon points contain invalid characters")
-
-
-def _validate_svg_attribute(
-    tag: str,
-    attr_name: str,
-    attr_value: str,
-    allowed_for_tag: set[str],
-) -> None:
-    """Validate a single SVG attribute against allowlist rules."""
-    from domain.errors import ValidationError
-
-    clean_attr = _local_svg_name(attr_name)
-    lower_attr = clean_attr.lower()
-
-    if lower_attr.startswith("on"):
-        raise ValidationError(
-            f"SVG contains forbidden event handler attribute: {clean_attr}"
-        )
-
-    if lower_attr in {"href", "xlink:href", "src"}:
-        raise ValidationError(
-            f"SVG must not contain external reference attribute: {clean_attr}"
-        )
-
-    if lower_attr in {"style", "class"}:
-        raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
-
-    if clean_attr not in allowed_for_tag:
-        raise ValidationError(
-            f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
-        )
-
-    # Validate paint attributes don't contain dangerous references
-    if lower_attr in {"fill", "stroke"}:
-        _validate_paint_value(clean_attr, attr_value)
-
-    _validate_svg_numeric_attr(tag, clean_attr, attr_value)
-
-    if tag == "polygon" and clean_attr == "points":
-        _validate_svg_polygon_points(attr_value)
-
-
-def _validate_paint_value(attr_name: str, attr_value: str) -> None:
-    """Validate fill/stroke values don't contain dangerous references."""
-    from domain.errors import ValidationError
-
-    lower = attr_value.lower()
-    if "url(" in lower or "javascript:" in lower or "expression(" in lower:
-        raise ValidationError(
-            f"SVG attribute '{attr_name}' contains forbidden reference"
-        )
-
-
-def _validate_svg_allowlist(element: DET.Element) -> None:
-    """Strict SVG allowlist validation (XSS prevention).
-
-    Allows only the minimal SVG subset we generate (svg/rect/circle/polygon)
-    and only safe attributes. Everything else is rejected.
-    """
-    tag = _local_svg_name(element.tag)
-    _enforce_svg_tag_allowed(tag)
-
-    allowed_for_tag = _allowed_svg_attrs().get(tag, set())
-    for attr_name, attr_value in element.attrib.items():
-        _validate_svg_attribute(tag, attr_name, attr_value, allowed_for_tag)
-
-    for child in list(element):
-        _validate_svg_allowlist(child)

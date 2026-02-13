@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import math
-from typing import Any, cast
+from typing import Any
 
 import gradio as gr
 from adapters.ui_gradio import handlers
@@ -16,10 +15,16 @@ from adapters.ui_gradio.state_helpers import (
     remove_selected_scenography_element,
     update_scenography_element,
 )
-from adapters.ui_gradio.units import (
-    convert_from_cm,
-    convert_to_cm,
-    convert_unit_to_unit,
+
+from ._scenography._builder import build_scenography_data
+from ._scenography._form_state import (
+    UNCHANGED,
+    default_scenography_form,
+    selected_scenography_form,
+)
+from ._scenography._ui_updates import (
+    convert_scenography_coordinates,
+    scenography_type_visibility,
 )
 
 
@@ -60,13 +65,78 @@ def wire_scenography(  # noqa: C901
 ) -> None:
     """Wire scenography add/remove/toggle/edit events."""
 
+    # -- helpers -----------------------------------------------------------
+
+    def _form_to_updates(form: dict[str, Any]) -> dict[Any, Any]:
+        """Map flat form dict to ``{widget: gr.update(...)}``."""
+        vis = scenography_type_visibility(form["type"])
+        editing = form["editing_id"] is not None
+
+        def _val(key: str) -> Any:
+            v = form[key]
+            return gr.update() if v is UNCHANGED else gr.update(value=v)
+
+        return {
+            scenography_description: _val("description"),
+            scenography_type: _val("type"),
+            circle_form_row: gr.update(visible=vis["circle"]),
+            rect_form_row: gr.update(visible=vis["rect"]),
+            polygon_form_col: gr.update(visible=vis["polygon"]),
+            circle_cx: _val("cx"),
+            circle_cy: _val("cy"),
+            circle_r: _val("r"),
+            rect_x: _val("x"),
+            rect_y: _val("y"),
+            rect_width: _val("width"),
+            rect_height: _val("height"),
+            polygon_points: _val("polygon_points"),
+            allow_overlap_checkbox: _val("allow_overlap"),
+            scenography_editing_state: form["editing_id"],
+            add_scenography_btn: gr.update(
+                value="\u270f\ufe0f Update Element" if editing else "+ Add Element"
+            ),
+            cancel_edit_scenography_btn: gr.update(visible=editing),
+        }
+
+    def _build_error_result(
+        current_state: list[dict[str, Any]],
+        editing_id: str | None,
+        message: str,
+    ) -> dict[Any, Any]:
+        return {
+            scenography_state: current_state,
+            scenography_list: gr.update(),
+            scenography_editing_state: editing_id,
+            add_scenography_btn: gr.update(),
+            cancel_edit_scenography_btn: gr.update(),
+            output: {"status": "error", "message": message},
+        }
+
+    _unchanged_widgets = [
+        scenography_description,
+        scenography_type,
+        circle_form_row,
+        rect_form_row,
+        polygon_form_col,
+        circle_cx,
+        circle_cy,
+        circle_r,
+        rect_x,
+        rect_y,
+        rect_width,
+        rect_height,
+        polygon_points,
+        allow_overlap_checkbox,
+    ]
+
     # -- closures ----------------------------------------------------------
 
     def _toggle_scenography_forms(elem_type: str) -> dict[Any, Any]:
+        vis = scenography_type_visibility(elem_type)
         return {
-            circle_form_row: gr.update(visible=(elem_type == "circle")),
-            rect_form_row: gr.update(visible=(elem_type == "rect")),
-            polygon_form_col: gr.update(visible=(elem_type == "polygon")),
+            circle_form_row: gr.update(visible=vis["circle"]),
+            rect_form_row: gr.update(visible=vis["rect"]),
+            polygon_form_col: gr.update(visible=vis["polygon"]),
         }
 
     def _on_polygon_preset_change(preset: str) -> list[list[float]]:
@@ -82,160 +152,25 @@ def wire_scenography(  # noqa: C901
     ) -> dict[Any, Any]:
         """Populate form when a scenography element is selected."""
         if not selected_id:
-            return {
-                scenography_description: gr.update(value=""),
-                scenography_type: gr.update(value="circle"),
-                circle_form_row: gr.update(visible=True),
-                rect_form_row: gr.update(visible=False),
-                polygon_form_col: gr.update(visible=False),
-                circle_cx: gr.update(value=90),
-                circle_cy: gr.update(value=90),
-                circle_r: gr.update(value=15),
-                rect_x: gr.update(value=30),
-                rect_y: gr.update(value=30),
-                rect_width: gr.update(value=40),
-                rect_height: gr.update(value=30),
-                polygon_points: gr.update(),
-                allow_overlap_checkbox: gr.update(value=False),
-                scenography_editing_state: None,
-                add_scenography_btn: gr.update(value="+ Add Element"),
-                cancel_edit_scenography_btn: gr.update(visible=False),
-            }
+            return _form_to_updates(default_scenography_form())
+
         elem = next((e for e in current_state if e["id"] == selected_id), None)
         if not elem:
-            return {
-                scenography_description: gr.update(),
-                scenography_type: gr.update(),
-                circle_form_row: gr.update(),
-                rect_form_row: gr.update(),
-                polygon_form_col: gr.update(),
-                circle_cx: gr.update(),
-                circle_cy: gr.update(),
-                circle_r: gr.update(),
-                rect_x: gr.update(),
-                rect_y: gr.update(),
-                rect_width: gr.update(),
-                rect_height: gr.update(),
-                polygon_points: gr.update(),
-                allow_overlap_checkbox: gr.update(),
-                scenography_editing_state: None,
-                add_scenography_btn: gr.update(value="+ Add Element"),
-                cancel_edit_scenography_btn: gr.update(visible=False),
-            }
+            result: dict[Any, Any] = {w: gr.update() for w in _unchanged_widgets}
+            result[scenography_editing_state] = None
+            result[add_scenography_btn] = gr.update(value="+ Add Element")
+            result[cancel_edit_scenography_btn] = gr.update(visible=False)
+            return result
 
-        data = elem.get("data", {})
-        elem_type = elem.get("type", "circle")
-        desc = data.get("description", "")
-        overlap = elem.get("allow_overlap", False)
-
-        result: dict[Any, Any] = {
-            scenography_description: gr.update(value=desc),
-            scenography_type: gr.update(value=elem_type),
-            allow_overlap_checkbox: gr.update(value=overlap),
-            scenography_editing_state: selected_id,
-            add_scenography_btn: gr.update(value="✏️ Update Element"),
-            cancel_edit_scenography_btn: gr.update(visible=True),
-        }
-
-        is_circle = elem_type == "circle"
-        is_rect = elem_type == "rect"
-        is_polygon = elem_type == "polygon"
-
-        result[circle_form_row] = gr.update(visible=is_circle)
-        result[rect_form_row] = gr.update(visible=is_rect)
-        result[polygon_form_col] = gr.update(visible=is_polygon)
-
-        if is_circle:
-            cx_cm = float(data.get("cx", 0)) / 10.0
-            cy_cm = float(data.get("cy", 0)) / 10.0
-            r_cm = float(data.get("r", 0)) / 10.0
-            result[circle_cx] = gr.update(
-                value=round(convert_from_cm(cx_cm, scenography_unit_val), 2)
-            )
-            result[circle_cy] = gr.update(
-                value=round(convert_from_cm(cy_cm, scenography_unit_val), 2)
-            )
-            result[circle_r] = gr.update(
-                value=round(convert_from_cm(r_cm, scenography_unit_val), 2)
-            )
-            result[rect_x] = gr.update()
-            result[rect_y] = gr.update()
-            result[rect_width] = gr.update()
-            result[rect_height] = gr.update()
-            result[polygon_points] = gr.update()
-        elif is_rect:
-            x_cm = float(data.get("x", 0)) / 10.0
-            y_cm = float(data.get("y", 0)) / 10.0
-            w_cm = float(data.get("width", 0)) / 10.0
-            h_cm = float(data.get("height", 0)) / 10.0
-            result[rect_x] = gr.update(
-                value=round(convert_from_cm(x_cm, scenography_unit_val), 2)
-            )
-            result[rect_y] = gr.update(
-                value=round(convert_from_cm(y_cm, scenography_unit_val), 2)
-            )
-            result[rect_width] = gr.update(
-                value=round(convert_from_cm(w_cm, scenography_unit_val), 2)
-            )
-            result[rect_height] = gr.update(
-                value=round(convert_from_cm(h_cm, scenography_unit_val), 2)
-            )
-            result[circle_cx] = gr.update()
-            result[circle_cy] = gr.update()
-            result[circle_r] = gr.update()
-            result[polygon_points] = gr.update()
-        else:
-            # polygon — populate dataframe
-            points = data.get("points", [])
-            points_display = []
-            for p in points:
-                if isinstance(p, dict):
-                    px_cm = float(p.get("x", 0)) / 10.0
-                    py_cm = float(p.get("y", 0)) / 10.0
-                else:
-                    px_cm = float(p[0]) / 10.0
-                    py_cm = float(p[1]) / 10.0
-                points_display.append(
-                    [
-                        round(convert_from_cm(px_cm, scenography_unit_val), 2),
-                        round(convert_from_cm(py_cm, scenography_unit_val), 2),
-                    ]
-                )
-            result[polygon_points] = gr.update(value=points_display)
-            result[circle_cx] = gr.update()
-            result[circle_cy] = gr.update()
-            result[circle_r] = gr.update()
-            result[rect_x] = gr.update()
-            result[rect_y] = gr.update()
-            result[rect_width] = gr.update()
-            result[rect_height] = gr.update()
-
-        return result
+        return _form_to_updates(selected_scenography_form(elem, scenography_unit_val))
 
     def _cancel_edit_scenography() -> dict[Any, Any]:
         """Cancel editing and return to add mode."""
-        return {
-            scenography_description: gr.update(value=""),
-            scenography_type: gr.update(value="circle"),
-            circle_form_row: gr.update(visible=True),
-            rect_form_row: gr.update(visible=False),
-            polygon_form_col: gr.update(visible=False),
-            circle_cx: gr.update(value=90),
-            circle_cy: gr.update(value=90),
-            circle_r: gr.update(value=15),
-            rect_x: gr.update(value=30),
-            rect_y: gr.update(value=30),
-            rect_width: gr.update(value=40),
-            rect_height: gr.update(value=30),
-            polygon_points: gr.update(),
-            allow_overlap_checkbox: gr.update(value=False),
-            scenography_editing_state: None,
-            add_scenography_btn: gr.update(value="+ Add Element"),
-            cancel_edit_scenography_btn: gr.update(visible=False),
-            scenography_list: gr.update(value=None),
-        }
+        result = _form_to_updates(default_scenography_form())
+        result[scenography_list] = gr.update(value=None)
+        return result
 
-    def _add_or_update_scenography_wrapper(  # noqa: C901
+    def _add_or_update_scenography_wrapper(
         description: str,
         elem_type: str,
         cx: float,
@@ -254,237 +189,51 @@ def wire_scenography(  # noqa: C901
         scenography_unit_val: str,
         editing_id: str | None,
     ) -> dict[Any, Any]:
-        description_stripped = (description or "").strip()
-        if not description_stripped:
-            return {
-                scenography_state: current_state,
-                scenography_list: gr.update(),
-                scenography_editing_state: editing_id,
-                add_scenography_btn: gr.update(),
-                cancel_edit_scenography_btn: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Scenography Element requires Description to be filled.",
-                },
-            }
-        if not elem_type or not elem_type.strip():
-            return {
-                scenography_state: current_state,
-                scenography_list: gr.update(),
-                scenography_editing_state: editing_id,
-                add_scenography_btn: gr.update(),
-                cancel_edit_scenography_btn: gr.update(),
-                output: {
-                    "status": "error",
-                    "message": "Scenography Element requires Type to be selected.",
-                },
-            }
-
-        table_w_mm = int(convert_to_cm(table_width_val, table_unit_val) * 10)
-        table_h_mm = int(convert_to_cm(table_height_val, table_unit_val) * 10)
-
-        if elem_type == "circle":
-            if cx is None or cx < 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Circle requires Center X >= 0.",
-                    },
-                }
-            if cy is None or cy < 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Circle requires Center Y >= 0.",
-                    },
-                }
-            if r is None or r <= 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Circle requires Radius > 0.",
-                    },
-                }
-            form_data: dict[str, Any] = {
-                "cx": int(convert_to_cm(cx, scenography_unit_val) * 10),
-                "cy": int(convert_to_cm(cy, scenography_unit_val) * 10),
-                "r": int(convert_to_cm(r, scenography_unit_val) * 10),
-            }
-        elif elem_type == "rect":
-            if x is None or x < 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Rectangle requires X >= 0.",
-                    },
-                }
-            if y is None or y < 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Rectangle requires Y >= 0.",
-                    },
-                }
-            if width is None or width <= 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Rectangle requires Width > 0.",
-                    },
-                }
-            if height is None or height <= 0:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "Rectangle requires Height > 0.",
-                    },
-                }
-            form_data = {
-                "x": int(convert_to_cm(x, scenography_unit_val) * 10),
-                "y": int(convert_to_cm(y, scenography_unit_val) * 10),
-                "width": int(convert_to_cm(width, scenography_unit_val) * 10),
-                "height": int(convert_to_cm(height, scenography_unit_val) * 10),
-            }
-        else:
-            # polygon
-            points_list: list[dict[str, int]] = []
-            if points_data is None:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": "No polygon points provided",
-                    },
-                }
-            if hasattr(points_data, "values"):
-                try:
-                    points_data = points_data.values.tolist()
-                except Exception:
-                    points_data = []
-            if not hasattr(points_data, "__iter__"):
-                points_data = []
-            for row in points_data:
-                if row is None or (isinstance(row, (list, tuple)) and len(row) == 0):
-                    continue
-                if isinstance(row, (list, tuple)):
-                    if len(row) < 2:
-                        continue
-                    x_raw, y_raw = row[0], row[1]
-                else:
-                    continue
-                if x_raw is None or y_raw is None:
-                    continue
-                try:
-                    x_val = (
-                        float(str(x_raw).strip())
-                        if isinstance(x_raw, str)
-                        else float(x_raw)
-                    )
-                    y_val = (
-                        float(str(y_raw).strip())
-                        if isinstance(y_raw, str)
-                        else float(y_raw)
-                    )
-                    if (
-                        math.isnan(x_val)
-                        or math.isnan(y_val)
-                        or math.isinf(x_val)
-                        or math.isinf(y_val)
-                    ):
-                        continue
-                    x_mm = int(convert_to_cm(x_val, scenography_unit_val) * 10)
-                    y_mm = int(convert_to_cm(y_val, scenography_unit_val) * 10)
-                    points_list.append({"x": x_mm, "y": y_mm})
-                except (ValueError, TypeError, AttributeError):
-                    continue
-
-            if len(points_list) < 3:
-                return {
-                    scenography_state: current_state,
-                    scenography_list: gr.update(),
-                    scenography_editing_state: editing_id,
-                    add_scenography_btn: gr.update(),
-                    cancel_edit_scenography_btn: gr.update(),
-                    output: {
-                        "status": "error",
-                        "message": (
-                            f"Polygon needs at least 3 valid points. "
-                            f"Found: {len(points_list)}"
-                        ),
-                    },
-                }
-            form_data = cast(dict[str, Any], {"points": points_list})
+        built = build_scenography_data(
+            description,
+            elem_type,
+            cx,
+            cy,
+            r,
+            x,
+            y,
+            width,
+            height,
+            points_data,
+            allow_overlap,
+            table_width_val,
+            table_height_val,
+            table_unit_val,
+            scenography_unit_val,
+        )
+        if not built["ok"]:
+            return _build_error_result(current_state, editing_id, built["message"])
 
         if editing_id:
             new_state, error_msg = update_scenography_element(
                 current_state,
                 editing_id,
-                elem_type,
-                form_data,
-                allow_overlap,
-                table_w_mm,
-                table_h_mm,
-                description_stripped,
+                built["elem_type"],
+                built["data"],
+                built["allow_overlap"],
+                built["table_w_mm"],
+                built["table_h_mm"],
+                built["description"],
             )
         else:
             new_state, error_msg = add_scenography_element(
                 current_state,
-                elem_type,
-                form_data,
-                allow_overlap,
-                table_w_mm,
-                table_h_mm,
-                description_stripped,
+                built["elem_type"],
+                built["data"],
+                built["allow_overlap"],
+                built["table_w_mm"],
+                built["table_h_mm"],
+                built["description"],
             )
 
         if error_msg:
-            return {
-                scenography_state: current_state,
-                scenography_list: gr.update(),
-                scenography_editing_state: editing_id,
-                add_scenography_btn: gr.update(),
-                cancel_edit_scenography_btn: gr.update(),
-                output: {"status": "error", "message": error_msg},
-            }
+            return _build_error_result(current_state, editing_id, error_msg)
+
         choices = get_scenography_choices(new_state)
         return {
             scenography_state: new_state,
@@ -494,7 +243,7 @@ def wire_scenography(  # noqa: C901
             cancel_edit_scenography_btn: gr.update(visible=False),
             output: {
                 "status": "ok",
-                "message": f"{'Updated' if editing_id else 'Added'} {elem_type}",
+                "message": (f"{'Updated' if editing_id else 'Added'} {elem_type}"),
             },
         }
 
@@ -668,63 +417,18 @@ def wire_scenography(  # noqa: C901
         height: float,
         polygon_data: list[list[Any]],
         prev_unit: str,
-    ) -> tuple[float, float, float, float, float, float, float, list[list[float]], str]:
+    ) -> tuple[float, float, float, float, float, float, float, Any, str]:
         """Convert scenography coordinates when unit changes."""
-        if prev_unit == new_unit:
-            return cx, cy, r, x, y, width, height, polygon_data, new_unit
-
-        cx_converted = convert_unit_to_unit(cx, prev_unit, new_unit)
-        cy_converted = convert_unit_to_unit(cy, prev_unit, new_unit)
-        r_converted = convert_unit_to_unit(r, prev_unit, new_unit)
-        x_converted = convert_unit_to_unit(x, prev_unit, new_unit)
-        y_converted = convert_unit_to_unit(y, prev_unit, new_unit)
-        width_converted = convert_unit_to_unit(width, prev_unit, new_unit)
-        height_converted = convert_unit_to_unit(height, prev_unit, new_unit)
-
-        polygon_converted = polygon_data
-        if polygon_data is not None:
-            try:
-                if hasattr(polygon_data, "values"):
-                    points_list = polygon_data.values.tolist()
-                elif isinstance(polygon_data, list):
-                    points_list = polygon_data
-                else:
-                    points_list = []
-
-                converted_points = []
-                for row in points_list:
-                    if (
-                        row is not None
-                        and isinstance(row, (list, tuple))
-                        and len(row) >= 2
-                    ):
-                        try:
-                            x_val = float(row[0])
-                            y_val = float(row[1])
-                            x_converted_pt = convert_unit_to_unit(
-                                x_val, prev_unit, new_unit
-                            )
-                            y_converted_pt = convert_unit_to_unit(
-                                y_val, prev_unit, new_unit
-                            )
-                            converted_points.append([x_converted_pt, y_converted_pt])
-                        except (ValueError, TypeError):
-                            pass
-                polygon_converted = (
-                    converted_points if converted_points else polygon_data
-                )
-            except Exception:
-                polygon_converted = polygon_data
-
-        return (
-            cx_converted,
-            cy_converted,
-            r_converted,
-            x_converted,
-            y_converted,
-            width_converted,
-            height_converted,
-            polygon_converted,
+        return convert_scenography_coordinates(
+            cx,
+            cy,
+            r,
+            x,
+            y,
+            width,
+            height,
+            polygon_data,
+            prev_unit,
             new_unit,
         )
 

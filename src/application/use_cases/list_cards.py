@@ -73,7 +73,7 @@ class ListCardsResponse:
 class ListCards:
     """Use case for listing cards visible to an actor."""
 
-    def __init__(self, repository: Any) -> None:
+    def __init__(self, repository: CardRepository) -> None:
         self._repository = repository
 
     def execute(self, request: ListCardsRequest) -> ListCardsResponse:
@@ -138,7 +138,7 @@ class ListCards:
                 "height_mm": card.table.height_mm,
             }
             # Detect preset based on dimensions
-            table_preset = self._detect_table_preset(card.table)
+            table_preset = card.table.preset_name
 
         return _CardSnapshot(
             card_id=card.card_id,
@@ -150,24 +150,6 @@ class ListCards:
             table_preset=table_preset,
             table_mm=table_mm,
         )
-
-    def _detect_table_preset(self, table: Any) -> str:
-        """Detect table preset based on dimensions.
-
-        Args:
-            table: TableSize instance
-
-        Returns:
-            "standard", "massive", or "custom"
-        """
-        # Standard is 1200x1200 mm
-        if table.width_mm == 1200 and table.height_mm == 1200:
-            return "standard"
-        # Massive is 1800x1200 mm
-        if table.width_mm == 1800 and table.height_mm == 1200:
-            return "massive"
-        # Everything else is custom
-        return "custom"
 
 
 @dataclass(frozen=True)

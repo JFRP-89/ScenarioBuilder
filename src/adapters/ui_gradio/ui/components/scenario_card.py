@@ -6,6 +6,7 @@ and action buttons (View, Favorite). Used in home, list, and favorites pages.
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 from adapters.ui_gradio.constants import CM_PER_FOOT, CM_PER_INCH
@@ -111,12 +112,12 @@ def render_card_html(
     Returns:
         HTML string for the card.
     """
-    card_id = card.get("card_id", "???")
-    name = card.get("name", "")
-    mode = card.get("mode", "—")
-    owner = card.get("owner_id", "—")
-    visibility = card.get("visibility", "private")
-    seed = card.get("seed", "—")
+    card_id = html.escape(str(card.get("card_id", "???")), quote=True)
+    name = html.escape(str(card.get("name", "")), quote=True)
+    mode = html.escape(str(card.get("mode", "—")), quote=True)
+    owner = html.escape(str(card.get("owner_id", "—")), quote=True)
+    visibility = html.escape(str(card.get("visibility", "private")), quote=True)
+    seed = html.escape(str(card.get("seed", "—")), quote=True)
 
     # Extract table info
     table_mm = card.get("table_mm", {})

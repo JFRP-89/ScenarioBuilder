@@ -60,6 +60,8 @@ class TestLoadRecentCards:
         mock_mode_filter = MagicMock()
         mock_preset_filter = MagicMock()
         mock_unit_selector = MagicMock()
+        mock_search_box = MagicMock()
+        mock_per_page_dropdown = MagicMock()
         mock_reload_btn = MagicMock()
         mock_prev_btn = MagicMock()
         mock_page_info = MagicMock()
@@ -73,6 +75,8 @@ class TestLoadRecentCards:
             home_mode_filter=mock_mode_filter,
             home_preset_filter=mock_preset_filter,
             home_unit_selector=mock_unit_selector,
+            home_search_box=mock_search_box,
+            home_per_page_dropdown=mock_per_page_dropdown,
             home_reload_btn=mock_reload_btn,
             home_prev_btn=mock_prev_btn,
             home_page_info=mock_page_info,

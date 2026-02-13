@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from application.use_cases._validation import validate_actor_id
 from domain.cards.card import Card
+from domain.errors import ForbiddenError
 
 
 # =============================================================================
@@ -58,7 +59,7 @@ class SaveCard:
 
         # 2) Enforce write access: actor must be owner
         if request.card.owner_id != actor_id:
-            raise Exception("Forbidden: only the owner can save this card")
+            raise ForbiddenError("Forbidden: only the owner can save this card")
 
         # 3) Save to repository
         self._repository.save(request.card)

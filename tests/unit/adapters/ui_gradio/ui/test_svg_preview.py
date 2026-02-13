@@ -6,8 +6,17 @@ import pytest
 from adapters.ui_gradio.ui.components.svg_preview import (
     _PLACEHOLDER_HTML,
     build_svg_preview,
+    configure_renderer,
     render_svg_from_card,
 )
+from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+
+
+@pytest.fixture(autouse=True)
+def _inject_renderer():
+    """Ensure the renderer is configured for every test in this module."""
+    configure_renderer(SvgMapRenderer().render)
+
 
 # --- build_svg_preview ---
 

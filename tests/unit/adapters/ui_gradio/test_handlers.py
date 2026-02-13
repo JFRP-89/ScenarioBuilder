@@ -186,6 +186,26 @@ class TestUpdateObjectiveDefaults:
         assert center_y == 600.0
 
 
+class TestToggleSection:
+    """Tests for the canonical toggle_section function and its aliases."""
+
+    def test_enabled_returns_visible(self):
+        result = handlers.toggle_section(True)
+        assert result["visible"] is True
+
+    def test_disabled_returns_hidden(self):
+        result = handlers.toggle_section(False)
+        assert result["visible"] is False
+
+    def test_aliases_are_same_function(self):
+        """All named toggle aliases point to toggle_section."""
+        assert handlers.toggle_vp_section is handlers.toggle_section
+        assert handlers.toggle_deployment_zones_section is handlers.toggle_section
+        assert handlers.toggle_scenography_section is handlers.toggle_section
+        assert handlers.toggle_objective_points_section is handlers.toggle_section
+        assert handlers.toggle_special_rules_section is handlers.toggle_section
+
+
 class TestToggleVpSection:
     """Tests for toggle_vp_section handler."""
 

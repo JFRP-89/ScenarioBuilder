@@ -7,8 +7,9 @@ filtered to only include cards the actor can still read.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import List, Optional
 
+from application.ports.repositories import CardRepository, FavoritesRepository
 from application.use_cases._validation import validate_actor_id
 
 
@@ -37,8 +38,8 @@ class ListFavorites:
 
     def __init__(
         self,
-        card_repository: Any,
-        favorites_repository: Any,
+        card_repository: CardRepository,
+        favorites_repository: FavoritesRepository,
     ) -> None:
         self._card_repository = card_repository
         self._favorites_repository = favorites_repository

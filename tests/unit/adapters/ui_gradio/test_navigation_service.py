@@ -25,10 +25,10 @@ class TestListCards:
         resp = MagicMock()
         resp.status_code = 200
         resp.json.return_value = {"cards": [{"card_id": "c1"}]}
-        mock_req.get.return_value = resp
+        mock_req.request.return_value = resp
         result = list_cards("actor1", "mine")
         assert result == {"cards": [{"card_id": "c1"}]}
-        mock_req.get.assert_called_once()
+        mock_req.request.assert_called_once()
 
     @patch("adapters.ui_gradio.services.navigation.requests")
     @patch(
@@ -39,7 +39,7 @@ class TestListCards:
         resp = MagicMock()
         resp.status_code = 500
         resp.json.return_value = {"message": "Internal error"}
-        mock_req.get.return_value = resp
+        mock_req.request.return_value = resp
         result = list_cards("actor1")
         assert result.get("status") == "error"
 
@@ -62,7 +62,7 @@ class TestGetCard:
         resp = MagicMock()
         resp.status_code = 200
         resp.json.return_value = {"card_id": "c1", "mode": "matched"}
-        mock_req.get.return_value = resp
+        mock_req.request.return_value = resp
         result = get_card("actor1", "c1")
         assert result["card_id"] == "c1"
 
@@ -75,7 +75,7 @@ class TestGetCard:
         resp = MagicMock()
         resp.status_code = 404
         resp.json.return_value = {"message": "Not found"}
-        mock_req.get.return_value = resp
+        mock_req.request.return_value = resp
         result = get_card("actor1", "nonexistent")
         assert result.get("status") == "error"
 
@@ -92,7 +92,7 @@ class TestToggleFavorite:
         resp = MagicMock()
         resp.status_code = 200
         resp.json.return_value = {"card_id": "c1", "is_favorite": True}
-        mock_req.post.return_value = resp
+        mock_req.request.return_value = resp
         result = toggle_favorite("actor1", "c1")
         assert result["is_favorite"] is True
 
@@ -114,7 +114,7 @@ class TestListFavorites:
         resp = MagicMock()
         resp.status_code = 200
         resp.json.return_value = {"card_ids": ["c1", "c2"]}
-        mock_req.get.return_value = resp
+        mock_req.request.return_value = resp
         result = list_favorites("actor1")
         assert result == {"card_ids": ["c1", "c2"]}
 

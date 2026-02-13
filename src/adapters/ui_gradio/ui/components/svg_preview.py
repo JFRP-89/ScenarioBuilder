@@ -7,12 +7,27 @@ generating a card) or in a home screen to preview existing scenarios.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import gradio as gr
-from infrastructure.maps.svg_map_renderer import SvgMapRenderer
 
-_renderer = SvgMapRenderer()
+# Render function injected at bootstrap (DIP — no infrastructure import).
+# Signature: (table_mm: dict[str, Any], shapes: list[dict[str, Any]]) -> str
+_render_fn: Callable[..., str] | None = None
+
+
+def configure_renderer(
+    render_fn: Callable[..., str],
+) -> None:
+    """Inject the SVG render function (called once at app startup).
+
+    Args:
+        render_fn: callable with signature
+            ``(table_mm=dict, shapes=list[dict]) -> str``.
+    """
+    global _render_fn
+    _render_fn = render_fn
+
 
 # Default placeholder shown before any card is generated
 _PLACEHOLDER_HTML = (
@@ -44,11 +59,31 @@ def build_svg_preview(
     )
 
 
+def _flatten_shapes(shapes_data: Any) -> list[dict[str, Any]]:
+    """Flatten shapes from card data into a single list.
+
+    Supports both the new dict format (with subcategories) and
+    the legacy flat-list format.
+    """
+    if isinstance(shapes_data, list):
+        return shapes_data
+
+    if not isinstance(shapes_data, dict):
+        return []
+
+    result: list[dict[str, Any]] = []
+    for key in ("deployment_shapes", "objective_shapes", "scenography_specs"):
+        sub = shapes_data.get(key, [])
+        if isinstance(sub, list):
+            result.extend(sub)
+    return result
+
+
 def render_svg_from_card(card_data: dict[str, Any]) -> str:
     """Render an SVG string from a generated card's JSON data.
 
     Extracts table_mm and shapes from the card data and produces
-    the SVG markup using SvgMapRenderer.
+    the SVG markup using the injected renderer.
 
     Args:
         card_data: The generated card dictionary (as returned by the API).
@@ -62,7 +97,7 @@ def render_svg_from_card(card_data: dict[str, Any]) -> str:
     if not card_data or not isinstance(card_data, dict):
         return _PLACEHOLDER_HTML
 
-    if "status" in card_data and card_data.get("status") == "error":
+    if card_data.get("status") == "error":
         return _PLACEHOLDER_HTML
 
     table_mm = card_data.get("table_mm")
@@ -74,28 +109,12 @@ def render_svg_from_card(card_data: dict[str, Any]) -> str:
     if not width_mm or not height_mm:
         return _PLACEHOLDER_HTML
 
-    # Extract and flatten shapes
-    shapes_data = card_data.get("shapes", [])
-    shapes: list[dict[str, Any]] = []
+    if not _render_fn:
+        return _PLACEHOLDER_HTML
 
-    if isinstance(shapes_data, dict):
-        # New format: shapes is a dict with subcategories
-        deployment = shapes_data.get("deployment_shapes", [])
-        if isinstance(deployment, list):
-            shapes.extend(deployment)
+    shapes = _flatten_shapes(card_data.get("shapes", []))
 
-        objectives = shapes_data.get("objective_shapes", [])
-        if isinstance(objectives, list):
-            shapes.extend(objectives)
-
-        scenography = shapes_data.get("scenography_specs", [])
-        if isinstance(scenography, list):
-            shapes.extend(scenography)
-    elif isinstance(shapes_data, list):
-        # Legacy format: shapes is already a flat list
-        shapes = shapes_data
-
-    svg_content = _renderer.render(
+    svg_content = _render_fn(
         table_mm={"width_mm": int(width_mm), "height_mm": int(height_mm)},
         shapes=shapes,
     )
