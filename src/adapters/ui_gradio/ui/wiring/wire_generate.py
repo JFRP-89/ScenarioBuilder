@@ -1,4 +1,7 @@
-"""Generate-button and create-scenario event wiring."""
+"""Generate-button and create-scenario event wiring.
+
+Facade — delegates to ``_generate/`` sub-modules for testability.
+"""
 
 from __future__ import annotations
 
@@ -7,14 +10,17 @@ from typing import Any
 import gradio as gr
 from adapters.ui_gradio.services.generate import (
     handle_create_scenario,
-    handle_preview,
     handle_update_scenario,
 )
-from adapters.ui_gradio.ui.components.svg_preview import (
-    _PLACEHOLDER_HTML,
-    render_svg_from_card,
-)
 from adapters.ui_gradio.ui.router import PAGE_HOME, navigate_to
+from adapters.ui_gradio.ui.wiring._generate._create_logic import validate_preview_data
+from adapters.ui_gradio.ui.wiring._generate._outputs import build_stay_outputs
+from adapters.ui_gradio.ui.wiring._generate._preview import preview_and_render
+from adapters.ui_gradio.ui.wiring._generate._resets import (
+    build_dropdown_resets,
+    build_extra_resets,
+    build_form_resets,
+)
 from adapters.ui_gradio.ui.wiring.wire_home import load_recent_cards
 
 
@@ -65,16 +71,8 @@ def wire_generate(
 
     # -- Preview (no API call) ------------------------------------------
 
-    def _preview_and_render(
-        *args: Any,
-    ) -> tuple[dict[str, Any], str]:
-        """Validate form, build preview card, and render SVG locally."""
-        preview_data = handle_preview(*args)
-        svg_html = render_svg_from_card(preview_data)
-        return preview_data, svg_html
-
     generate_btn.click(
-        fn=_preview_and_render,
+        fn=preview_and_render,
         inputs=[
             actor_id,
             scenario_name,
@@ -145,7 +143,7 @@ def wire_generate(
         )
 
 
-def _wire_create_scenario(  # noqa: C901
+def _wire_create_scenario(
     *,
     output: gr.JSON,
     create_scenario_btn: gr.Button,
@@ -233,32 +231,22 @@ def _wire_create_scenario(  # noqa: C901
         n_form = len(_form_components)
         n_dropdowns = len(_dropdown_lists)
         n_extra = len(_extra_outputs)
+        n_nav = 1 + len(page_containers)
 
         def _stay(msg: str) -> tuple[Any, ...]:
             """Stay on the current page, show error status."""
-            n_nav = 1 + len(page_containers)
-            nav_noop = [gr.update()] * n_nav
-            form_noop = [gr.update()] * n_form
-            dropdowns_noop = [gr.update()] * n_dropdowns
-            extra_noop = [gr.update()] * n_extra
-            return (
-                *nav_noop,
-                gr.update(),  # home_recent_html
-                *form_noop,
-                *dropdowns_noop,
-                *extra_noop,
-                gr.update(value=msg, visible=True),
+            return build_stay_outputs(  # type: ignore[no-any-return]
+                msg,
+                n_nav=n_nav,
+                n_form=n_form,
+                n_dropdowns=n_dropdowns,
+                n_extra=n_extra,
             )
 
         # --- Validation ---
-        if not preview_data or not isinstance(preview_data, dict):
-            return _stay("Generate a card preview first.")
-
-        if preview_data.get("status") == "error":
-            return _stay(f"Error: {preview_data.get('message', 'Generation failed')}")
-
-        if preview_data.get("status") != "preview":
-            return _stay("Generate a card preview first.")
+        ok, err_msg = validate_preview_data(preview_data)
+        if not ok:
+            return _stay(err_msg)
 
         # --- Call API: PUT for edit, POST for create ---
         is_edit = bool(edit_id)
@@ -280,42 +268,12 @@ def _wire_create_scenario(  # noqa: C901
         nav = navigate_to(PAGE_HOME)  # (page_state, *visibilities)
         recent_html = load_recent_cards()
 
-        # Form resets
-        form_resets: list[Any] = [
-            gr.update(value=""),  # scenario_name
-            gr.update(value="casual"),  # mode
-            gr.update(value=1),  # seed
-            gr.update(value=""),  # armies
-            gr.update(value=""),  # deployment
-            gr.update(value=""),  # layout
-            gr.update(value=""),  # objectives
-            gr.update(value=""),  # initial_priority
-            gr.update(value="public"),  # visibility
-            gr.update(value=""),  # shared_with
-            [],  # special_rules_state
-            gr.update(value=False),  # objectives_with_vp_toggle
-            [],  # vp_state
-            [],  # scenography_state
-            [],  # deployment_zones_state
-            [],  # objective_points_state
-            gr.update(value=_PLACEHOLDER_HTML),  # svg_preview
-            gr.update(value=None),  # output
-        ]
-        dropdown_resets: list[Any] = [
-            (
-                gr.update(value="")
-                if isinstance(c, gr.Textbox)
-                else gr.update(value=None, choices=[])
-            )
-            for c in _dropdown_lists
-        ]
-
-        # Reset edit mode state
-        extra_resets: list[Any] = []
-        if editing_card_id is not None:
-            extra_resets.append("")  # clear editing_card_id
-        if create_heading_md is not None:
-            extra_resets.append(gr.update(value="## Create New Scenario"))
+        form_resets = build_form_resets()
+        dropdown_resets = build_dropdown_resets(_dropdown_lists)
+        extra_resets = build_extra_resets(
+            has_editing_card_id=editing_card_id is not None,
+            has_create_heading_md=create_heading_md is not None,
+        )
 
         return (
             *nav,

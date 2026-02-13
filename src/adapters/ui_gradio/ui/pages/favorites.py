@@ -11,9 +11,14 @@ import gradio as gr
 def build_favorites_page() -> tuple[
     gr.Column,
     gr.Radio,
+    gr.Textbox,
+    gr.Dropdown,
     gr.Button,
     gr.HTML,
     gr.Button,
+    gr.HTML,
+    gr.Button,
+    gr.State,
     gr.State,
     gr.State,
     gr.State,
@@ -21,8 +26,12 @@ def build_favorites_page() -> tuple[
     """Build the favorites page layout.
 
     Returns:
-        Tuple of (page_container, unit_selector, reload_btn, cards_html, back_btn,
-                  cards_cache_state, fav_ids_cache_state, loaded_state).
+        Tuple of (page_container, unit_selector,
+                  search_box, per_page_dropdown, reload_btn,
+                  cards_html, back_btn, page_info, prev_btn,
+                  next_btn,
+                  cards_cache_state, fav_ids_cache_state,
+                  loaded_state, page_state).
     """
     with gr.Column(visible=False, elem_id="page-favorites") as container:
         with gr.Row():
@@ -47,6 +56,23 @@ def build_favorites_page() -> tuple[
                 elem_id="favorites-reload-btn",
             )
 
+        with gr.Row():
+            search_box = gr.Textbox(
+                label="Search by name",
+                placeholder="e.g. Osgiliath",
+                value="",
+                elem_id="favorites-search-box",
+                scale=3,
+                max_lines=1,
+            )
+            per_page_dropdown = gr.Dropdown(
+                choices=["5", "10", "20", "50", "100"],
+                value="10",
+                label="Per page",
+                elem_id="favorites-per-page",
+                scale=1,
+            )
+
         cards_html = gr.HTML(
             value=(
                 '<div style="text-align:center;color:#999;padding:40px 0;">'
@@ -55,17 +81,33 @@ def build_favorites_page() -> tuple[
             elem_id="favorites-cards",
         )
 
+        # Pagination controls
+        with gr.Row():
+            prev_btn = gr.Button("← Previous", scale=1, size="sm")
+            page_info = gr.HTML(
+                value='<div style="text-align:center;padding:10px 0;">Page 1</div>',
+                elem_id="favorites-page-info",
+            )
+            next_btn = gr.Button("Next →", scale=1, size="sm")
+
         cards_cache_state = gr.State(value=[])
         fav_ids_cache_state = gr.State(value=[])
         loaded_state = gr.State(value=False)
+        page_state = gr.State(value=1)
 
-    return (
+    return (  # type: ignore[return-value]
         container,
         unit_selector,
+        search_box,
+        per_page_dropdown,
         reload_btn,
         cards_html,
         back_btn,
+        page_info,
+        prev_btn,
+        next_btn,
         cards_cache_state,
         fav_ids_cache_state,
         loaded_state,
+        page_state,
     )

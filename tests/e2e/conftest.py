@@ -18,6 +18,8 @@ import pytest
 import requests
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
+from tests.e2e._support.port_checks import check_port_clean
+
 # ============================================================================
 # CONFIG
 # ============================================================================
@@ -86,6 +88,9 @@ def e2e_services(
     if e2e_mode == "docker":
         if not _docker_available():
             pytest.skip("Docker no disponible. Usa E2E_MODE=local o instala Docker.")
+
+        # Fail early if a rogue Python process is competing on port 8000
+        check_port_clean(8000)
 
         print("\n🐳 Levantando docker-compose (api + ui)...")
         result = subprocess.run(

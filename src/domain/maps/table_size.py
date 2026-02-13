@@ -277,3 +277,16 @@ class TableSize:
     def massive(cls) -> "TableSize":
         """Create massive 6x4 ft table (180x120 cm = 72x48 in)."""
         return cls(width_mm=1800, height_mm=1200)
+
+    @property
+    def preset_name(self) -> str:
+        """Detect table preset based on dimensions.
+
+        Returns:
+            ``"standard"``, ``"massive"``, or ``"custom"``.
+        """
+        if self.width_mm == 1200 and self.height_mm == 1200:
+            return "standard"
+        if self.width_mm == 1800 and self.height_mm == 1200:
+            return "massive"
+        return "custom"

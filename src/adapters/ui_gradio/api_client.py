@@ -1,5 +1,4 @@
-"""
-HTTP API client for Gradio UI adapter.
+"""\nHTTP API client for Gradio UI adapter.
 
 This module handles all HTTP communication with the Flask API backend,
 including URL normalization, header construction, and error handling.
@@ -8,12 +7,15 @@ including URL normalization, header construction, and error handling.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
-    import requests  # type: ignore[import-untyped]
-except ImportError:
-    requests = None
+if TYPE_CHECKING:
+    import requests
+else:
+    try:
+        import requests  # type: ignore[import-untyped]
+    except ImportError:
+        requests = None  # type: ignore[assignment]
 
 
 # Constants imported from constants module

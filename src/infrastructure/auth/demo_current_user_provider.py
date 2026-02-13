@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.infrastructure.config import get_env
+from infrastructure.config import get_env
 
 
 class DemoCurrentUserProvider:

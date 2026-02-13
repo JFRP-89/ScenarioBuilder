@@ -19,6 +19,8 @@ def build_home_page() -> tuple[
     gr.Radio,
     gr.Radio,
     gr.Radio,
+    gr.Textbox,
+    gr.Dropdown,
     gr.Button,
     gr.HTML,
     gr.Button,
@@ -32,7 +34,8 @@ def build_home_page() -> tuple[
 
     Returns:
         Tuple of (page_container, create_btn, browse_btn, favorites_btn,
-                  mode_filter, preset_filter, unit_selector, reload_btn,
+                  mode_filter, preset_filter, unit_selector,
+                  search_box, per_page_dropdown, reload_btn,
                   recent_cards_html, prev_btn, page_info, next_btn, page_state,
                   cards_cache_state, fav_ids_cache_state).
     """
@@ -67,6 +70,7 @@ def build_home_page() -> tuple[
                 label="Game Mode",
                 elem_id="home-mode-filter",
                 scale=1,
+                min_width=200,
             )
             preset_filter = gr.Radio(
                 choices=["All", "Standard", "Massive", "Custom"],
@@ -74,19 +78,41 @@ def build_home_page() -> tuple[
                 label="Table Preset",
                 elem_id="home-preset-filter",
                 scale=1,
+                min_width=200,
             )
             unit_selector = gr.Radio(
                 choices=["cm", "in", "ft"],
                 value="cm",
                 label="Units",
                 elem_id="home-unit-selector",
-                scale=0,
+                scale=1,
+                min_width=200,
             )
             reload_btn = gr.Button(
                 "Refresh",
                 variant="secondary",
                 size="sm",
                 elem_id="home-reload-btn",
+                scale=1,
+                min_width=200,
+            )
+
+        # Search and per-page controls
+        with gr.Row():
+            search_box = gr.Textbox(
+                label="Search by name",
+                placeholder="e.g. Osgiliath",
+                value="",
+                elem_id="home-search-box",
+                scale=3,
+                max_lines=1,
+            )
+            per_page_dropdown = gr.Dropdown(
+                choices=["5", "10", "20", "50", "100"],
+                value="10",
+                label="Per page",
+                elem_id="home-per-page",
+                scale=1,
             )
 
         recent_cards_html = gr.HTML(
@@ -121,6 +147,8 @@ def build_home_page() -> tuple[
         mode_filter,
         preset_filter,
         unit_selector,
+        search_box,
+        per_page_dropdown,
         reload_btn,
         recent_cards_html,
         prev_btn,

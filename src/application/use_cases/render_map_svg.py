@@ -9,11 +9,16 @@ Renders a Card's map to SVG format:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 # Legacy import for backwards compatibility
 from application.ports.map_renderer import MapRenderer
-from application.use_cases._validation import validate_actor_id, validate_card_id
+from application.ports.repositories import CardRepository
+from application.use_cases._validation import (
+    load_card_for_read,
+    validate_actor_id,
+    validate_card_id,
+)
 
 
 # =============================================================================
@@ -42,8 +47,8 @@ class RenderMapSvg:
 
     def __init__(
         self,
-        repository: Any,
-        renderer: Any,
+        repository: CardRepository,
+        renderer: MapRenderer,
     ) -> None:
         self._repository = repository
         self._renderer = renderer
@@ -65,16 +70,10 @@ class RenderMapSvg:
         actor_id = validate_actor_id(request.actor_id)
         card_id = validate_card_id(request.card_id)
 
-        # 2) Load card
-        card = self._repository.get_by_id(card_id)
-        if card is None:
-            raise Exception(f"Card not found: {card_id}")
+        # 2) Load card + enforce read access (anti-IDOR)
+        card = load_card_for_read(self._repository, card_id, actor_id)
 
-        # 3) Authorization: actor must be able to read card (anti-IDOR)
-        if not card.can_user_read(actor_id):
-            raise Exception("Forbidden: access denied")
-
-        # 4) Prepare data for renderer
+        # 3) Prepare data for renderer
         table_mm = {
             "width_mm": card.table.width_mm,
             "height_mm": card.table.height_mm,

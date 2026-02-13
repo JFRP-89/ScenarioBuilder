@@ -4,10 +4,17 @@ Este archivo es **solo un índice y reglas globales mínimas**.
 El conocimiento detallado vive en `context/`.
 
 ## Estado actual (resumen)
-- Arquitectura por capas: `domain/` (reglas), `application/` (use cases + ports), `infrastructure/` (implementaciones + bootstrap), `adapters/` (Flask/Gradio).
-- `application/` ya tiene use cases modernos (DTO + `.execute()`).
-- `infrastructure/` ya tiene: repos in-memory (cards/favorites), generators (id/seed), scenario generator, SVG renderer y `build_services()` (composition root).
-- Siguiente fase: migrar adapters (Flask/Gradio) a `build_services()` y endpoints modernos.
+- **Baseline**: 1534 tests passing (1533 green + 1 E2E timing issue), ruff clean, branch `ui/alpha.0.2`
+- **Arquitectura por capas**: `domain/` (reglas), `application/` (use cases + ports), `infrastructure/` (implementaciones + bootstrap), `adapters/` (Flask/Gradio)
+- **Use cases modernos**: application/ tiene DTOs + `.execute()`, sin lógica en adapters
+- **Composition root**: `infrastructure.bootstrap.build_services()` construye todo el wiring
+- **Patrón facade anti-god-module**: 4 paquetes internos completados:
+  - `wiring/_detail/` (2 módulos: _render, _converters)
+  - `wiring/_deployment/` (4 módulos: _form_state, _geometry, _ui_updates, _zone_builder)
+  - `wiring/_scenography/` (4 módulos: _form_state, _polygon, _ui_updates, _builder)
+  - `wiring/_generate/` (4 módulos: _preview, _create_logic, _resets, _outputs)
+- **15 facades wire_*.py**: cada facade delega a helpers internos, ~250-450 líneas
+- **Testing**: 60% unit, 30% integration, 10% e2e — cobertura 100% domain, 80% application/infrastructure
 
 ## Reglas globales (mínimas)
 1) **Nada de lógica de negocio en adapters** (Flask/Gradio solo HTTP/UI + mapeos).  
@@ -46,6 +53,8 @@ El conocimiento detallado vive en `context/`.
 - `context/architecture/layers.md`
 - `context/architecture/import-policy.md`
 - `context/architecture/error-model.md`
+- `context/architecture/facade-pattern.md` — Patrón facade + módulos internos
+- `context/architecture/ui-wiring-structure.md` — Estructura de wiring/ en Gradio
 
 ### Calidad
 - `context/quality/tdd.md`

@@ -8,7 +8,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional, Union
 
-from application.use_cases._validation import validate_actor_id, validate_card_id
+from application.ports.repositories import CardRepository
+from application.use_cases._validation import (
+    load_card_for_read,
+    validate_actor_id,
+    validate_card_id,
+)
 
 
 # =============================================================================
@@ -50,7 +55,7 @@ class GetCardResponse:
 class GetCard:
     """Use case for retrieving a card by ID."""
 
-    def __init__(self, repository: Any) -> None:
+    def __init__(self, repository: CardRepository) -> None:
         self._repository = repository
 
     def execute(self, request: GetCardRequest) -> GetCardResponse:
@@ -66,23 +71,15 @@ class GetCard:
             ValidationError: If actor_id or card_id is invalid.
             Exception: If card not found or access forbidden.
         """
-        # 1) Validate actor_id
+        # 1) Validate inputs
         actor_id = validate_actor_id(request.actor_id)
-
-        # 2) Validate card_id
         card_id = validate_card_id(request.card_id)
 
-        # 3) Fetch card from repository
-        card = self._repository.get_by_id(card_id)
-        if card is None:
-            raise Exception(f"Card not found: {card_id}")
+        # 2) Fetch card + enforce read access (anti-IDOR)
+        card = load_card_for_read(self._repository, card_id, actor_id)
 
-        # 4) Enforce read access
-        if not card.can_user_read(actor_id):
-            raise Exception("Forbidden: user does not have read access")
-
-        # 5) Build response
-        table_preset = self._detect_table_preset(card.table)
+        # 3) Build response
+        table_preset = card.table.preset_name
         shared_list = list(card.shared_with) if card.shared_with else []
         return GetCardResponse(
             card_id=card.card_id,
@@ -121,21 +118,3 @@ class GetCard:
                 list(ms.objective_shapes) if ms.objective_shapes else []
             ),
         }
-
-    def _detect_table_preset(self, table: Any) -> str:
-        """Detect table preset based on dimensions.
-
-        Args:
-            table: TableSize instance
-
-        Returns:
-            "standard", "massive", or "custom"
-        """
-        # Standard is 1200x1200 mm
-        if table.width_mm == 1200 and table.height_mm == 1200:
-            return "standard"
-        # Massive is 1800x1200 mm
-        if table.width_mm == 1800 and table.height_mm == 1200:
-            return "massive"
-        # Everything else is custom
-        return "custom"

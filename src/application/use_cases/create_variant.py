@@ -10,9 +10,19 @@ Creates a new card derived from an existing base card:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
-from application.use_cases._validation import validate_actor_id, validate_card_id
+from application.ports.repositories import CardRepository
+from application.ports.scenario_generation import (
+    IdGenerator,
+    ScenarioGenerator,
+    SeedGenerator,
+)
+from application.use_cases._validation import (
+    load_card_for_write,
+    validate_actor_id,
+    validate_card_id,
+)
 from domain.cards.card import Card
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
@@ -49,10 +59,10 @@ class CreateVariant:
 
     def __init__(
         self,
-        repository: Any,
-        id_generator: Any,
-        seed_generator: Any,
-        scenario_generator: Any,
+        repository: CardRepository,
+        id_generator: IdGenerator,
+        seed_generator: SeedGenerator,
+        scenario_generator: ScenarioGenerator,
     ) -> None:
         self._repository = repository
         self._id_generator = id_generator
@@ -74,18 +84,10 @@ class CreateVariant:
         """
         # 1) Validate inputs
         actor_id = validate_actor_id(request.actor_id)
-        base_card_id = validate_card_id(
-            request.base_card_id
-        )  # Renamed from _validate_base_card_id
+        base_card_id = validate_card_id(request.base_card_id)
 
-        # 2) Load base card
-        base = self._repository.get_by_id(base_card_id)
-        if base is None:
-            raise Exception(f"Card not found: {base_card_id}")
-
-        # 3) Authorization: only owner can create variant (MVP)
-        if base.owner_id != actor_id:
-            raise Exception("Forbidden: only owner can create variant")
+        # 2-3) Load base card + authorization (centralized anti-IDOR)
+        base = load_card_for_write(self._repository, base_card_id, actor_id)
 
         # 4) Determine seed
         seed = (

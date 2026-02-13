@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
 import gradio as gr
 from adapters.ui_gradio.state_helpers import get_default_actor_id
-from adapters.ui_gradio.ui.components import build_svg_preview
+from adapters.ui_gradio.ui.components import build_svg_preview, configure_renderer
 from adapters.ui_gradio.ui.pages.edit_scenario import build_edit_page
 from adapters.ui_gradio.ui.pages.favorites import build_favorites_page
 from adapters.ui_gradio.ui.pages.home import build_home_page
@@ -73,6 +73,11 @@ def build_app() -> gr.Blocks:
         A gradio.Blocks instance ready to launch
     """
     with gr.Blocks(title="Scenario Card Generator") as app:
+        # ── Inject infrastructure renderer (composition root) ────────
+        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+
+        configure_renderer(SvgMapRenderer().render)
+
         # ── Global state ─────────────────────────────────────────────
         page_state = build_page_state()
         detail_card_id_state = build_detail_card_id_state()
@@ -90,6 +95,8 @@ def build_app() -> gr.Blocks:
             home_mode_filter,
             home_preset_filter,
             home_unit_selector,
+            home_search_box,
+            home_per_page_dropdown,
             home_reload_btn,
             home_recent_html,
             home_prev_btn,
@@ -107,12 +114,18 @@ def build_app() -> gr.Blocks:
             list_container,
             list_filter,
             list_unit_selector,
+            list_search_box,
+            list_per_page_dropdown,
             list_reload_btn,
             list_cards_html,
             list_back_btn,
+            list_page_info,
+            list_prev_btn,
+            list_next_btn,
             list_cards_cache_state,
             list_fav_ids_cache_state,
             list_loaded_state,
+            list_page_state,
         ) = build_list_page()
 
         # ════════════════════════════════════════════════════════════
@@ -332,12 +345,18 @@ def build_app() -> gr.Blocks:
         (
             favorites_container,
             favorites_unit_selector,
+            favorites_search_box,
+            favorites_per_page_dropdown,
             favorites_reload_btn,
             favorites_cards_html,
             favorites_back_btn,
+            favorites_page_info,
+            favorites_prev_btn,
+            favorites_next_btn,
             favorites_cards_cache_state,
             favorites_fav_ids_cache_state,
             favorites_loaded_state,
+            favorites_page_state,
         ) = build_favorites_page()
 
         # ── Collect page containers (order must match ALL_PAGES) ──
@@ -395,6 +414,8 @@ def build_app() -> gr.Blocks:
             home_mode_filter=home_mode_filter,
             home_preset_filter=home_preset_filter,
             home_unit_selector=home_unit_selector,
+            home_search_box=home_search_box,
+            home_per_page_dropdown=home_per_page_dropdown,
             home_reload_btn=home_reload_btn,
             home_prev_btn=home_prev_btn,
             home_page_info=home_page_info,
@@ -411,8 +432,14 @@ def build_app() -> gr.Blocks:
             page_containers=page_containers,
             list_filter=list_filter,
             list_unit_selector=list_unit_selector,
+            list_search_box=list_search_box,
+            list_per_page_dropdown=list_per_page_dropdown,
             list_reload_btn=list_reload_btn,
             list_cards_html=list_cards_html,
+            list_page_info=list_page_info,
+            list_prev_btn=list_prev_btn,
+            list_next_btn=list_next_btn,
+            list_page_state=list_page_state,
             home_browse_btn=home_browse_btn,
             list_cards_cache_state=list_cards_cache_state,
             list_fav_ids_cache_state=list_fav_ids_cache_state,
@@ -482,8 +509,14 @@ def build_app() -> gr.Blocks:
             page_state=page_state,
             page_containers=page_containers,
             favorites_unit_selector=favorites_unit_selector,
+            favorites_search_box=favorites_search_box,
+            favorites_per_page_dropdown=favorites_per_page_dropdown,
             favorites_reload_btn=favorites_reload_btn,
             favorites_cards_html=favorites_cards_html,
+            favorites_page_info=favorites_page_info,
+            favorites_prev_btn=favorites_prev_btn,
+            favorites_next_btn=favorites_next_btn,
+            favorites_page_state=favorites_page_state,
             home_favorites_btn=home_favorites_btn,
             favorites_cards_cache_state=favorites_cards_cache_state,
             favorites_fav_ids_cache_state=favorites_fav_ids_cache_state,

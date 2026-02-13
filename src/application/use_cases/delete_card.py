@@ -7,9 +7,14 @@ Only the card owner may delete their own card.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
-from application.use_cases._validation import validate_actor_id, validate_card_id
+from application.ports.repositories import CardRepository
+from application.use_cases._validation import (
+    load_card_for_write,
+    validate_actor_id,
+    validate_card_id,
+)
 
 
 # =============================================================================
@@ -40,7 +45,7 @@ class DeleteCard:
     Enforces ownership: only the card owner may delete.
     """
 
-    def __init__(self, repository: Any) -> None:
+    def __init__(self, repository: CardRepository) -> None:
         self._repository = repository
 
     def execute(self, request: DeleteCardRequest) -> DeleteCardResponse:
@@ -60,16 +65,10 @@ class DeleteCard:
         actor_id = validate_actor_id(request.actor_id)
         card_id = validate_card_id(request.card_id)
 
-        # 2) Fetch card — must exist
-        card = self._repository.get_by_id(card_id)
-        if card is None:
-            raise Exception(f"Card not found: {card_id}")
+        # 2) Fetch card + enforce ownership (anti-IDOR)
+        load_card_for_write(self._repository, card_id, actor_id)
 
-        # 3) Enforce ownership (anti-IDOR)
-        if not card.can_user_write(actor_id):
-            raise Exception("Forbidden: only the owner can delete this card")
-
-        # 4) Delete
+        # 3) Delete
         self._repository.delete(card_id)
 
         return DeleteCardResponse(card_id=card_id, deleted=True)
