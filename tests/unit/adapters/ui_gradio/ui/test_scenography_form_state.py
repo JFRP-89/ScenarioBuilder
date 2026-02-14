@@ -1,7 +1,6 @@
 """Tests for _scenography form state management."""
 
-from __future__ import annotations
-
+import pytest
 from adapters.ui_gradio.ui.wiring._scenography._form_state import (
     CIRCLE_DEFAULTS,
     RECT_DEFAULTS,
@@ -64,9 +63,9 @@ class TestSelectedScenographyFormCircle:
         assert form["description"] == "Tree"
         assert form["allow_overlap"] is True
         assert form["editing_id"] == "el-1"
-        assert form["cx"] == 50.0
-        assert form["cy"] == 30.0
-        assert form["r"] == 10.0
+        assert form["cx"] == pytest.approx(50.0)
+        assert form["cy"] == pytest.approx(30.0)
+        assert form["r"] == pytest.approx(10.0)
 
     def test_circle_leaves_rect_unchanged(self):
         elem = {
@@ -97,10 +96,10 @@ class TestSelectedScenographyFormRect:
         }
         form = selected_scenography_form(elem, "cm")
         assert form["type"] == "rect"
-        assert form["x"] == 20.0
-        assert form["y"] == 10.0
-        assert form["width"] == 40.0
-        assert form["height"] == 5.0
+        assert form["x"] == pytest.approx(20.0)
+        assert form["y"] == pytest.approx(10.0)
+        assert form["width"] == pytest.approx(40.0)
+        assert form["height"] == pytest.approx(5.0)
 
     def test_rect_leaves_circle_unchanged(self):
         elem = {
@@ -130,11 +129,13 @@ class TestSelectedScenographyFormPolygon:
         }
         form = selected_scenography_form(elem, "cm")
         assert form["type"] == "polygon"
-        pts = form["polygon_points"]
-        assert len(pts) == 3
-        assert pts[0] == [10.0, 20.0]
-        assert pts[1] == [30.0, 40.0]
-        assert pts[2] == [50.0, 60.0]
+        assert isinstance(form["polygon_points"], list)
+        assert len(form["polygon_points"]) == 3
+        assert form["polygon_points"] == [
+            pytest.approx([10.0, 20.0]),
+            pytest.approx([30.0, 40.0]),
+            pytest.approx([50.0, 60.0]),
+        ]
 
     def test_polygon_with_list_points(self):
         elem = {
@@ -145,9 +146,13 @@ class TestSelectedScenographyFormPolygon:
             },
         }
         form = selected_scenography_form(elem, "cm")
-        pts = form["polygon_points"]
-        assert len(pts) == 3
-        assert pts[0] == [10.0, 20.0]
+        assert isinstance(form["polygon_points"], list)
+        assert len(form["polygon_points"]) == 3
+        assert form["polygon_points"] == [
+            pytest.approx([10.0, 20.0]),
+            pytest.approx([30.0, 40.0]),
+            pytest.approx([50.0, 60.0]),
+        ]
 
     def test_polygon_leaves_circle_rect_unchanged(self):
         elem = {
@@ -169,6 +174,6 @@ class TestSelectedScenographyFormUnitConversion:
             "data": {"cx": 250, "cy": 250, "r": 250},  # 25cm = 10in
         }
         form = selected_scenography_form(elem, "in")
-        assert form["cx"] == 10.0
-        assert form["cy"] == 10.0
-        assert form["r"] == 10.0
+        assert form["cx"] == pytest.approx(10.0)
+        assert form["cy"] == pytest.approx(10.0)
+        assert form["r"] == pytest.approx(10.0)

@@ -61,9 +61,11 @@ from adapters.ui_gradio.ui.wiring._detail._render import (  # noqa: F401
 
 def _fetch_card_and_svg(
     card_id: str,
+    actor_id: str = "",
 ) -> tuple[dict[str, Any], str]:
     """Fetch card data and SVG preview."""
-    actor_id = get_default_actor_id()
+    if not actor_id:
+        actor_id = get_default_actor_id()
     card_data = nav_svc.get_card(actor_id, card_id)
     svg_html = nav_svc.get_card_svg(actor_id, card_id)
     return card_data, _wrap_svg(svg_html)
@@ -145,6 +147,8 @@ def wire_detail_page(  # noqa: C901
     rules_list: gr.Dropdown | None = None,
     special_rules_toggle: gr.Checkbox | None = None,
     rules_group: gr.Group | None = None,
+    # Actor state for per-session auth
+    actor_id_state: gr.State | None = None,
 ) -> None:
     """Wire the detail page interactions.
 
@@ -163,8 +167,10 @@ def wire_detail_page(  # noqa: C901
 
     # Step 2 (chained, calls API): fetch the real data and decide
     # whether to show Edit based on ownership.
-    def _load_card_detail(card_id: str) -> tuple:
+    def _load_card_detail(card_id: str, actor_id: str = "") -> tuple:
         """Fetch card data, render detail view, and check ownership."""
+        if not actor_id:
+            actor_id = get_default_actor_id()
         if not card_id:
             return (
                 "## Scenario Detail",
@@ -174,7 +180,7 @@ def wire_detail_page(  # noqa: C901
                 gr.update(visible=False),
                 gr.update(visible=False),
             )
-        card_data, svg_wrapped = _fetch_card_and_svg(card_id)
+        card_data, svg_wrapped = _fetch_card_and_svg(card_id, actor_id)
 
         if card_data.get("status") == "error":
             msg = escape_html(card_data.get("message", "Unknown error"))
@@ -191,7 +197,6 @@ def wire_detail_page(  # noqa: C901
         content_html = _render_detail_content(card_data)
 
         # Ownership check: only show edit/delete if actor == owner
-        actor_id = get_default_actor_id()
         is_owner = card_data.get("owner_id", "") == actor_id
         owner_visible = gr.update(visible=is_owner)
 
@@ -214,29 +219,38 @@ def wire_detail_page(  # noqa: C901
     ]
 
     # When card_id changes: reset immediately → then load real data
+    _load_inputs: list[gr.components.Component] = [detail_card_id_state]
+    if actor_id_state is not None:
+        _load_inputs.append(actor_id_state)
+
     detail_card_id_state.change(
         fn=_reset_detail_for_loading,
         inputs=[detail_card_id_state],
         outputs=_detail_outputs,
     ).then(
         fn=_load_card_detail,
-        inputs=[detail_card_id_state],
+        inputs=_load_inputs,
         outputs=_detail_outputs,
     )
 
     # Toggle favorite button
-    def _toggle_fav(card_id: str) -> str:
+    def _toggle_fav(card_id: str, actor_id: str = "") -> str:
         if not card_id:
             return "⭐ Toggle Favorite"
-        actor_id = get_default_actor_id()
+        if not actor_id:
+            actor_id = get_default_actor_id()
         result = nav_svc.toggle_favorite(actor_id, card_id)
         if result.get("is_favorite"):
             return "★ Favorited"
         return "☆ Toggle Favorite"
 
+    _fav_inputs: list[gr.components.Component] = [detail_card_id_state]
+    if actor_id_state is not None:
+        _fav_inputs.append(actor_id_state)
+
     detail_favorite_btn.click(
         fn=_toggle_fav,
-        inputs=[detail_card_id_state],
+        inputs=_fav_inputs,
         outputs=[detail_favorite_btn],
     )
 
@@ -264,12 +278,13 @@ def wire_detail_page(  # noqa: C901
     # ── Confirm Delete → call API and navigate back ───────────────
     nav_outputs = [page_state, *page_containers]
 
-    def _confirm_delete(card_id: str, from_page: str) -> tuple:
+    def _confirm_delete(card_id: str, from_page: str, actor_id: str = "") -> tuple:
         """Delete the card via API and navigate to previous page."""
         if not card_id:
             return (gr.update(visible=False), *navigate_to(PAGE_HOME))
 
-        actor_id = get_default_actor_id()
+        if not actor_id:
+            actor_id = get_default_actor_id()
         result = nav_svc.delete_card(actor_id, card_id)
 
         if result.get("status") == "error":
@@ -281,9 +296,16 @@ def wire_detail_page(  # noqa: C901
             from_page = PAGE_HOME
         return (gr.update(visible=False), *navigate_to(from_page))
 
+    _delete_inputs: list[gr.components.Component] = [
+        detail_card_id_state,
+        previous_page_state,
+    ]
+    if actor_id_state is not None:
+        _delete_inputs.append(actor_id_state)
+
     detail_delete_confirm_btn.click(
         fn=_confirm_delete,
-        inputs=[detail_card_id_state, previous_page_state],
+        inputs=_delete_inputs,
         outputs=[detail_delete_confirm_row, *nav_outputs],
     )
 

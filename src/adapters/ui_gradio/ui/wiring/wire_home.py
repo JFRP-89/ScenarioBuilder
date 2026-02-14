@@ -25,9 +25,11 @@ def load_recent_cards(
     page: int = 1,
     search_raw: str = "",
     per_page_raw: str = "10",
+    actor_id: str = "",
 ) -> tuple[str, str, int, list[dict[str, Any]], list[str]]:
     """Fetch cards from Flask and render as HTML with pagination."""
-    actor_id = get_default_actor_id()
+    if not actor_id:
+        actor_id = get_default_actor_id()
     result = nav_svc.list_cards(actor_id, "public")
 
     if result.get("status") == "error":
@@ -125,9 +127,10 @@ def wire_home_page(
     home_cards_cache_state: gr.State,
     home_fav_ids_cache_state: gr.State,
     app: gr.Blocks,
+    actor_id_state: gr.State | None = None,
 ) -> None:
     """Wire the home page to load recent cards with pagination and filters."""
-    _all_inputs = [
+    _all_inputs: list[gr.components.Component] = [
         home_mode_filter,
         home_preset_filter,
         home_unit_selector,
@@ -135,6 +138,8 @@ def wire_home_page(
         home_search_box,
         home_per_page_dropdown,
     ]
+    if actor_id_state is not None:
+        _all_inputs.append(actor_id_state)
     _cache_inputs = [
         home_mode_filter,
         home_preset_filter,
