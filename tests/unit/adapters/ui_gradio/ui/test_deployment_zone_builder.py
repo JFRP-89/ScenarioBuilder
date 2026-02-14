@@ -17,6 +17,8 @@ from adapters.ui_gradio.ui.wiring._deployment._zone_builder import (
 
 # -- Helpers ----------------------------------------------------------------
 _COMMON = {
+    "zone_type": "rectangle",
+    "description": "Default",
     "border": "north",
     "corner": "north-west",
     "fill_side": False,
@@ -46,7 +48,7 @@ class TestBuildRectangle:
     """build_zone_data with zone_type='rectangle'."""
 
     def test_valid_rect(self):
-        zd, fp, err = _build(zone_type="rectangle", description="Front")
+        zd, _, err = _build(zone_type="rectangle", description="Front")
         assert err is None
         assert zd is not None
         assert zd["type"] == "rect"
@@ -124,7 +126,7 @@ class TestBuildTriangle:
     """build_zone_data with zone_type='triangle'."""
 
     def test_valid_triangle(self):
-        zd, fp, err = _build(
+        zd, _, err = _build(
             zone_type="triangle",
             description="Corner",
             corner="north-west",
@@ -201,7 +203,7 @@ class TestBuildCircle:
     """build_zone_data with zone_type='circle'."""
 
     def test_valid_circle(self):
-        zd, fp, err = _build(
+        zd, _, err = _build(
             zone_type="circle",
             description="Arc",
             corner="south-east",
@@ -284,10 +286,9 @@ class TestNeverRaises:
         ["rectangle", "triangle", "circle", "unknown"],
     )
     def test_no_exception(self, zone_type):
-        try:
-            _build(zone_type=zone_type, description="test")
-        except Exception as exc:
-            pytest.fail(f"build_zone_data raised {type(exc).__name__}: {exc}")
+        """build_zone_data must not raise for any zone_type."""
+        # If it raises, the test fails automatically — no catch needed.
+        _build(zone_type=zone_type, description="test")
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ Este archivo es **solo un índice y reglas globales mínimas**.
 El conocimiento detallado vive en `context/`.
 
 ## Estado actual (resumen)
-- **Baseline**: 1534 tests passing (1533 green + 1 E2E timing issue), ruff clean, branch `ui/alpha.0.2`
+- **Baseline**: 1624 tests passing, ruff clean, mypy clean, branch `ui/alpha.03`
 - **Arquitectura por capas**: `domain/` (reglas), `application/` (use cases + ports), `infrastructure/` (implementaciones + bootstrap), `adapters/` (Flask/Gradio)
 - **Use cases modernos**: application/ tiene DTOs + `.execute()`, sin lógica en adapters
 - **Composition root**: `infrastructure.bootstrap.build_services()` construye todo el wiring
@@ -14,6 +14,7 @@ El conocimiento detallado vive en `context/`.
   - `wiring/_scenography/` (4 módulos: _form_state, _polygon, _ui_updates, _builder)
   - `wiring/_generate/` (4 módulos: _preview, _create_logic, _resets, _outputs)
 - **15 facades wire_*.py**: cada facade delega a helpers internos, ~250-450 líneas
+- **Auth demo**: `adapters/ui_gradio/auth/` — login/logout/profile con PBKDF2, lockout (3 fails → 1h), validación allowlist
 - **Testing**: 60% unit, 30% integration, 10% e2e — cobertura 100% domain, 80% application/infrastructure
 
 ## Reglas globales (mínimas)
@@ -68,6 +69,7 @@ El conocimiento detallado vive en `context/`.
 - `context/security/authz-anti-idor.md`
 - `context/security/input-validation.md`
 - `context/security/secrets-and-config.md`
+- `context/security/auth-demo.md` — Login/logout/profile, lockout, validación allowlist
 
 ### DevOps / Release
 - `context/devops/ci-cd-policy.md`

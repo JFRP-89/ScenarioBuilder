@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 import gradio as gr
+from adapters.ui_gradio.auth import is_session_valid
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components.search_helpers import (
@@ -37,15 +38,24 @@ def wire_favorites_page(  # noqa: C901
     favorites_cards_cache_state: gr.State,
     favorites_fav_ids_cache_state: gr.State,
     favorites_loaded_state: gr.State,
-) -> None:
-    """Wire the favorites page interactions."""
+    actor_id_state: gr.State | None = None,
+    session_id_state: gr.State | None = None,
+) -> Any:
+    """Wire the favorites page interactions.
+
+    Returns:
+        The ``home_favorites_btn.click`` event ``Dependency``.
+    """
+    n_containers = len(page_containers)
 
     def _refresh_cache(
         unit: str = "cm",
         search_raw: str = "",
         per_page_raw: str = "10",
+        actor_id: str = "",
     ) -> tuple[str, str, int, list[dict[str, Any]], list[str], bool]:
-        actor_id = get_default_actor_id()
+        if not actor_id:
+            actor_id = get_default_actor_id()
         fav_result = nav_svc.list_favorites(actor_id)
 
         if fav_result.get("status") == "error":
@@ -153,13 +163,17 @@ def wire_favorites_page(  # noqa: C901
     )
 
     # Reload favorites on demand
+    _refresh_inputs: list[gr.components.Component] = [
+        favorites_unit_selector,
+        favorites_search_box,
+        favorites_per_page_dropdown,
+    ]
+    if actor_id_state is not None:
+        _refresh_inputs.append(actor_id_state)
+
     favorites_reload_btn.click(
         fn=_refresh_cache,
-        inputs=[
-            favorites_unit_selector,
-            favorites_search_box,
-            favorites_per_page_dropdown,
-        ],
+        inputs=_refresh_inputs,
         outputs=[
             favorites_cards_html,
             favorites_page_info,
@@ -214,13 +228,26 @@ def wire_favorites_page(  # noqa: C901
         unit: str,
         cards_cache: list[dict[str, Any]],
         fav_ids: list[str],
+        sid: str = "",
     ):
+        """Navigate to favorites, loading data if not cached.
+
+        If the session has been invalidated (e.g. by a concurrent
+        logout), returns a full no-op to avoid re-showing containers.
+        """
+        # page_state + containers + 6 data outputs
+        _n_out = 1 + n_containers + 6
+
+        # Fast check: if the session is already gone, skip everything.
+        if sid and not is_session_valid(sid):
+            return tuple(gr.update() for _ in range(_n_out))
+
         nav = navigate_to(PAGE_FAVORITES)
         if loaded:
             html, page_info, new_page = _render_from_cache(
                 unit, 1, cards_cache, fav_ids
             )
-            return (
+            result = (
                 *nav,
                 html,
                 page_info,
@@ -229,32 +256,45 @@ def wire_favorites_page(  # noqa: C901
                 fav_ids,
                 loaded,
             )
-        (
-            html,
-            page_info,
-            new_page,
-            new_cards,
-            new_fav_ids,
-            loaded_flag,
-        ) = _refresh_cache("cm")
-        return (
-            *nav,
-            html,
-            page_info,
-            new_page,
-            new_cards,
-            new_fav_ids,
-            loaded_flag,
-        )
+        else:
+            (
+                html,
+                page_info,
+                new_page,
+                new_cards,
+                new_fav_ids,
+                loaded_flag,
+            ) = _refresh_cache("cm")
+            result = (
+                *nav,
+                html,
+                page_info,
+                new_page,
+                new_cards,
+                new_fav_ids,
+                loaded_flag,
+            )
 
-    home_favorites_btn.click(
+        # Re-check AFTER the (potentially slow) API call so that a
+        # concurrent logout that invalidated the session while we
+        # were loading data does NOT re-show page containers.
+        if sid and not is_session_valid(sid):
+            return tuple(gr.update() for _ in range(_n_out))
+
+        return result
+
+    _nav_inputs: list[gr.components.Component] = [
+        favorites_loaded_state,
+        favorites_unit_selector,
+        favorites_cards_cache_state,
+        favorites_fav_ids_cache_state,
+    ]
+    if session_id_state is not None:
+        _nav_inputs.append(session_id_state)
+
+    favorites_event = home_favorites_btn.click(
         fn=_navigate_and_load,
-        inputs=[
-            favorites_loaded_state,
-            favorites_unit_selector,
-            favorites_cards_cache_state,
-            favorites_fav_ids_cache_state,
-        ],
+        inputs=_nav_inputs,
         outputs=[
             page_state,
             *page_containers,
@@ -266,3 +306,5 @@ def wire_favorites_page(  # noqa: C901
             favorites_loaded_state,
         ],
     )
+
+    return favorites_event

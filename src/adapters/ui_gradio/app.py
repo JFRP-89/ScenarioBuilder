@@ -23,8 +23,17 @@ if __name__ == "__main__":
     if src_path not in sys.path:
         sys.path.insert(0, src_path)
 
+from typing import Any
+
 import gradio as gr
-from adapters.ui_gradio.state_helpers import get_default_actor_id
+from adapters.ui_gradio.auth import (
+    authenticate,
+    get_logged_in_label,
+    get_profile,
+    is_session_valid,
+    logout,
+    update_profile,
+)
 from adapters.ui_gradio.ui.components import build_svg_preview, configure_renderer
 from adapters.ui_gradio.ui.pages.edit_scenario import build_edit_page
 from adapters.ui_gradio.ui.pages.favorites import build_favorites_page
@@ -32,6 +41,7 @@ from adapters.ui_gradio.ui.pages.home import build_home_page
 from adapters.ui_gradio.ui.pages.list_scenarios import build_list_page
 from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
 from adapters.ui_gradio.ui.router import (
+    PAGE_HOME,
     build_detail_card_id_state,
     build_page_state,
     build_previous_page_state,
@@ -51,10 +61,62 @@ from adapters.ui_gradio.ui.wiring import wire_events
 from adapters.ui_gradio.ui.wiring.wire_detail import wire_detail_page
 from adapters.ui_gradio.ui.wiring.wire_fav_toggle import wire_fav_toggle
 from adapters.ui_gradio.ui.wiring.wire_favorites import wire_favorites_page
-from adapters.ui_gradio.ui.wiring.wire_home import wire_home_page
+from adapters.ui_gradio.ui.wiring.wire_home import load_recent_cards, wire_home_page
 from adapters.ui_gradio.ui.wiring.wire_list import wire_list_page
 from adapters.ui_gradio.ui.wiring.wire_navigation import wire_navigation
 from adapters.ui_gradio.ui.wiring.wire_view import wire_view_navigation
+
+
+def _event(component: Any, name: str) -> Any:
+    """Access a dynamically-generated Gradio event trigger by name.
+
+    Gradio attaches event methods (click, load, etc.) at runtime via
+    ``EventListener``; some static analyzers cannot resolve them.
+    This thin wrapper avoids false-positive 'no member' warnings.
+    """
+    return getattr(component, name)
+
+
+def _close_profile():
+    """Close profile panel."""
+    return gr.update(visible=False)
+
+
+def _restore_session(stored_sid: str, stored_actor: str):
+    """Restore login state from browser-persisted session if still valid.
+
+    Returns a tuple of 10 outputs:
+        actor_id_state, session_id_state, actor_id textbox, user_label,
+        login_panel, top_bar_row, home_container, login_message,
+        browser_sid_box, browser_actor_box.
+    The last two feed a JS `.then()` that clears localStorage on expiry.
+    """
+    if stored_sid and stored_actor and is_session_valid(stored_sid):
+        return (
+            stored_actor,  # actor_id_state
+            stored_sid,  # session_id_state
+            gr.update(value=stored_actor),  # actor_id textbox
+            gr.update(value=get_logged_in_label(stored_actor)),  # user_label
+            gr.update(visible=False),  # login_panel
+            gr.update(visible=True),  # top_bar_row
+            gr.update(visible=True),  # home_container
+            gr.update(value="", visible=False),  # login_message
+            stored_sid,  # browser_sid_box (keep)
+            stored_actor,  # browser_actor_box (keep)
+        )
+    # No valid session — show login panel
+    return (
+        "",  # actor_id_state
+        "",  # session_id_state
+        gr.update(),  # actor_id textbox
+        gr.update(),  # user_label
+        gr.update(visible=True),  # login_panel → show
+        gr.update(),  # top_bar_row
+        gr.update(),  # home_container
+        gr.update(),  # login_message
+        "",  # browser_sid_box → empty triggers JS cleanup
+        "",  # browser_actor_box → empty triggers JS cleanup
+    )
 
 
 # =============================================================================
@@ -83,6 +145,97 @@ def build_app() -> gr.Blocks:
         detail_card_id_state = build_detail_card_id_state()
         previous_page_state = build_previous_page_state()
         editing_card_id = gr.State(value="")
+        actor_id_state = gr.State(value="")
+        session_id_state = gr.State(value="")
+
+        # Hidden textboxes — bridge between localStorage and Python
+        browser_sid_box = gr.Textbox(value="", visible=False, elem_id="browser-sid")
+        browser_actor_box = gr.Textbox(value="", visible=False, elem_id="browser-actor")
+
+        # ════════════════════════════════════════════════════════════
+        # LOGIN GATE — starts hidden; _restore_session decides visibility
+        # ════════════════════════════════════════════════════════════
+        with gr.Column(visible=False, elem_id="login-panel") as login_panel:
+            gr.Markdown("## Scenario Card Generator \u2014 Login")
+            login_username = gr.Textbox(
+                label="Username",
+                placeholder="Enter username",
+                elem_id="login-username",
+            )
+            login_password = gr.Textbox(
+                label="Password",
+                type="password",
+                placeholder="Enter password",
+                elem_id="login-password",
+            )
+            login_btn = gr.Button(
+                "Login",
+                variant="primary",
+                elem_id="login-btn",
+            )
+            login_message = gr.Textbox(
+                label="",
+                interactive=False,
+                visible=False,
+                elem_id="login-message",
+            )
+
+        # ════════════════════════════════════════════════════════════
+        # TOP BAR — hidden until login (visible on all pages once logged in)
+        # ════════════════════════════════════════════════════════════
+        with gr.Row(visible=False, elem_id="top-bar") as top_bar_row:
+            user_label = gr.Markdown(
+                value="",
+                elem_id="user-label",
+            )
+            profile_btn = gr.Button(
+                "👤 Profile",
+                variant="secondary",
+                size="sm",
+                elem_id="profile-btn",
+            )
+            logout_btn = gr.Button(
+                "🚪 Logout",
+                variant="secondary",
+                size="sm",
+                elem_id="logout-btn",
+            )
+
+        # ── Profile panel (hidden by default) ────────────────────
+        with gr.Column(visible=False, elem_id="profile-panel") as profile_panel:
+            gr.Markdown("### Profile")
+            profile_username_display = gr.Textbox(
+                label="Username",
+                interactive=False,
+                elem_id="profile-username",
+            )
+            profile_name_input = gr.Textbox(
+                label="Display Name",
+                elem_id="profile-name",
+            )
+            profile_email_input = gr.Textbox(
+                label="Email",
+                elem_id="profile-email",
+            )
+            with gr.Row():
+                profile_save_btn = gr.Button(
+                    "Save",
+                    variant="primary",
+                    size="sm",
+                    elem_id="profile-save-btn",
+                )
+                profile_close_btn = gr.Button(
+                    "Close",
+                    variant="secondary",
+                    size="sm",
+                    elem_id="profile-close-btn",
+                )
+            profile_message = gr.Textbox(
+                label="",
+                interactive=False,
+                visible=False,
+                elem_id="profile-message",
+            )
 
         # ════════════════════════════════════════════════════════════
         # PAGE 1: Home (visible by default)
@@ -106,6 +259,9 @@ def build_app() -> gr.Blocks:
             home_cards_cache_state,
             home_fav_ids_cache_state,
         ) = build_home_page()
+
+        # Home starts hidden — only shown after login
+        home_container.visible = False
 
         # ════════════════════════════════════════════════════════════
         # PAGE 2: List Scenarios
@@ -139,7 +295,7 @@ def build_app() -> gr.Blocks:
             detail_edit_btn,
             detail_delete_btn,
             detail_delete_confirm_row,
-            detail_delete_confirm_msg,
+            _detail_delete_confirm_msg,
             detail_delete_confirm_btn,
             detail_delete_cancel_btn,
             detail_favorite_btn,
@@ -165,7 +321,7 @@ def build_app() -> gr.Blocks:
                 )
 
             # ── Existing form sections (unchanged) ───────────────
-            actor_id = actor_section.build_actor_section(get_default_actor_id())
+            actor_id = actor_section.build_actor_section("")
 
             scenario_name, mode, seed, armies = (
                 scenario_meta_section.build_scenario_meta_section()
@@ -399,13 +555,16 @@ def build_app() -> gr.Blocks:
             previous_page_state=previous_page_state,
             page_containers=page_containers,
             home_create_btn=home_create_btn,
-            home_browse_btn=home_browse_btn,
-            home_favorites_btn=home_favorites_btn,
             list_back_btn=list_back_btn,
             detail_back_btn=detail_back_btn,
             create_back_btn=create_back_btn,
             edit_back_btn=edit_back_btn,
             favorites_back_btn=favorites_back_btn,
+            session_id_state=session_id_state,
+            actor_id_state=actor_id_state,
+            login_panel=login_panel,
+            top_bar_row=top_bar_row,
+            login_message=login_message,
         )
 
         # ── Wire home page (initial load) ────────────────────────
@@ -424,6 +583,7 @@ def build_app() -> gr.Blocks:
             home_cards_cache_state=home_cards_cache_state,
             home_fav_ids_cache_state=home_fav_ids_cache_state,
             app=app,
+            actor_id_state=actor_id_state,
         )
 
         # ── Wire list page (filter + load) ───────────────────────
@@ -444,6 +604,8 @@ def build_app() -> gr.Blocks:
             list_cards_cache_state=list_cards_cache_state,
             list_fav_ids_cache_state=list_fav_ids_cache_state,
             list_loaded_state=list_loaded_state,
+            actor_id_state=actor_id_state,
+            session_id_state=session_id_state,
         )
 
         # ── Wire detail page (load card, fav, edit, delete) ─────
@@ -502,6 +664,7 @@ def build_app() -> gr.Blocks:
             rules_list=rules_list,
             special_rules_toggle=special_rules_toggle,
             rules_group=rules_group,
+            actor_id_state=actor_id_state,
         )
 
         # ── Wire favorites page ──────────────────────────────────
@@ -521,12 +684,15 @@ def build_app() -> gr.Blocks:
             favorites_cards_cache_state=favorites_cards_cache_state,
             favorites_fav_ids_cache_state=favorites_fav_ids_cache_state,
             favorites_loaded_state=favorites_loaded_state,
+            actor_id_state=actor_id_state,
+            session_id_state=session_id_state,
         )
 
         # ── Wire global favorite toggle (star clicks) ────────────
         wire_fav_toggle(
             fav_toggle_card_id=fav_toggle_card_id,
             fav_toggle_btn=fav_toggle_btn,
+            actor_id_state=actor_id_state,
         )
 
         # ── Wire global View button (card View clicks) ──────────
@@ -537,6 +703,11 @@ def build_app() -> gr.Blocks:
             detail_card_id_state=detail_card_id_state,
             previous_page_state=previous_page_state,
             page_containers=page_containers,
+            session_id_state=session_id_state,
+            actor_id_state=actor_id_state,
+            login_panel=login_panel,
+            top_bar_row=top_bar_row,
+            login_message=login_message,
         )
 
         # ── Wire existing create-form events (unchanged) ─────────
@@ -667,6 +838,361 @@ def build_app() -> gr.Blocks:
             home_recent_html=home_recent_html,
             editing_card_id=editing_card_id,
             create_heading_md=create_heading_md,
+        )
+
+        # ════════════════════════════════════════════════════════════
+        # AUTH EVENT WIRING — login, logout, profile
+        # ════════════════════════════════════════════════════════════
+
+        def _handle_login(username: str, password: str, current_actor: str):
+            """Authenticate and update session state."""
+            result = authenticate(username, password)
+            if result["ok"]:
+                new_actor = str(result["actor_id"])
+                new_session = str(result.get("session_id", ""))
+                return (
+                    new_actor,  # actor_id_state
+                    new_session,  # session_id_state
+                    gr.update(value=new_actor),  # actor_id textbox
+                    gr.update(value=get_logged_in_label(new_actor)),  # user_label
+                    gr.update(value="", visible=False),  # login_message → clear
+                    gr.update(visible=False),  # login_panel → hide
+                    gr.update(visible=True),  # top_bar_row → show
+                    gr.update(visible=True),  # home_container → show
+                    "",  # login_username → clear
+                    "",  # login_password → clear
+                    new_session,  # browser_sid_box (for localStorage)
+                    new_actor,  # browser_actor_box (for localStorage)
+                )
+            return (
+                current_actor,  # actor_id_state unchanged
+                gr.update(),  # session_id_state unchanged
+                gr.update(),  # actor_id textbox unchanged
+                gr.update(),  # user_label unchanged
+                gr.update(value=str(result["message"]), visible=True),  # login_message
+                gr.update(visible=True),  # login_panel stays open
+                gr.update(visible=False),  # top_bar_row stays hidden
+                gr.update(visible=False),  # home_container stays hidden
+                gr.update(),  # login_username unchanged
+                "",  # login_password → clear
+                gr.update(),  # browser_sid_box unchanged
+                gr.update(),  # browser_actor_box unchanged
+            )
+
+        login_event = _event(login_btn, "click")(
+            fn=_handle_login,
+            inputs=[login_username, login_password, actor_id_state],
+            outputs=[
+                actor_id_state,
+                session_id_state,
+                actor_id,
+                user_label,
+                login_message,
+                login_panel,
+                top_bar_row,
+                home_container,
+                login_username,
+                login_password,
+                browser_sid_box,
+                browser_actor_box,
+            ],
+        )
+        login_persist = login_event.then(
+            fn=None,
+            inputs=[browser_sid_box, browser_actor_box],
+            outputs=[],
+            js="(sid, actor) => {"
+            "  if (sid && actor) {"
+            "    localStorage.setItem('sb_sid', sid);"
+            "    localStorage.setItem('sb_actor', actor);"
+            "  }"
+            "}",
+        )
+        # After login + localStorage persist, load home page for new user
+        login_persist.then(
+            fn=load_recent_cards,
+            inputs=[
+                home_mode_filter,
+                home_preset_filter,
+                home_unit_selector,
+                home_page_state,
+                home_search_box,
+                home_per_page_dropdown,
+                actor_id_state,
+            ],
+            outputs=[
+                home_recent_html,
+                home_page_info,
+                home_page_state,
+                home_cards_cache_state,
+                home_fav_ids_cache_state,
+            ],
+        )
+
+        def _handle_logout(_current_actor: str, sid: str):
+            """Logout and return to login screen.
+
+            Also resets list and favorites cache states to prevent the
+            next user from seeing cached data from the previous session.
+            """
+            from infrastructure.auth.session_store import invalidate_session
+
+            if sid:
+                invalidate_session(sid)
+            result = logout(_current_actor)
+            new_actor = str(result["actor_id"])
+            return (
+                new_actor,  # actor_id_state → ""
+                "",  # session_id_state → ""
+                gr.update(value=new_actor),  # actor_id textbox
+                gr.update(value=""),  # user_label → clear
+                gr.update(visible=True),  # login_panel → show
+                gr.update(visible=False),  # top_bar_row → hide
+                gr.update(visible=False),  # profile_panel → hide
+                # Reset list page cache
+                False,  # list_loaded_state → not loaded
+                {},  # list_cards_cache_state → empty dict
+                [],  # list_fav_ids_cache_state → empty list
+                # Reset favorites page cache
+                False,  # favorites_loaded_state → not loaded
+                [],  # favorites_cards_cache_state → empty list
+                [],  # favorites_fav_ids_cache_state → empty list
+                # Reset detail page (security: prevent stale owner buttons)
+                "",  # detail_card_id_state → clear
+                "## Scenario Detail",  # detail_title_md → default
+                "",  # detail_svg_preview → clear
+                '<div style="color:#999;">No card selected</div>',  # detail_content_html
+                gr.update(visible=False),  # detail_edit_btn → hide
+                gr.update(visible=False),  # detail_delete_btn → hide
+                gr.update(visible=False),  # detail_delete_confirm_row → hide
+                "",  # editing_card_id → clear
+                PAGE_HOME,  # previous_page_state → reset
+                # Reset home page cache + visible HTML
+                gr.update(value=""),  # home_recent_html → clear
+                gr.update(value=""),  # home_page_info → clear
+                1,  # home_page_state → reset to page 1
+                [],  # home_cards_cache_state → empty list
+                [],  # home_fav_ids_cache_state → empty list
+                # Hide all page containers
+                *(gr.update(visible=False) for _ in page_containers),
+            )
+
+        logout_event = _event(logout_btn, "click")(
+            fn=_handle_logout,
+            inputs=[actor_id_state, session_id_state],
+            outputs=[
+                actor_id_state,
+                session_id_state,
+                actor_id,
+                user_label,
+                login_panel,
+                top_bar_row,
+                profile_panel,
+                list_loaded_state,
+                list_cards_cache_state,
+                list_fav_ids_cache_state,
+                favorites_loaded_state,
+                favorites_cards_cache_state,
+                favorites_fav_ids_cache_state,
+                detail_card_id_state,
+                detail_title_md,
+                detail_svg_preview,
+                detail_content_html,
+                detail_edit_btn,
+                detail_delete_btn,
+                detail_delete_confirm_row,
+                editing_card_id,
+                previous_page_state,
+                home_recent_html,
+                home_page_info,
+                home_page_state,
+                home_cards_cache_state,
+                home_fav_ids_cache_state,
+                *page_containers,
+            ],
+        )
+        logout_event.then(
+            fn=None,
+            inputs=[],
+            outputs=[],
+            js="() => {"
+            "  localStorage.removeItem('sb_sid');"
+            "  localStorage.removeItem('sb_actor');"
+            "}",
+        )
+
+        def _open_profile(current_actor: str, sid: str):
+            """Open profile panel and load data, with session guard."""
+            if not is_session_valid(sid):
+                return (
+                    gr.update(visible=False),  # profile_panel stays hidden
+                    gr.update(),
+                    gr.update(),
+                    gr.update(),
+                    gr.update(value="", visible=False),
+                    "",  # session_id_state
+                    "",  # actor_id_state
+                    gr.update(visible=True),  # login_panel
+                    gr.update(visible=False),  # top_bar_row
+                    gr.update(
+                        value="Session expired — please log in again.",
+                        visible=True,
+                    ),  # login_message
+                    *(gr.update(visible=False) for _ in page_containers),
+                )
+            result = get_profile(current_actor)
+            no_change = (
+                gr.update(),  # session_id_state
+                gr.update(),  # actor_id_state
+                gr.update(),  # login_panel
+                gr.update(),  # top_bar_row
+                gr.update(),  # login_message
+                *(gr.update() for _ in page_containers),
+            )
+            if result["ok"]:
+                profile = result["profile"]
+                return (
+                    gr.update(visible=True),  # profile_panel
+                    gr.update(value=profile["username"]),
+                    gr.update(value=profile["name"]),
+                    gr.update(value=profile["email"]),
+                    gr.update(value="", visible=False),
+                    *no_change,
+                )
+            return (
+                gr.update(visible=True),
+                gr.update(value=current_actor),
+                gr.update(value=""),
+                gr.update(value=""),
+                gr.update(value="User not found.", visible=True),
+                *no_change,
+            )
+
+        _event(profile_btn, "click")(
+            fn=_open_profile,
+            inputs=[actor_id_state, session_id_state],
+            outputs=[
+                profile_panel,
+                profile_username_display,
+                profile_name_input,
+                profile_email_input,
+                profile_message,
+                session_id_state,
+                actor_id_state,
+                login_panel,
+                top_bar_row,
+                login_message,
+                *page_containers,
+            ],
+        )
+
+        def _save_profile(current_actor: str, name: str, email: str, sid: str):
+            """Save profile changes, with session guard."""
+            if not is_session_valid(sid):
+                return (
+                    gr.update(
+                        value="Session expired — please log in again.",
+                        visible=True,
+                    ),
+                    "",  # session_id_state
+                    "",  # actor_id_state
+                    gr.update(visible=False),  # profile_panel
+                    gr.update(visible=True),  # login_panel
+                    gr.update(visible=False),  # top_bar_row
+                    *(gr.update(visible=False) for _ in page_containers),
+                )
+            result = update_profile(current_actor, name, email)
+            no_change = (
+                gr.update(),  # session_id_state
+                gr.update(),  # actor_id_state
+                gr.update(),  # profile_panel
+                gr.update(),  # login_panel
+                gr.update(),  # top_bar_row
+                *(gr.update() for _ in page_containers),
+            )
+            return (
+                gr.update(value=str(result["message"]), visible=True),
+                *no_change,
+            )
+
+        _event(profile_save_btn, "click")(
+            fn=_save_profile,
+            inputs=[
+                actor_id_state,
+                profile_name_input,
+                profile_email_input,
+                session_id_state,
+            ],
+            outputs=[
+                profile_message,
+                session_id_state,
+                actor_id_state,
+                profile_panel,
+                login_panel,
+                top_bar_row,
+                *page_containers,
+            ],
+        )
+
+        _event(profile_close_btn, "click")(
+            fn=_close_profile,
+            inputs=[],
+            outputs=[profile_panel],
+        )
+
+        # ── Session restore on page load (F5 / refresh) ─────────
+        # JS preprocesses the inputs: reads localStorage and replaces
+        # the (empty) textbox values before _restore_session runs.
+        restore_event = _event(app, "load")(
+            fn=_restore_session,
+            inputs=[browser_sid_box, browser_actor_box],
+            outputs=[
+                actor_id_state,
+                session_id_state,
+                actor_id,
+                user_label,
+                login_panel,
+                top_bar_row,
+                home_container,
+                login_message,
+                browser_sid_box,
+                browser_actor_box,
+            ],
+            js="(sid, actor) => ["
+            "  localStorage.getItem('sb_sid') || '',"
+            "  localStorage.getItem('sb_actor') || ''"
+            "]",
+        )
+        restore_cleanup = restore_event.then(
+            fn=None,
+            inputs=[browser_sid_box, browser_actor_box],
+            outputs=[],
+            js="(sid, actor) => {"
+            "  if (!sid || !actor) {"
+            "    localStorage.removeItem('sb_sid');"
+            "    localStorage.removeItem('sb_actor');"
+            "  }"
+            "}",
+        )
+        # After session restore, reload home page with correct actor
+        restore_cleanup.then(
+            fn=load_recent_cards,
+            inputs=[
+                home_mode_filter,
+                home_preset_filter,
+                home_unit_selector,
+                home_page_state,
+                home_search_box,
+                home_per_page_dropdown,
+                actor_id_state,
+            ],
+            outputs=[
+                home_recent_html,
+                home_page_info,
+                home_page_state,
+                home_cards_cache_state,
+                home_fav_ids_cache_state,
+            ],
         )
 
     return app

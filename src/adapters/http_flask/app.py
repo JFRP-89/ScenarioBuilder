@@ -14,18 +14,29 @@ from adapters.http_flask.error_contract import (
     STATUS_NOT_FOUND,
     error_response,
 )
+from adapters.http_flask.middleware import init_middleware
+from adapters.http_flask.routes.auth import auth_bp
 from adapters.http_flask.routes.cards import cards_bp
 from adapters.http_flask.routes.favorites import favorites_bp
 from adapters.http_flask.routes.health import health_bp
 from adapters.http_flask.routes.maps import maps_bp
 from adapters.http_flask.routes.presets import presets_bp
 from domain.errors import ForbiddenError, NotFoundError, ValidationError
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from infrastructure.bootstrap import build_services
 
 
 def _get_actor_id() -> str:
-    """Extract and validate actor ID from X-Actor-Id header."""
+    """Extract actor ID from session (cookie) or X-Actor-Id header (legacy).
+
+    Session-based auth takes precedence over the header.
+    """
+    # Prefer session-based actor_id (set by middleware)
+    actor_id = getattr(g, "actor_id", "")
+    if actor_id:
+        return actor_id
+
+    # Fallback: legacy X-Actor-Id header
     actor_id = request.headers.get("X-Actor-Id", "").strip()
     if not actor_id:
         raise ValidationError("Missing or empty X-Actor-Id header")
@@ -42,8 +53,12 @@ def create_app() -> Flask:
     # Expose get_actor_id helper
     app.config["get_actor_id"] = _get_actor_id
 
+    # Session middleware (loads cookie → g.actor_id, CSRF verification)
+    init_middleware(app)
+
     # Register blueprints
     app.register_blueprint(health_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(cards_bp, url_prefix="/cards")
     app.register_blueprint(favorites_bp, url_prefix="/favorites")
     app.register_blueprint(maps_bp, url_prefix="/maps")
