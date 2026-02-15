@@ -15,22 +15,20 @@ tests/e2e/
 ## Fixtures disponibles
 
 ### `e2e_base_urls` (scope=session)
-Dict con URLs base:
+Dict con URL base (ahora unificada en un único app):
 ```python
 {
-    "api": "http://localhost:8000",
-    "ui": "http://localhost:7860"
+    "app": "http://localhost:8000"
 }
 ```
 
 ### `docker_compose_up` (scope=session)
-Levanta `docker compose up -d --build api ui`, espera health checks, y al final hace `docker compose down -v`.
+Levanta `docker compose up -d --build app`, espera health checks, y al final hace `docker compose down -v`.
 
-Health checks:
-- API: `GET /health` → 200
-- UI: `GET /` → 200 o 302
+Health check:
+- App: `GET /health` → 200 (verifica ambos Flask y Gradio)
 
-Si fallan, imprime `docker compose ps` y logs para debug.
+Si falla, imprime `docker compose ps` y logs para debug.
 
 ### `browser` (scope=session)
 Browser Chromium (Playwright sync API), reutilizado por todos los tests.

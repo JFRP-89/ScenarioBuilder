@@ -57,11 +57,11 @@ RUN useradd -m -u 1000 -s /bin/bash appuser && \
 
 USER appuser
 
-EXPOSE 8000 7860
+EXPOSE 8000
 
-# Default command (Flask API)
-# Override in docker-compose for different services
-CMD ["python", "-m", "flask", "--app", "adapters.http_flask.app:create_app", "run", "--host=0.0.0.0", "--port=8000"]
+# Default command: Uvicorn ASGI server (combined FastAPI + Flask/Gradio app)
+# This serves both the API and UI from a single process with shared cookie handling
+CMD ["python", "-m", "uvicorn", "adapters.combined_app:create_combined_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
 # =============================================================================
 # Quality check stage (for CI/CD pipelines)

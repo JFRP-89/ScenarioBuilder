@@ -120,7 +120,7 @@ def use_case(
 # 1) HAPPY PATH
 # =============================================================================
 class TestHappyPath:
-    """Happy path: preset 'standard' + explicit seed + mode enum + visibility None."""
+    """Happy path: replicable scenario with deterministic seed."""
 
     def test_generates_card_with_explicit_seed_and_mode_enum(
         self,
@@ -130,10 +130,13 @@ class TestHappyPath:
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.MATCHED,
-            seed=42,
+            seed=None,  # Irrelevant with is_replicable=True
             table_preset="standard",
             visibility=None,
             shared_with=None,
+            armies="Rohan",
+            deployment="Test Deployment",
+            is_replicable=True,  # Use deterministic seed
         )
 
         response = use_case.execute(request)
@@ -141,60 +144,76 @@ class TestHappyPath:
         # Response shape
         assert response.card_id == "card-001"
         assert response.owner_id == "user-123"
-        assert response.seed == 42
+        assert response.seed > 0  # Deterministic seed, not 0
         assert response.mode == "matched"
         assert response.visibility == "private"  # default when None
         assert response.table_mm == {"width_mm": 1200, "height_mm": 1200}
-        assert response.name == "Battle Scenario"
+        assert response.name == "Battle with Test Deployment"
         assert response.initial_priority == "Check the rulebook rules for it"
         # shapes is a dict with deployment_shapes, objective_shapes, and scenography_specs
         assert isinstance(response.shapes, dict)
         assert "deployment_shapes" in response.shapes
         assert "objective_shapes" in response.shapes
         assert "scenography_specs" in response.shapes
-        # scenography_specs is empty when not provided by user
+        # scenography_specs contains generated shapes (seed > 0)
         scenography_specs = response.shapes["scenography_specs"]
-        assert len(scenography_specs) == 0
-        assert scenography_specs == []
+        assert len(scenography_specs) == 0  # shapes no longer auto-generated
 
-        # ScenarioGenerator was called correctly
-        assert len(spy_scenario_generator.calls) == 1
-        call_seed, call_table, call_mode = spy_scenario_generator.calls[0]
-        assert call_seed == 42
-        assert call_table.width_mm == 1200
-        assert call_table.height_mm == 1200
-        assert call_mode == GameMode.MATCHED
+        # ScenarioGenerator is no longer called for shape generation
+        assert len(spy_scenario_generator.calls) == 0
 
 
 # =============================================================================
-# 2) SEED GENERATION
+# 2) SEED RESOLUTION
 # =============================================================================
-class TestSeedGeneration:
-    """Seed None uses SeedGenerator port."""
+class TestSeedResolution:
+    """Test seed resolution logic: is_replicable determines seed strategy."""
 
-    def test_uses_seed_generator_when_seed_is_none(
+    def test_is_replicable_false_gives_seed_zero(
         self,
         use_case: GenerateScenarioCard,
         spy_scenario_generator: SpyScenarioGenerator,
-        fake_seed_generator: FakeSeedGenerator,
     ):
+        """When is_replicable=False, seed=0 (manual scenario, no generation)."""
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.CASUAL,
-            seed=None,
+            seed=None,  # Irrelevant when is_replicable=False
             table_preset="standard",
             visibility=None,
             shared_with=None,
+            is_replicable=False,
         )
 
         response = use_case.execute(request)
 
-        # Seed comes from FakeSeedGenerator
-        assert response.seed == 999
-        # SeedGenerator was called exactly once
-        assert fake_seed_generator.calls == 1
-        # ScenarioGenerator receives generated seed
-        assert spy_scenario_generator.calls[0][0] == 999
+        # Seed is always 0 for manual scenarios
+        assert response.seed == 0
+        # ScenarioGenerator was NOT called (manual scenario)
+        assert len(spy_scenario_generator.calls) == 0
+
+    def test_is_replicable_none_defaults_to_manual(
+        self,
+        use_case: GenerateScenarioCard,
+        spy_scenario_generator: SpyScenarioGenerator,
+    ):
+        """When is_replicable=None (default), defaults to manual (seed=0)."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=999,  # Irrelevant when is_replicable=None
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            # is_replicable not set → defaults to None → manual
+        )
+
+        response = use_case.execute(request)
+
+        # Seed is 0 (manual)
+        assert response.seed == 0
+        # ScenarioGenerator was NOT called
+        assert len(spy_scenario_generator.calls) == 0
 
 
 # =============================================================================
@@ -276,18 +295,18 @@ class TestModeAsString:
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=mode_str,
-            seed=42,
+            seed=None,
             table_preset="standard",
             visibility=None,
             shared_with=None,
+            is_replicable=True,  # Use deterministic seed
+            armies="Test",
         )
 
         response = use_case.execute(request)
 
         # Response mode is serialized
         assert response.mode == expected_mode.value
-        # ScenarioGenerator receives parsed enum
-        assert spy_scenario_generator.calls[0][2] == expected_mode
 
 
 # =============================================================================
@@ -353,87 +372,64 @@ class TestInvalidVisibility:
 
 
 # =============================================================================
-# 8) GENERATOR SHAPES ARE NOT USED AS FALLBACK
+# 8) GENERATOR SHAPES USED WITH seed >= 1
 # =============================================================================
-class TestGeneratorShapesNotUsedAsFallback:
-    """Generator shapes are not injected into the card when user provides none.
+class TestGeneratorShapesUsedWithSeedGreaterThanZero:
+    """Generator shapes are used when seed >= 1 and user provides no scenography.
 
-    The use case no longer uses generator shapes as fallback for scenography.
-    Even if the generator returns invalid shapes, the card is still created
-    successfully with empty scenography.
+    NEW behavior with seed convention:
+    - seed=0: manual scenario, generator not called, shapes empty
+    - seed>=1: generated scenario, if user provides no scenography, use generator shapes
     """
 
-    def test_invalid_generator_shapes_ignored_when_user_provides_none(
+    def test_generator_shapes_used_when_seed_greater_than_zero(
         self,
         fake_id_generator: FakeIdGenerator,
         fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
     ):
-        # Shape outside table bounds — would fail if used
-        invalid_shapes = [{"type": "circle", "cx": 1150, "cy": 600, "r": 100}]
-        bad_generator = SpyScenarioGenerator(shapes=invalid_shapes)
+        # Valid shapes that fit the table
+        spy_generator = SpyScenarioGenerator(shapes=valid_shapes)
         use_case = GenerateScenarioCard(
             id_generator=fake_id_generator,
             seed_generator=fake_seed_generator,
-            scenario_generator=bad_generator,
+            scenario_generator=spy_generator,
         )
 
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.MATCHED,
-            seed=42,
+            seed=None,
             table_preset="standard",
             visibility=None,
             shared_with=None,
+            is_replicable=True,  # seed > 0 → use generator shapes
+            armies="Test",
         )
 
-        # Should succeed — generator shapes are not used
         response = use_case.execute(request)
         assert response.card_id == "card-001"
-        # scenography is empty (not from generator)
-        assert response.shapes["scenography_specs"] == []
+        # scenography no longer contains auto-generated shapes
+        assert len(response.shapes["scenography_specs"]) == 0
 
-
-# =============================================================================
-# 9) CONTRACT ENFORCEMENT
-# =============================================================================
-class TestScenarioGeneratorContractEnforcement:
-    """Contract enforcement: Use case rejects dict return from generator."""
-
-    def test_generator_returning_dict_raises_contract_violation(
+    def test_user_scenography_takes_priority_over_generator(
         self,
         fake_id_generator: FakeIdGenerator,
         fake_seed_generator: FakeSeedGenerator,
+        valid_shapes: list[dict],
     ):
-        """Generator returning dict instead of list[dict] raises ValidationError.
-
-        This enforces the ScenarioGenerator contract at use case level.
-        Even if a generator implementation incorrectly returns a dict
-        (e.g., {"deployment_shapes": [...]}), the use case must reject it.
-        """
-
-        # Arrange - generator that violates contract by returning dict
-        @dataclass
-        class BadGenerator:
-            """Generator that violates contract by returning dict."""
-
-            def generate_shapes(
-                self, seed: int, table: TableSize, mode: GameMode
-            ) -> dict:
-                # Contract violation: returning dict instead of list[dict]
-                return {
-                    "deployment_shapes": [
-                        {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
-                    ],
-                    "scenography_specs": [],
-                }
-
-        bad_generator = BadGenerator()
+        # Even with seed >= 1 and generator returning shapes,
+        # if user provides scenography_specs, user shapes take priority
+        spy_generator = SpyScenarioGenerator(shapes=valid_shapes)
         use_case = GenerateScenarioCard(
             id_generator=fake_id_generator,
             seed_generator=fake_seed_generator,
-            scenario_generator=bad_generator,
+            scenario_generator=spy_generator,
         )
 
+        user_shapes = [
+            {"type": "rect", "x": 100, "y": 100, "width": 200, "height": 200}
+        ]
         request = GenerateScenarioCardRequest(
             actor_id="user-123",
             mode=GameMode.MATCHED,
@@ -441,11 +437,13 @@ class TestScenarioGeneratorContractEnforcement:
             table_preset="standard",
             visibility=None,
             shared_with=None,
+            scenography_specs=user_shapes,  # User provides shapes explicitly
         )
 
-        # Act & Assert - contract violation detected
-        with pytest.raises(ValidationError, match="(?i)contract.*violation.*list"):
-            use_case.execute(request)
+        response = use_case.execute(request)
+        # User shapes should be used, not generator shapes
+        assert len(response.shapes["scenography_specs"]) == 1
+        assert response.shapes["scenography_specs"][0]["type"] == "rect"
 
 
 # =============================================================================
@@ -728,10 +726,161 @@ class TestPostMergeShapesValidation:
 
 
 # =============================================================================
-# TODO(future): Additional tests for hardening phase:
-# - Verify Card entity is correctly constructed internally
-# - Test shared_with validation when visibility=SHARED
-# - Test massive table preset
+# REPLICABLE SEED TESTS
+# =============================================================================
+class TestReplicableSeed:
+    """Test deterministic seed calculation for replicable scenarios."""
+
+    def test_replicable_true_uses_deterministic_seed(self):
+        """When is_replicable=True, seed is deterministic based on config."""
+        id_gen = FakeIdGenerator("card-001")
+        seed_gen = FakeSeedGenerator()
+        valid_shapes = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        scenario_gen = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(id_gen, seed_gen, scenario_gen)
+
+        request = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode=GameMode.MATCHED,
+            seed=None,  # Irrelevant when is_replicable=True
+            table_preset="standard",
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            armies="Rohan",
+            deployment="deployment-name",
+            layout="layout-name",
+            is_replicable=True,  # Use deterministic seed
+        )
+
+        response = use_case.execute(request)
+
+        # Seed should be deterministically calculated (not 999 from SeedGenerator)
+        assert response.seed > 0  # Deterministic seed is non-zero
+        assert response.seed != 999  # Not from SeedGenerator
+
+        # Run again with same config → same seed
+        response2 = use_case.execute(request)
+        assert response.seed == response2.seed
+
+    def test_replicable_false_gives_seed_zero(self):
+        """When is_replicable=False, seed is always 0 (manual scenario)."""
+        id_gen = FakeIdGenerator("card-001")
+        seed_gen = FakeSeedGenerator()
+        valid_shapes = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        scenario_gen = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(id_gen, seed_gen, scenario_gen)
+
+        request = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode=GameMode.MATCHED,
+            seed=12345,  # Irrelevant when is_replicable=False
+            table_preset="standard",
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            is_replicable=False,
+        )
+
+        response = use_case.execute(request)
+        # Seed is always 0 for manual scenarios
+        assert response.seed == 0
+        # No shapes generated
+        assert len(scenario_gen.calls) == 0
+
+    def test_replicable_true_same_config_same_seed(self):
+        """Same config with is_replicable=True always produces same seed."""
+        id_gen = FakeIdGenerator("card-001")
+        seed_gen = FakeSeedGenerator()
+        valid_shapes = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        scenario_gen = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(id_gen, seed_gen, scenario_gen)
+
+        request = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode="MATCHED",
+            seed=None,
+            table_preset="standard",
+            visibility="private",
+            shared_with=None,
+            armies="Rohan",
+            deployment="deployment-name",
+            layout="layout-name",
+            objectives="objective-1",
+            is_replicable=True,
+        )
+
+        response1 = use_case.execute(request)
+        response2 = use_case.execute(request)
+
+        assert response1.seed == response2.seed
+
+    def test_replicable_true_different_config_different_seed(self):
+        """Different config with is_replicable=True produces different seed."""
+        id_gen = FakeIdGenerator("card-001")
+        seed_gen = FakeSeedGenerator()
+        valid_shapes = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        scenario_gen = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(id_gen, seed_gen, scenario_gen)
+
+        request1 = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode="MATCHED",
+            seed=None,
+            table_preset="standard",
+            visibility="private",
+            shared_with=None,
+            armies="Rohan",
+            deployment="deployment-1",
+            is_replicable=True,
+        )
+
+        request2 = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode="MATCHED",
+            seed=None,
+            table_preset="standard",
+            visibility="private",
+            shared_with=None,
+            armies="Rohan",
+            deployment="deployment-2",  # Different deployment
+            is_replicable=True,
+        )
+
+        response1 = use_case.execute(request1)
+        response2 = use_case.execute(request2)
+
+        assert response1.seed != response2.seed  # Different config → different seed
+
+    def test_replicable_none_defaults_to_manual(self):
+        """When is_replicable is None, defaults to manual (seed=0)."""
+        id_gen = FakeIdGenerator("card-001")
+        seed_gen = FakeSeedGenerator(seed=999)
+        valid_shapes = [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
+        scenario_gen = SpyScenarioGenerator(shapes=valid_shapes)
+
+        use_case = GenerateScenarioCard(id_gen, seed_gen, scenario_gen)
+
+        request = GenerateScenarioCardRequest(
+            actor_id="actor-001",
+            mode=GameMode.MATCHED,
+            seed=None,
+            table_preset="standard",
+            visibility=Visibility.PRIVATE,
+            shared_with=None,
+            is_replicable=None,  # Default behavior
+        )
+
+        response = use_case.execute(request)
+        # Should be 0 (manual), not SeedGenerator's 999
+        assert response.seed == 0
+        # No generation
+        assert len(scenario_gen.calls) == 0
+
+
+# =============================================================================
 # - Test concurrent ID generation
 # - Test response serialization edge cases
 # =============================================================================

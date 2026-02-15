@@ -10,17 +10,17 @@ class TestBuildGeneratePayload:
     """Tests for build_generate_payload function."""
 
     def test_with_seed_returns_mode_and_seed(self):
-        result = payload_builders.build_generate_payload("points-match", 12345)
-        assert result == {"mode": "points-match", "seed": 12345}
+        result = payload_builders.build_generate_payload("points-match", True)
+        assert result == {"mode": "points-match", "is_replicable": True}
 
     def test_without_seed_returns_mode_and_none(self):
-        result = payload_builders.build_generate_payload("meeting-engagement", None)
-        assert result == {"mode": "meeting-engagement", "seed": None}
+        result = payload_builders.build_generate_payload("meeting-engagement", False)
+        assert result == {"mode": "meeting-engagement", "is_replicable": False}
 
     def test_seed_zero_is_converted_to_int(self):
-        # Note: seed=0 is falsy, so it becomes None (intentional behavior)
-        result = payload_builders.build_generate_payload("domination", 0)
-        assert result == {"mode": "domination", "seed": None}
+        # Note: is_replicable=False means manual scenario (seed=0 internally)
+        result = payload_builders.build_generate_payload("domination", False)
+        assert result == {"mode": "domination", "is_replicable": False}
 
 
 class TestApplyTableConfig:

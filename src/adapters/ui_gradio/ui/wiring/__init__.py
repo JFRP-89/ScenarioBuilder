@@ -38,7 +38,7 @@ def wire_events(
     actor_id: gr.Textbox,
     scenario_name: gr.Textbox,
     mode: gr.Radio,
-    seed: gr.Number,
+    is_replicable: gr.Checkbox,
     armies: gr.Textbox,
     # Table
     table_preset: gr.Radio,
@@ -162,6 +162,7 @@ def wire_events(
     generate_btn: gr.Button,
     svg_preview: gr.HTML,
     output: gr.JSON,
+    preview_full_state: gr.State,
     # Create Scenario (optional)
     create_scenario_btn: gr.Button | None = None,
     create_scenario_status: gr.Textbox | None = None,
@@ -322,7 +323,7 @@ def wire_events(
         actor_id=actor_id,
         scenario_name=scenario_name,
         mode=mode,
-        seed=seed,
+        is_replicable=is_replicable,
         armies=armies,
         table_preset=table_preset,
         table_width=table_width,
@@ -343,6 +344,7 @@ def wire_events(
         generate_btn=generate_btn,
         svg_preview=svg_preview,
         output=output,
+        preview_full_state=preview_full_state,
         create_scenario_btn=create_scenario_btn,
         create_scenario_status=create_scenario_status,
         page_state=page_state,

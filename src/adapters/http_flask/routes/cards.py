@@ -64,7 +64,9 @@ def _parse_card_payload(payload: dict) -> dict:
     :class:`GenerateScenarioCardRequest`.
     """
     mode = payload.get(KEY_MODE, DEFAULT_MODE)
-    seed = payload.get(KEY_SEED)
+    is_replicable = payload.get(
+        "is_replicable", True
+    )  # Default to True for replicable scenarios
     table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
     visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
     shared_with = payload.get(KEY_SHARED_WITH)
@@ -104,7 +106,8 @@ def _parse_card_payload(payload: dict) -> dict:
 
     return {
         "mode": mode,
-        "seed": seed,
+        "seed": None,  # seed is now calculated internally based on is_replicable
+        "is_replicable": is_replicable,
         "table_preset": table_preset,
         "table_width_mm": table_width_mm,
         "table_height_mm": table_height_mm,
@@ -211,19 +214,24 @@ def update_card(card_id: str):
     services = get_services()
 
     # 1) Verify card exists and actor can read it
-    services.get_card.execute(GetCardRequest(actor_id=actor_id, card_id=card_id))
+    existing_card = services.get_card.execute(
+        GetCardRequest(actor_id=actor_id, card_id=card_id)
+    )
 
     # 2) Parse request body (same structure as create_card)
     payload = request.get_json(force=True) or {}
     parsed = _parse_card_payload(payload)
 
-    # 3) Re-generate with same card_id
+    # 3) Preserve the existing seed (edit mode should maintain seed stability)
+    parsed["seed"] = existing_card.seed
+
+    # 4) Re-generate with same card_id and existing seed
     gen_request = GenerateScenarioCardRequest(
         actor_id=actor_id, card_id=card_id, **parsed
     )
     gen_response = services.generate_scenario_card.execute(gen_request)
 
-    # 4) Save (overwrite) — enforces ownership via save_card use case
+    # 5) Save (overwrite) — enforces ownership via save_card use case
     save_request = SaveCardRequest(actor_id=actor_id, card=gen_response.card)
     services.save_card.execute(save_request)
 

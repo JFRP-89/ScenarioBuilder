@@ -89,8 +89,9 @@ class TestNavigateToDetail:
         result = navigate_to_detail("card-abc-123")
         assert result[0] == PAGE_DETAIL
         assert result[1] == "card-abc-123"
-        # 1 page_state + 1 card_id + 1 previous_page + 6 visibility
-        assert len(result) == 3 + len(ALL_PAGES)
+        assert result[3] == 1  # reload_trigger should be 1 (incremented from default 0)
+        # 1 page_state + 1 card_id + 1 previous_page + 1 reload_trigger + 6 visibility
+        assert len(result) == 4 + len(ALL_PAGES)
 
     def test_returns_default_from_page(self):
         result = navigate_to_detail("card-abc-123")
@@ -99,6 +100,13 @@ class TestNavigateToDetail:
     def test_returns_custom_from_page(self):
         result = navigate_to_detail("card-abc-123", from_page=PAGE_LIST)
         assert result[2] == PAGE_LIST
+
+    def test_reload_trigger_increments(self):
+        """reload_trigger should increment to force reloads."""
+        result1 = navigate_to_detail("card-1", reload_trigger=0)
+        assert result1[3] == 1
+        result2 = navigate_to_detail("card-1", reload_trigger=5)
+        assert result2[3] == 6
 
 
 class TestNavigateToEdit:

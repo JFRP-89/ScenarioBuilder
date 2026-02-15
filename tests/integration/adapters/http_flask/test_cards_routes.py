@@ -249,36 +249,46 @@ def fake_services(fake_generate, fake_save, fake_get, fake_list):
 
 
 @pytest.fixture
-def client(fake_services, monkeypatch):
+def client(fake_services, monkeypatch, session_factory):
     """Create test client with fake services injected."""
     # Patch build_services to avoid real infra during app creation
     monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: fake_services)
     app = create_app()
     # Override with our fake services (belt and suspenders)
     app.config["services"] = fake_services
-    return app.test_client()
+    c = app.test_client()
+    auth = session_factory(c, "u1")
+    c._test_csrf = auth["csrf_token"]
+    return c
 
 
 # =============================================================================
 # TEST: POST /cards - missing actor ID
 # =============================================================================
 class TestPostCardsMissingActorId:
-    """Test POST /cards without X-Actor-Id header."""
+    """Test POST /cards without valid session (auth middleware)."""
 
-    def test_post_cards_missing_actor_id_returns_400(self, client):
-        """POST /cards without X-Actor-Id should return 400."""
+    def test_post_cards_missing_auth_returns_401(self, fake_services, monkeypatch):
+        """POST /cards without session cookie should return 401."""
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: fake_services
+        )
+        app = create_app()
+        app.config["services"] = fake_services
+        unauth_client = app.test_client()
+
         # Act
-        response = client.post(
+        response = unauth_client.post(
             "/cards",
             json={"mode": "matched", "seed": 123, "table_preset": "standard"},
         )
 
         # Assert
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        assert response.status_code == 401, "Missing auth should return 401"
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
-        assert "error" in json_data, "JSON should contain 'error' key"
-        assert "message" in json_data, "JSON should contain 'message' key"
+        assert json_data.get("ok") is False
+        assert json_data.get("message") == "Authentication required."
 
 
 # =============================================================================
@@ -300,7 +310,7 @@ class TestPostCardsHappyPath:
                 "table_preset": "standard",
                 "visibility": "private",
             },
-            headers={"X-Actor-Id": "u1"},
+            headers={"X-CSRF-Token": client._test_csrf},
         )
 
         # Assert: status code
@@ -330,24 +340,31 @@ class TestPostCardsHappyPath:
         assert fake_save.last_request.card.card_id == json_data["card_id"]
 
     def test_post_cards_passes_request_fields_to_use_case(self, client, fake_generate):
-        """POST /cards should pass all fields to the use case."""
+        """POST /cards should pass all fields to the use case.
+
+        Note: seed is NOT passed from the client payload.
+        It's calculated internally based on is_replicable flag.
+        """
         # Act
         response = client.post(
             "/cards",
             json={
                 "mode": "narrative",
-                "seed": 999,
+                "is_replicable": True,
                 "table_preset": "massive",
                 "visibility": "public",
             },
-            headers={"X-Actor-Id": "actor-xyz"},
+            headers={"X-CSRF-Token": client._test_csrf},
         )
 
         # Assert
         assert response.status_code == 201
         req = fake_generate.last_request
         assert req.mode == "narrative", "mode should be passed"
-        assert req.seed == 999, "seed should be passed"
+        assert req.is_replicable is True, "is_replicable should be passed"
+        assert (
+            req.seed is None
+        ), "seed should be None for new cards (calculated internally)"
         assert req.table_preset == "massive", "table_preset should be passed"
         assert req.visibility == "public", "visibility should be passed"
 
@@ -361,10 +378,7 @@ class TestGetCardHappyPath:
     def test_get_card_happy_path_200(self, client, fake_get):
         """GET /cards/<card_id> should return 200 with card data."""
         # Act
-        response = client.get(
-            "/cards/card-001",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards/card-001")
 
         # Assert: status code
         assert response.status_code == 200, "Valid GET should return 200"
@@ -390,7 +404,7 @@ class TestGetCardHappyPath:
 class TestGetCardNotFound:
     """Test GET /cards/<card_id> when card doesn't exist."""
 
-    def test_get_card_not_found_returns_404(self, monkeypatch):
+    def test_get_card_not_found_returns_404(self, monkeypatch, session_factory):
         """GET /cards/<card_id> should return 404 if card not found."""
         # Arrange: create fake that raises not found
         fake_get_not_found = FakeGetCard(raise_not_found=True)
@@ -406,12 +420,10 @@ class TestGetCardNotFound:
         app = create_app()
         app.config["services"] = fake_services
         client = app.test_client()
+        session_factory(client, "u1")
 
         # Act
-        response = client.get(
-            "/cards/card-404",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards/card-404")
 
         # Assert
         assert response.status_code == 404, "Card not found should return 404"
@@ -423,18 +435,26 @@ class TestGetCardNotFound:
 # TEST: GET /cards/<card_id> - missing actor ID
 # =============================================================================
 class TestGetCardMissingActorId:
-    """Test GET /cards/<card_id> without X-Actor-Id header."""
+    """Test GET /cards/<card_id> without valid session (auth middleware)."""
 
-    def test_get_card_missing_actor_id_returns_400(self, client):
-        """GET /cards/<card_id> without X-Actor-Id should return 400."""
+    def test_get_card_missing_auth_returns_401(self, fake_services, monkeypatch):
+        """GET /cards/<card_id> without session cookie should return 401."""
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: fake_services
+        )
+        app = create_app()
+        app.config["services"] = fake_services
+        unauth_client = app.test_client()
+
         # Act
-        response = client.get("/cards/card-001")
+        response = unauth_client.get("/cards/card-001")
 
         # Assert
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        assert response.status_code == 401, "Missing auth should return 401"
         json_data = response.get_json()
-        assert "error" in json_data, "JSON should contain 'error' key"
-        assert "message" in json_data, "JSON should contain 'message' key"
+        assert json_data is not None, "Response should be JSON"
+        assert json_data.get("ok") is False
+        assert json_data.get("message") == "Authentication required."
 
 
 # =============================================================================
@@ -446,10 +466,7 @@ class TestListCardsHappyPath:
     def test_list_cards_returns_cards_array_200(self, client, fake_list):
         """GET /cards?filter=mine should return 200 with cards array."""
         # Act
-        response = client.get(
-            "/cards?filter=mine",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards?filter=mine")
 
         # Assert: status code
         assert response.status_code == 200, "Valid GET should return 200"
@@ -469,10 +486,7 @@ class TestListCardsHappyPath:
     def test_list_cards_public_filter(self, client, fake_list):
         """GET /cards?filter=public should pass correct filter to use case."""
         # Act
-        response = client.get(
-            "/cards?filter=public",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards?filter=public")
 
         # Assert
         assert response.status_code == 200
@@ -481,10 +495,7 @@ class TestListCardsHappyPath:
     def test_list_cards_shared_with_me_filter(self, client, fake_list):
         """GET /cards?filter=shared_with_me should pass correct filter."""
         # Act
-        response = client.get(
-            "/cards?filter=shared_with_me",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards?filter=shared_with_me")
 
         # Assert
         assert response.status_code == 200
@@ -495,15 +506,23 @@ class TestListCardsHappyPath:
 # TEST: GET /cards?filter=... - missing actor ID
 # =============================================================================
 class TestListCardsMissingActorId:
-    """Test GET /cards without X-Actor-Id header."""
+    """Test GET /cards without valid session (auth middleware)."""
 
-    def test_list_cards_missing_actor_id_returns_400(self, client):
-        """GET /cards without X-Actor-Id should return 400."""
+    def test_list_cards_missing_auth_returns_401(self, fake_services, monkeypatch):
+        """GET /cards without session cookie should return 401."""
+        monkeypatch.setattr(
+            "adapters.http_flask.app.build_services", lambda: fake_services
+        )
+        app = create_app()
+        app.config["services"] = fake_services
+        unauth_client = app.test_client()
+
         # Act
-        response = client.get("/cards?filter=mine")
+        response = unauth_client.get("/cards?filter=mine")
 
         # Assert
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        assert response.status_code == 401, "Missing auth should return 401"
         json_data = response.get_json()
-        assert "error" in json_data, "JSON should contain 'error' key"
-        assert "message" in json_data, "JSON should contain 'message' key"
+        assert json_data is not None, "Response should be JSON"
+        assert json_data.get("ok") is False
+        assert json_data.get("message") == "Authentication required."

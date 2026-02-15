@@ -1,30 +1,45 @@
-"""Scenario submission handlers (create & update via HTTP API)."""
+"""Scenario submission handlers (create & update via direct use-case calls)."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
-if TYPE_CHECKING:
-    import requests
-else:
-    try:
-        import requests  # type: ignore[import-untyped]
-    except ImportError:
-        requests = None  # type: ignore[assignment]
-
-from adapters.ui_gradio import api_client
-from adapters.ui_gradio.constants import SUCCESS_STATUS_CODES
 from adapters.ui_gradio.services._generate._card_result import augment_generated_card
+from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
+from application.use_cases.save_card import SaveCardRequest
+from infrastructure.bootstrap import get_services
+
+
+def _gen_response_to_dict(gen_resp: Any) -> dict[str, Any]:
+    """Convert a GenerateScenarioCardResponse dataclass to a plain dict."""
+    return {
+        "card_id": gen_resp.card_id,
+        "seed": gen_resp.seed,
+        "owner_id": gen_resp.owner_id,
+        "name": gen_resp.name,
+        "mode": gen_resp.mode,
+        "armies": gen_resp.armies,
+        "table_preset": gen_resp.table_preset,
+        "table_mm": gen_resp.table_mm,
+        "layout": gen_resp.layout,
+        "deployment": gen_resp.deployment,
+        "initial_priority": gen_resp.initial_priority,
+        "objectives": gen_resp.objectives,
+        "special_rules": gen_resp.special_rules,
+        "visibility": gen_resp.visibility,
+        "shared_with": gen_resp.shared_with or [],
+        "shapes": gen_resp.shapes,
+    }
 
 
 def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
-    """Send a previewed card to the Flask API for actual creation.
+    """Save a previewed card via direct use-case call.
 
     Args:
         preview_data: The preview dict returned by ``handle_preview``.
 
     Returns:
-        API response dict with ``card_id`` on success, or error dict.
+        Augmented card dict with ``card_id`` on success, or error dict.
     """
     if not preview_data or not isinstance(preview_data, dict):
         return {"status": "error", "message": "Generate a card preview first."}
@@ -47,37 +62,34 @@ def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
         return {"status": "error", "message": "No actor ID. Generate a preview."}
 
     try:
-        api_url = api_client.get_api_base_url()
-        headers = api_client.build_headers(actor_id)
-        response = api_client.post_generate_card(api_url, headers, payload)
+        svc = get_services()
+        gen_req = GenerateScenarioCardRequest(actor_id=actor_id, **payload)
+        gen_resp = svc.generate_scenario_card.execute(gen_req)
 
-        if response is None:
-            return cast(dict[str, Any], api_client.normalize_error(None))
+        save_req = SaveCardRequest(actor_id=actor_id, card=gen_resp.card)
+        svc.save_card.execute(save_req)
 
-        if response.status_code not in SUCCESS_STATUS_CODES:
-            return cast(dict[str, Any], api_client.normalize_error(response))
-
-        response_json = cast(dict[Any, Any], response.json())
+        response_json = _gen_response_to_dict(gen_resp)
         preset = preview_data.get("table_preset", "")
         custom_table = payload.get("table_cm")
         return augment_generated_card(response_json, payload, preset, custom_table)  # type: ignore[no-any-return]
 
     except Exception as exc:
-        return cast(dict[str, Any], api_client.normalize_error(None, exc))
+        return {"status": "error", "message": f"Create failed: {exc}"}
 
 
 def handle_update_scenario(
     preview_data: dict[str, Any],
     card_id: str,
 ) -> dict[str, Any]:
-    """Send a previewed card to the Flask API as an update (PUT).
+    """Update an existing card via direct use-case call.
 
     Args:
         preview_data: The preview dict returned by ``handle_preview``.
         card_id: The existing card ID to update.
 
     Returns:
-        API response dict with ``card_id`` on success, or error dict.
+        Augmented card dict with ``card_id`` on success, or error dict.
     """
     if not card_id:
         return {"status": "error", "message": "No card ID for update."}
@@ -102,20 +114,28 @@ def handle_update_scenario(
         return {"status": "error", "message": "No actor ID. Generate a preview."}
 
     try:
-        api_url = api_client.get_api_base_url()
-        headers = api_client.build_headers(actor_id)
-        response = api_client.put_update_card(api_url, headers, card_id, payload)
+        svc = get_services()
 
-        if response is None:
-            return cast(dict[str, Any], api_client.normalize_error(None))
+        # Retrieve existing card to preserve seed
+        from application.use_cases.get_card import GetCardRequest
 
-        if response.status_code not in SUCCESS_STATUS_CODES:
-            return cast(dict[str, Any], api_client.normalize_error(response))
+        existing = svc.get_card.execute(
+            GetCardRequest(actor_id=actor_id, card_id=card_id)
+        )
+        payload_with_seed = dict(payload)
+        payload_with_seed["seed"] = existing.seed
+        payload_with_seed["card_id"] = card_id
 
-        response_json = cast(dict[Any, Any], response.json())
+        gen_req = GenerateScenarioCardRequest(actor_id=actor_id, **payload_with_seed)
+        gen_resp = svc.generate_scenario_card.execute(gen_req)
+
+        save_req = SaveCardRequest(actor_id=actor_id, card=gen_resp.card)
+        svc.save_card.execute(save_req)
+
+        response_json = _gen_response_to_dict(gen_resp)
         preset = preview_data.get("table_preset", "")
         custom_table = payload.get("table_cm")
         return augment_generated_card(response_json, payload, preset, custom_table)  # type: ignore[no-any-return]
 
     except Exception as exc:
-        return cast(dict[str, Any], api_client.normalize_error(None, exc))
+        return {"status": "error", "message": f"Update failed: {exc}"}

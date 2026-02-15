@@ -29,7 +29,7 @@ def wire_generate(
     actor_id: gr.Textbox,
     scenario_name: gr.Textbox,
     mode: gr.Radio,
-    seed: gr.Number,
+    is_replicable: gr.Checkbox,
     armies: gr.Textbox,
     table_preset: gr.Radio,
     table_width: gr.Number,
@@ -50,6 +50,7 @@ def wire_generate(
     generate_btn: gr.Button,
     svg_preview: gr.HTML,
     output: gr.JSON,
+    preview_full_state: gr.State,
     create_scenario_btn: gr.Button | None = None,
     create_scenario_status: gr.Textbox | None = None,
     # Navigation widgets (needed to go Home after create)
@@ -77,7 +78,7 @@ def wire_generate(
             actor_id,
             scenario_name,
             mode,
-            seed,
+            is_replicable,
             armies,
             table_preset,
             table_width,
@@ -96,7 +97,7 @@ def wire_generate(
             objectives_with_vp_toggle,
             vp_state,
         ],
-        outputs=[output, svg_preview],
+        outputs=[output, svg_preview, preview_full_state],
     )
 
     # -- Create Scenario (calls API + resets form) ----------------------
@@ -109,6 +110,7 @@ def wire_generate(
     ):
         _wire_create_scenario(
             output=output,
+            preview_full_state=preview_full_state,
             create_scenario_btn=create_scenario_btn,
             create_scenario_status=create_scenario_status,
             svg_preview=svg_preview,
@@ -118,7 +120,7 @@ def wire_generate(
             # Form fields for reset
             scenario_name=scenario_name,
             mode=mode,
-            seed=seed,
+            is_replicable=is_replicable,
             armies=armies,
             deployment=deployment,
             layout=layout,
@@ -146,6 +148,7 @@ def wire_generate(
 def _wire_create_scenario(
     *,
     output: gr.JSON,
+    preview_full_state: gr.State,
     create_scenario_btn: gr.Button,
     create_scenario_status: gr.Textbox,
     svg_preview: gr.HTML,
@@ -155,7 +158,7 @@ def _wire_create_scenario(
     # Form fields for reset
     scenario_name: gr.Textbox,
     mode: gr.Radio,
-    seed: gr.Number,
+    is_replicable: gr.Checkbox,
     armies: gr.Textbox,
     deployment: gr.Textbox,
     layout: gr.Textbox,
@@ -190,7 +193,7 @@ def _wire_create_scenario(
     _form_components: list[gr.components.Component] = [
         scenario_name,
         mode,
-        seed,
+        is_replicable,
         armies,
         deployment,
         layout,
@@ -284,8 +287,9 @@ def _wire_create_scenario(
             gr.update(value=status_msg, visible=True),
         )
 
-    # Build inputs — output always, plus editing_card_id if available
-    _inputs: list[gr.components.Component] = [output]
+    # Build inputs — preview_full_state always (contains _payload and _actor_id),
+    # plus editing_card_id if available
+    _inputs: list[gr.components.Component] = [preview_full_state]
     if editing_card_id is not None:
         _inputs.append(editing_card_id)
 

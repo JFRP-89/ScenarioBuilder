@@ -36,12 +36,11 @@ def _expired_result(
         *(gr.update(visible=False) for _ in range(n_page_containers)),
         "",  # session_id_state → cleared
         "",  # actor_id_state → cleared
-        gr.update(visible=True),  # login_panel → show
+        gr.update(visible=True),  # login_panel / auth_gate → show
         gr.update(visible=False),  # top_bar_row → hide
         gr.update(
-            value="Session expired — please log in again.",
-            visible=True,
-        ),  # login_message
+            value='Session expired \u2014 please <a href="/login">log in</a> again.',
+        ),  # login_message / auth_message
     )
 
 

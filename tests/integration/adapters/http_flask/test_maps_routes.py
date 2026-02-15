@@ -79,30 +79,36 @@ def fake_services(fake_render):
 
 
 @pytest.fixture
-def client(fake_services):
-    """Create test client with fake services injected."""
+def client(fake_services, session_factory):
+    """Create test client with fake services and session."""
     app = create_app()
     app.config["services"] = fake_services
-    return app.test_client()
+    c = app.test_client()
+    session_factory(c, "u1")
+    return c
 
 
 # =============================================================================
 # TEST: GET /cards/<card_id>/map.svg - missing actor ID
 # =============================================================================
 class TestGetMapSvgMissingActorId:
-    """Test GET /cards/<card_id>/map.svg without X-Actor-Id header."""
+    """Test GET /cards/<card_id>/map.svg without valid session (auth middleware)."""
 
-    def test_get_map_svg_missing_actor_id_returns_400(self, client):
-        """GET /cards/<card_id>/map.svg without X-Actor-Id should return 400."""
+    def test_get_map_svg_missing_auth_returns_401(self, fake_services):
+        """GET /cards/<card_id>/map.svg without session cookie should return 401."""
+        app = create_app()
+        app.config["services"] = fake_services
+        unauth_client = app.test_client()
+
         # Act
-        response = client.get("/cards/card-001/map.svg")
+        response = unauth_client.get("/cards/card-001/map.svg")
 
         # Assert
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        assert response.status_code == 401, "Missing auth should return 401"
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
-        assert "error" in json_data, "JSON should contain 'error' key"
-        assert "message" in json_data, "JSON should contain 'message' key"
+        assert json_data.get("ok") is False
+        assert json_data.get("message") == "Authentication required."
 
 
 # =============================================================================
@@ -116,10 +122,7 @@ class TestGetMapSvgHappyPath:
     ):
         """GET /cards/<card_id>/map.svg should return 200 with SVG content."""
         # Act
-        response = client.get(
-            "/cards/card-001/map.svg",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards/card-001/map.svg")
 
         # Assert: status code
         assert response.status_code == 200, "Valid GET should return 200"
@@ -151,7 +154,7 @@ class TestGetMapSvgHappyPath:
 class TestGetMapSvgNotFound:
     """Test GET /cards/<card_id>/map.svg when card doesn't exist."""
 
-    def test_get_map_svg_not_found_returns_404(self):
+    def test_get_map_svg_not_found_returns_404(self, session_factory):
         """GET /cards/<card_id>/map.svg should return 404 if card not found."""
         # Arrange: create fake that raises not found
         fake_render_not_found = FakeRenderMapSvg(raise_not_found=True)
@@ -159,12 +162,10 @@ class TestGetMapSvgNotFound:
         app = create_app()
         app.config["services"] = fake_services
         client = app.test_client()
+        session_factory(client, "u1")
 
         # Act
-        response = client.get(
-            "/cards/card-404/map.svg",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards/card-404/map.svg")
 
         # Assert
         assert response.status_code == 404, "Card not found should return 404"
@@ -180,7 +181,7 @@ class TestGetMapSvgNotFound:
 class TestGetMapSvgForbidden:
     """Test GET /cards/<card_id>/map.svg when user doesn't have access."""
 
-    def test_get_map_svg_forbidden_returns_403(self):
+    def test_get_map_svg_forbidden_returns_403(self, session_factory):
         """GET /cards/<card_id>/map.svg should return 403 if access forbidden."""
         # Arrange: create fake that raises forbidden
         fake_render_forbidden = FakeRenderMapSvg(raise_forbidden=True)
@@ -188,12 +189,10 @@ class TestGetMapSvgForbidden:
         app = create_app()
         app.config["services"] = fake_services
         client = app.test_client()
+        session_factory(client, "u1")
 
         # Act
-        response = client.get(
-            "/cards/card-private/map.svg",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/cards/card-private/map.svg")
 
         # Assert
         assert response.status_code == 403, "Forbidden should return 403"

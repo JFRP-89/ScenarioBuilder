@@ -27,12 +27,15 @@ def authenticate(username: str, password: str) -> dict[str, object]:
     return result
 
 
-def logout(actor_id: str) -> dict[str, object]:
-    """Logout the current user (Gradio-side: no session cookie to clear).
+def logout(actor_id: str, session_id: str = "") -> dict[str, object]:
+    """Logout the current user — invalidates the server-side session.
 
     Returns ``{"ok": True, "actor_id": "", "message": "Logged out."}``.
     """
-    # Gradio doesn't track session_id, so just return the expected shape.
+    if session_id:
+        from infrastructure.auth.session_store import invalidate_session
+
+        invalidate_session(session_id)
     return {"ok": True, "actor_id": "", "message": "Logged out."}
 
 

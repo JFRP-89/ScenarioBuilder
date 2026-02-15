@@ -22,7 +22,7 @@ from adapters.http_flask.routes.health import health_bp
 from adapters.http_flask.routes.maps import maps_bp
 from adapters.http_flask.routes.presets import presets_bp
 from domain.errors import ForbiddenError, NotFoundError, ValidationError
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, redirect, render_template, request
 from infrastructure.bootstrap import build_services
 
 
@@ -63,6 +63,22 @@ def create_app() -> Flask:
     app.register_blueprint(favorites_bp, url_prefix="/favorites")
     app.register_blueprint(maps_bp, url_prefix="/maps")
     app.register_blueprint(presets_bp, url_prefix="/presets")
+
+    # ── Login page (HTML) ────────────────────────────────────────
+    @app.route("/login")
+    def login_page():
+        """Serve the HTML login form.
+
+        If already authenticated (valid session cookie), redirect to /sb/.
+        """
+        from infrastructure.auth import session_store
+
+        session_id = request.cookies.get("sb_session", "")
+        if session_id:
+            session = session_store.get_session(session_id)
+            if session is not None:
+                return redirect("/sb/")
+        return render_template("login.html")
 
     # --- Error handlers ---
     @app.errorhandler(ValidationError)

@@ -1,4 +1,4 @@
-"""Server-side session store — in-memory + file-backed implementation.
+"""Server-side session store — pluggable backend (in-memory or PostgreSQL).
 
 Each session holds:
 - ``session_id``: cryptographically random token (32 bytes hex = 256 bits)
@@ -12,23 +12,27 @@ Expiration policy:
 - **Idle timeout**: ``SESSION_IDLE_MINUTES`` (default 15) since ``last_seen_at``.
 - **Max lifetime**: ``SESSION_MAX_HOURS`` (default 12) since ``created_at``.
 
-Persistence:
-- Sessions are saved to a JSON file after every mutation so they survive
-  server restarts.  The file path defaults to ``.sessions.json`` in the
-  project root and can be overridden via ``SESSION_STORE_PATH``.
+Backend selection:
+- Call ``configure_store(store)`` with a ``PostgresSessionStore`` instance at
+  bootstrap time to switch to PostgreSQL-backed sessions.
+- When no backend is configured, falls back to in-memory + file-backed store
+  (suitable for local dev / testing).
 
-Thread-safe via ``threading.Lock``.
+Thread-safe via ``threading.Lock`` (in-memory backend).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import pathlib
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import TypedDict
+
+logger = logging.getLogger(__name__)
 
 # ── Configuration (overridable via env) ──────────────────────────────────────
 SESSION_IDLE_MINUTES = int(os.environ.get("SESSION_IDLE_MINUTES", "15"))
@@ -53,7 +57,27 @@ class SessionRecord(TypedDict):
     csrf_token: str
 
 
-# ── In-memory store ──────────────────────────────────────────────────────────
+# ── Pluggable backend ───────────────────────────────────────────────────────
+_store: object | None = None  # PostgresSessionStore when configured
+
+
+def configure_store(store: object) -> None:
+    """Set the session backend (typically ``PostgresSessionStore``).
+
+    Must be called once at application startup (from ``build_services()``).
+    After this call every module-level function delegates to *store*.
+    """
+    global _store
+    _store = store
+    logger.info("session_store: backend configured → %s", type(store).__name__)
+
+
+def get_store() -> object | None:
+    """Return the currently configured store (or None for in-memory)."""
+    return _store
+
+
+# ── In-memory store (fallback for dev/test) ──────────────────────────────────
 _lock = threading.Lock()
 _SESSIONS: dict[str, SessionRecord] = {}
 
@@ -107,7 +131,7 @@ def _load_from_disk() -> None:
         pass  # best-effort — start with empty store
 
 
-# Load persisted sessions on module init
+# Load persisted sessions on module init (in-memory backend only)
 with _lock:
     _load_from_disk()
 
@@ -128,13 +152,15 @@ def _now() -> datetime:
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
+# Each function delegates to ``_store`` if configured, otherwise uses
+# the in-memory fallback.  This keeps all existing import sites working.
 
 
 def create_session(actor_id: str) -> SessionRecord:
-    """Create a new session for *actor_id* and return the record.
+    """Create a new session for *actor_id* and return the record."""
+    if _store is not None:
+        return _store.create_session(actor_id)  # type: ignore[union-attr]
 
-    Session ID rotation: always generates a fresh random ID.
-    """
     now = _now()
     session_id = _generate_session_id()
     record = SessionRecord(
@@ -152,14 +178,10 @@ def create_session(actor_id: str) -> SessionRecord:
 
 
 def get_session(session_id: str) -> SessionRecord | None:
-    """Retrieve a session if it exists and is not expired.
+    """Retrieve a session if it exists and is not expired."""
+    if _store is not None:
+        return _store.get_session(session_id)  # type: ignore[union-attr]
 
-    Returns:
-        The session record, or None if missing/expired.
-    Side effects:
-        - Removes expired sessions from the store.
-        - Updates ``last_seen_at`` on valid sessions.
-    """
     with _lock:
         record = _SESSIONS.get(session_id)
         if record is None:
@@ -188,7 +210,10 @@ def get_session(session_id: str) -> SessionRecord | None:
 
 
 def invalidate_session(session_id: str) -> bool:
-    """Remove a session from the store. Return True if it existed."""
+    """Invalidate a session. Return True if it existed and was active."""
+    if _store is not None:
+        return _store.invalidate_session(session_id)  # type: ignore[union-attr]
+
     with _lock:
         removed = _SESSIONS.pop(session_id, None) is not None
         if removed:
@@ -197,10 +222,10 @@ def invalidate_session(session_id: str) -> bool:
 
 
 def mark_reauth(session_id: str) -> bool:
-    """Mark a session as recently re-authenticated.
+    """Mark a session as recently re-authenticated."""
+    if _store is not None:
+        return _store.mark_reauth(session_id)  # type: ignore[union-attr]
 
-    Returns True if the session was found and updated.
-    """
     with _lock:
         record = _SESSIONS.get(session_id)
         if record is None:
@@ -211,14 +236,10 @@ def mark_reauth(session_id: str) -> bool:
 
 
 def rotate_session_id(old_session_id: str) -> SessionRecord | None:
-    """Rotate the session ID (session fixation prevention).
+    """Rotate the session ID (session fixation prevention)."""
+    if _store is not None:
+        return _store.rotate_session_id(old_session_id)  # type: ignore[union-attr]
 
-    Creates a new session_id while preserving the session data.
-    Invalidates the old session_id.
-
-    Returns:
-        The updated session record with new session_id, or None.
-    """
     with _lock:
         old_record = _SESSIONS.pop(old_session_id, None)
         if old_record is None:
@@ -241,6 +262,9 @@ def rotate_session_id(old_session_id: str) -> SessionRecord | None:
 
 def is_recently_reauthed(session_id: str) -> bool:
     """Return True if the session was re-authenticated within the reauth window."""
+    if _store is not None:
+        return _store.is_recently_reauthed(session_id)  # type: ignore[union-attr]
+
     with _lock:
         record = _SESSIONS.get(session_id)
         if record is None:
@@ -254,6 +278,9 @@ def is_recently_reauthed(session_id: str) -> bool:
 
 def get_csrf_token(session_id: str) -> str | None:
     """Return the CSRF token for a session, or None."""
+    if _store is not None:
+        return _store.get_csrf_token(session_id)  # type: ignore[union-attr]
+
     with _lock:
         record = _SESSIONS.get(session_id)
         if record is None:
@@ -263,6 +290,10 @@ def get_csrf_token(session_id: str) -> str | None:
 
 def reset_sessions() -> None:
     """Clear all sessions — **for testing only**."""
+    if _store is not None:
+        _store.reset_sessions()  # type: ignore[union-attr]
+        return
+
     with _lock:
         _SESSIONS.clear()
         _save_to_disk()
@@ -270,5 +301,8 @@ def reset_sessions() -> None:
 
 def active_session_count() -> int:
     """Return the number of active sessions — **for testing/monitoring**."""
+    if _store is not None:
+        return _store.active_session_count()  # type: ignore[union-attr]
+
     with _lock:
         return len(_SESSIONS)

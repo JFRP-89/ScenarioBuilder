@@ -9,7 +9,7 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
     """Build scenario metadata UI components.
 
     Returns:
-        Tuple of (scenario_name, mode, seed, armies)
+        Tuple of (scenario_name, mode, is_replicable, armies)
     """
     # Scenario Name
     with gr.Row():
@@ -19,7 +19,7 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
             elem_id="scenario-name-input",
         )
 
-    # Game Mode and Seed
+    # Game Mode and Replicable
     with gr.Row():
         mode = gr.Dropdown(
             choices=["casual", "narrative", "matched"],
@@ -27,7 +27,12 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
             label="Game Mode",
             elem_id="mode-dropdown",
         )
-        seed = gr.Number(value=1, precision=0, label="Seed", elem_id="seed-input")
+        is_replicable = gr.Checkbox(
+            value=True,
+            label="Replicable Scenario",
+            info="Generate reproducible scenario with deterministic seed",
+            elem_id="is-replicable-checkbox",
+        )
 
     # Armies
     with gr.Row():
@@ -38,4 +43,4 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
             elem_id="armies-input",
         )
 
-    return scenario_name, mode, seed, armies
+    return scenario_name, mode, is_replicable, armies

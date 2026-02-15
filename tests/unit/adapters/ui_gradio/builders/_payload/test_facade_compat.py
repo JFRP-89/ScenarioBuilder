@@ -32,9 +32,9 @@ class TestFacadeReExports:
 
 class TestBuildGeneratePayload:
     def test_basic(self):
-        result = payload.build_generate_payload("matched", 42)
-        assert result == {"mode": "matched", "seed": 42}
+        result = payload.build_generate_payload("matched", True)
+        assert result == {"mode": "matched", "is_replicable": True}
 
     def test_no_seed(self):
-        result = payload.build_generate_payload("narrative", None)
-        assert result == {"mode": "narrative", "seed": None}
+        result = payload.build_generate_payload("narrative", False)
+        assert result == {"mode": "narrative", "is_replicable": False}

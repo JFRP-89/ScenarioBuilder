@@ -6,7 +6,7 @@ Generates a new scenario card by orchestrating domain logic and ports.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Collection, Optional, Union
+from typing import Any, Collection, Optional, Union
 
 from application.ports.scenario_generation import (
     IdGenerator,
@@ -24,6 +24,9 @@ from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility, parse_visibility
+from infrastructure.generators.deterministic_seed_generator import (
+    calculate_seed_from_config,
+)
 
 # =============================================================================
 # TABLE PRESETS
@@ -96,6 +99,9 @@ class GenerateScenarioCardRequest:
     table_height_mm: Optional[int] = None
     # If provided, reuses this card_id (for update/edit flows)
     card_id: Optional[str] = None
+    # If True, use deterministic seed based on card config hash
+    # If False or None, use provided seed or generate random seed
+    is_replicable: Optional[bool] = None
 
 
 @dataclass
@@ -120,6 +126,7 @@ class GenerateScenarioCardResponse:
     # Shape mapping: deployment_shapes, objective_shapes, scenography_specs
     shapes: dict
     card: Card  # Domain entity ready for persistence
+    is_replicable: bool  # Whether scenario was generated as replicable
     table_preset: Optional[str] = None
     armies: Optional[str] = None
     layout: Optional[str] = None
@@ -170,11 +177,27 @@ class GenerateScenarioCard:
         )
 
         # 3) Resolve seed
-        seed = (
-            request.seed
-            if request.seed is not None
-            else self._seed_generator.generate_seed()
+        #    Priority:
+        #    1. If is_replicable=None: default to False (manual) → seed=0
+        #    2. If is_replicable=False: seed=0 (manual, ignore request.seed)
+        #    3. If is_replicable=True AND request.seed > 0: preserve seed (edit mode)
+        #    4. If is_replicable=True AND no valid seed: calculate seed (create mode)
+
+        # Default is_replicable to False if None
+        effective_is_replicable = (
+            request.is_replicable if request.is_replicable is not None else False
         )
+
+        if not effective_is_replicable:
+            # Manual scenario: seed=0, ignore request.seed
+            seed = 0
+        elif request.seed and request.seed > 0:
+            # Edit mode: preserve existing seed
+            seed = request.seed
+        else:
+            # Create mode: calculate hash-based deterministic seed
+            config_for_seed = self._build_seed_config(request, table)
+            seed = calculate_seed_from_config(config_for_seed)
 
         # 4) Resolve mode
         mode = self._resolve_mode(request.mode)
@@ -191,30 +214,13 @@ class GenerateScenarioCard:
         )
         validate_shared_with_visibility(visibility, request.shared_with)
 
-        # 6) Generate shapes via port
-        shapes = self._scenario_generator.generate_shapes(
-            seed=seed, table=table, mode=mode
-        )
-
-        # 6a) Enforce contract: shapes MUST be list[dict], not dict
-        if not isinstance(shapes, list):
-            raise ValidationError(
-                f"ScenarioGenerator contract violation: generate_shapes() returned "
-                f"{type(shapes).__name__}, expected list[dict]. "
-                f"The generator must return a flat list of shapes, not a structured dict."
-            )
-        if shapes and not all(isinstance(s, dict) for s in shapes):
-            raise ValidationError(
-                "ScenarioGenerator contract violation: shapes list contains non-dict elements"
-            )
-
-        # 7) Resolve scenography: user-specified scenography_specs take priority.
-        #    Generator shapes are NOT used as fallback — if the user doesn't
-        #    provide scenography, the card gets none. This prevents unwanted
-        #    random shapes from polluting cards.
+        # 6) Resolve scenography: ONLY use user-provided shapes.
+        #    User must add shapes manually when editing.
+        #    This ensures backend behavior matches preview (no auto-generation).
+        #    If user provides no shapes, scenography stays empty.
         final_scenography = request.scenography_specs or request.map_specs or []
 
-        # 8) Validate shapes with domain MapSpec (all shape categories)
+        # 7) Validate shapes with domain MapSpec (all shape categories)
         map_spec = MapSpec(
             table=table,
             shapes=final_scenography,
@@ -286,7 +292,7 @@ class GenerateScenarioCard:
         # Name is already in the Card object
         name = card.name or ""
         priority = request.initial_priority or "Check the rulebook rules for it"
-        final_shapes = self._resolve_final_shapes(request, table)
+        final_shapes = self._resolve_final_shapes(card)
         final_special_rules = self._resolve_special_rules(request.special_rules)
         final_shared_with = list(request.shared_with) if request.shared_with else []
 
@@ -301,6 +307,7 @@ class GenerateScenarioCard:
             visibility=visibility.value,
             shapes=final_shapes,
             card=card,
+            is_replicable=request.is_replicable or False,  # Default to False if None
             table_preset=request.table_preset,
             armies=request.armies,
             layout=request.layout,
@@ -310,31 +317,18 @@ class GenerateScenarioCard:
             shared_with=final_shared_with,
         )
 
-    def _resolve_final_shapes(
-        self, request: GenerateScenarioCardRequest, table: TableSize
-    ) -> dict:
-        """Resolve and validate final shape lists from request."""
-        final_deployment = request.deployment_shapes or []
-        final_scenography = request.scenography_specs or request.map_specs or []
-        final_objectives = request.objective_shapes or []
+    def _resolve_final_shapes(self, card: Card) -> dict:
+        """Resolve and validate final shape lists from card's map_spec.
 
-        try:
-            MapSpec(
-                table=table,
-                shapes=final_scenography,
-                objective_shapes=final_objectives,
-                deployment_shapes=final_deployment or None,
-            )
-        except ValidationError as e:
-            raise ValidationError(
-                "Final shapes validation failed after merging user input "
-                f"with generated shapes: {e}"
-            ) from e
-
+        The card's map_spec already contains the merged shapes from:
+        - Generated shapes (if seed >= 1 and user provided no manual shapes)
+        - User-provided shapes (if provided)
+        - Empty shapes (if seed == 0, manual scenario)
+        """
         return {
-            "deployment_shapes": final_deployment,
-            "objective_shapes": final_objectives,
-            "scenography_specs": final_scenography,
+            "deployment_shapes": card.map_spec.deployment_shapes or [],
+            "objective_shapes": card.map_spec.objective_shapes or [],
+            "scenography_specs": card.map_spec.shapes or [],
         }
 
     @staticmethod
@@ -371,6 +365,44 @@ class GenerateScenarioCard:
             return f"Battle with {deployment}"
         else:
             return "Battle Scenario"
+
+    def _build_seed_config(
+        self, request: GenerateScenarioCardRequest, table: TableSize
+    ) -> dict[str, Any]:
+        """Build configuration dict for deterministic seed calculation.
+
+        Only includes fields that define the scenario's configuration.
+        Excludes transient fields like card_id, name, shared_with, etc.
+
+        CRITICAL: Must use resolved table dimensions (not request params) to match
+        preview calculation which always uses real dimensions.
+
+        Returns:
+            Dict containing scenario definition fields for hashing.
+        """
+        scenography_specs = request.scenography_specs or request.map_specs or []
+        deployment_shapes = request.deployment_shapes or []
+        objective_shapes = request.objective_shapes or []
+
+        return {
+            "mode": (
+                request.mode.value
+                if isinstance(request.mode, GameMode)
+                else request.mode
+            ),
+            "table_preset": request.table_preset,
+            "table_width_mm": table.width_mm,  # Use resolved dimensions
+            "table_height_mm": table.height_mm,  # Use resolved dimensions
+            "armies": request.armies,
+            "deployment": request.deployment,
+            "layout": request.layout,
+            "objectives": request.objectives,
+            "initial_priority": request.initial_priority,
+            "special_rules": request.special_rules,
+            "deployment_shapes": deployment_shapes,
+            "objective_shapes": objective_shapes,
+            "scenography_specs": scenography_specs,
+        }
 
     def _resolve_mode(self, mode: Union[str, GameMode]) -> GameMode:
         """Resolve mode to GameMode enum."""
