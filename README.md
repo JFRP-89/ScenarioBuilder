@@ -45,10 +45,14 @@ ruff check .
 ### Docker
 
 ```bash
+# Desplegar stack completo (PostgreSQL + app combinada)
 docker compose up
 
-# API: http://localhost:8000
-# UI:  http://localhost:7860
+# La aplicación combinada está disponible en:
+# - http://localhost:8000          ← FastAPI + Flask/Gradio (unified)
+# - http://localhost:8000/sb/      ← Gradio UI
+# - http://localhost:8000/auth/*   ← Flask auth endpoints
+# - http://localhost:8000/health   ← Health check
 ```
 
 ## Estructura del proyecto
@@ -178,6 +182,19 @@ python -m flask --app src.adapters.http_flask.app run
 python src/adapters/ui_gradio/app.py
 ```
 
+## Migraciones (PostgreSQL)
+
+La vía oficial para persistencia es **Alembic**. Para uso rápido en dev/demo
+existe `scripts/init_db.py`, pero las migraciones son la fuente de verdad.
+
+```bash
+# Ejecutar migraciones (usa DATABASE_URL)
+alembic upgrade head
+
+# Crear nueva migración desde modelos
+alembic revision --autogenerate -m "describe change"
+```
+
 ## Documentación adicional
 
 - **Arquitectura**: [`context/architecture/layers.md`](context/architecture/layers.md)
@@ -194,7 +211,7 @@ python src/adapters/ui_gradio/app.py
 - [x] Adapters: Flask API (cards, favorites, maps)
 - [x] Adapters: Gradio UI (smoke tests)
 - [x] Seguridad: XSS/XXE mitigation en SVG
-- [ ] Persistencia: PostgreSQL repos
+- [x] Persistencia: PostgreSQL repos
 - [ ] Deploy: Cloud (Render/Railway)
 - [ ] E2E: Tests completos Flask ↔ Gradio
 

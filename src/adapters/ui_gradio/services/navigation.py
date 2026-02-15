@@ -1,68 +1,20 @@
-"""Navigation-oriented API client extensions.
+"""Navigation-oriented service for Gradio UI.
 
-Wraps HTTP calls to Flask API for card listing, detail, favorites, and SVG.
-Reuses ``api_client`` helpers for base URL, headers, and error handling.
+Calls use cases **directly** (same-process) instead of HTTP round-trips.
+Returns plain dicts in the same shape that the wiring layer expects.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import Any
 
-from adapters.ui_gradio.api_client import (
-    build_headers,
-    get_api_base_url,
-    normalize_error,
-)
-
-if TYPE_CHECKING:
-    import requests
-else:
-    try:
-        import requests  # type: ignore[import-untyped]
-    except ImportError:
-        requests = None  # type: ignore[assignment]
-
-_TIMEOUT = 30
-
-
-# ── Generic helper (DRY) ───────────────────────────────────────────
-
-
-def _api_call(
-    method: str,
-    path: str,
-    actor_id: str,
-    *,
-    params: Optional[dict[str, str]] = None,
-) -> dict[str, Any]:
-    """Execute an API call and return parsed JSON or an error dict.
-
-    Args:
-        method: HTTP method (``"GET"``, ``"POST"``, ``"DELETE"``).
-        path: URL path relative to API base (e.g. ``"/cards"``).
-        actor_id: Actor ID for the ``X-Actor-Id`` header.
-        params: Optional query parameters.
-
-    Returns:
-        Parsed JSON dict on HTTP 200, or ``{"status": "error", ...}``.
-    """
-    if not requests:
-        return {"status": "error", "message": "requests library not available"}
-    try:
-        url = f"{get_api_base_url()}{path}"
-        headers = build_headers(actor_id)
-        resp = requests.request(
-            method,
-            url,
-            headers=headers,
-            params=params,
-            timeout=_TIMEOUT,
-        )
-        if resp.status_code == 200:
-            return cast(dict[str, Any], resp.json())
-        return cast(dict[str, Any], normalize_error(resp))
-    except Exception as exc:
-        return cast(dict[str, Any], normalize_error(None, exc))
+from application.use_cases.delete_card import DeleteCardRequest
+from application.use_cases.get_card import GetCardRequest
+from application.use_cases.list_cards import ListCardsRequest
+from application.use_cases.list_favorites import ListFavoritesRequest
+from application.use_cases.render_map_svg import RenderMapSvgRequest
+from application.use_cases.toggle_favorite import ToggleFavoriteRequest
+from infrastructure.bootstrap import get_services
 
 
 # ============================================================================
@@ -72,63 +24,122 @@ def list_cards(
     actor_id: str,
     filter_value: str = "mine",
 ) -> dict[str, Any]:
-    """GET /cards?filter=... — list cards visible to the actor."""
-    return _api_call("GET", "/cards", actor_id, params={"filter": filter_value})
+    """List cards visible to the actor (direct use-case call)."""
+    try:
+        svc = get_services()
+        resp = svc.list_cards.execute(
+            ListCardsRequest(actor_id=actor_id, filter=filter_value)
+        )
+        return {
+            "cards": [
+                {
+                    "card_id": c.card_id,
+                    "owner_id": c.owner_id,
+                    "seed": c.seed,
+                    "mode": c.mode,
+                    "visibility": c.visibility,
+                    "name": c.name,
+                    "table_preset": c.table_preset,
+                    "table_mm": c.table_mm,
+                }
+                for c in resp.cards
+            ]
+        }
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 # ============================================================================
 # Get card detail
 # ============================================================================
 def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
-    """GET /cards/<card_id> — retrieve a single card."""
-    return _api_call("GET", f"/cards/{card_id}", actor_id)
+    """Retrieve a single card (direct use-case call)."""
+    try:
+        svc = get_services()
+        r = svc.get_card.execute(
+            GetCardRequest(actor_id=actor_id, card_id=card_id)
+        )
+        return {
+            "card_id": r.card_id,
+            "owner_id": r.owner_id,
+            "seed": r.seed,
+            "mode": r.mode,
+            "visibility": r.visibility,
+            "table_mm": r.table_mm,
+            "table_preset": r.table_preset,
+            "name": r.name,
+            "shared_with": r.shared_with or [],
+            "armies": r.armies,
+            "deployment": r.deployment,
+            "layout": r.layout,
+            "objectives": r.objectives,
+            "initial_priority": r.initial_priority,
+            "special_rules": r.special_rules,
+            "shapes": r.shapes or {},
+        }
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 # ============================================================================
 # Delete card
 # ============================================================================
 def delete_card(actor_id: str, card_id: str) -> dict[str, Any]:
-    """DELETE /cards/<card_id> — delete a card."""
-    return _api_call("DELETE", f"/cards/{card_id}", actor_id)
+    """Delete a card (direct use-case call)."""
+    try:
+        svc = get_services()
+        r = svc.delete_card.execute(
+            DeleteCardRequest(actor_id=actor_id, card_id=card_id)
+        )
+        return {"card_id": r.card_id, "deleted": r.deleted}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 # ============================================================================
 # Toggle favorite
 # ============================================================================
 def toggle_favorite(actor_id: str, card_id: str) -> dict[str, Any]:
-    """POST /favorites/<card_id>/toggle — toggle favorite status."""
-    return _api_call("POST", f"/favorites/{card_id}/toggle", actor_id)
+    """Toggle favorite status (direct use-case call)."""
+    try:
+        svc = get_services()
+        r = svc.toggle_favorite.execute(
+            ToggleFavoriteRequest(actor_id=actor_id, card_id=card_id)
+        )
+        return {"card_id": r.card_id, "is_favorite": r.is_favorite}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 # ============================================================================
 # List favorites
 # ============================================================================
 def list_favorites(actor_id: str) -> dict[str, Any]:
-    """GET /favorites — list favorite card IDs."""
-    return _api_call("GET", "/favorites", actor_id)
+    """List favourite card IDs (direct use-case call)."""
+    try:
+        svc = get_services()
+        r = svc.list_favorites.execute(
+            ListFavoritesRequest(actor_id=actor_id)
+        )
+        return {"card_ids": r.card_ids}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
 
 
 # ============================================================================
 # Get card SVG map
 # ============================================================================
 def get_card_svg(actor_id: str, card_id: str) -> str:
-    """GET /cards/<card_id>/map.svg — fetch rendered SVG markup.
-
-    Returns:
-        SVG string on success, or a placeholder HTML string on failure.
-    """
+    """Render a card's map as SVG (direct use-case call)."""
     placeholder = (
         '<div style="color:#999;font-size:14px;text-align:center;">'
         "SVG preview unavailable.</div>"
     )
-    if not requests:
-        return placeholder
     try:
-        url = f"{get_api_base_url()}/cards/{card_id}/map.svg"
-        headers = build_headers(actor_id)
-        resp = requests.get(url, headers=headers, timeout=_TIMEOUT)
-        if resp.status_code == 200:
-            return resp.text
-        return placeholder
+        svc = get_services()
+        r = svc.render_map_svg.execute(
+            RenderMapSvgRequest(actor_id=actor_id, card_id=card_id)
+        )
+        return r.svg
     except Exception:
         return placeholder

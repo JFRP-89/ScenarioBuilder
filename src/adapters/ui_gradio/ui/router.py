@@ -33,6 +33,23 @@ ALL_PAGES: list[str] = [
 
 DEFAULT_PAGE = PAGE_HOME
 
+# ============================================================================
+# URL path ↔ page mapping (for browser URL sync)
+# ============================================================================
+
+#: Map from page constant → URL path served by the combined app.
+PAGE_TO_URL: dict[str, str] = {
+    PAGE_HOME: "/sb/",
+    PAGE_CREATE: "/sb/create/",
+    PAGE_EDIT: "/sb/edit/",
+    PAGE_DETAIL: "/sb/view/",
+    PAGE_LIST: "/sb/myscenarios/",
+    PAGE_FAVORITES: "/sb/myfavorites/",
+}
+
+#: Reverse map: URL path → page constant.
+URL_TO_PAGE: dict[str, str] = {v: k for k, v in PAGE_TO_URL.items()}
+
 
 # ============================================================================
 # Navigation helpers
@@ -55,6 +72,18 @@ def build_detail_card_id_state() -> gr.State:
     return gr.State("")
 
 
+def build_detail_reload_trigger() -> gr.State:
+    """Create a State to trigger reload of detail page content.
+
+    Incremented each time a card is clicked to ensure reload happens
+    even if clicking the same card multiple times.
+
+    Returns:
+        gr.State initialized to 0.
+    """
+    return gr.State(0)
+
+
 def build_previous_page_state() -> gr.State:
     """Create a State to track where the user navigated from.
 
@@ -75,7 +104,10 @@ def page_visibility(target_page: str) -> list[Any]:
     Returns:
         List of gr.update dicts, one per page in ALL_PAGES order.
     """
-    return [gr.update(visible=(p == target_page)) for p in ALL_PAGES]
+    # Edit mode reuses the create form container — show create_container
+    # for both PAGE_CREATE and PAGE_EDIT.
+    effective = PAGE_CREATE if target_page == PAGE_EDIT else target_page
+    return [gr.update(visible=(p == effective)) for p in ALL_PAGES]
 
 
 def navigate_to(target_page: str) -> tuple[Any, ...]:
@@ -95,24 +127,26 @@ def navigate_to(target_page: str) -> tuple[Any, ...]:
     return (target_page, *visibility)
 
 
-def navigate_to_detail(card_id: str, from_page: str = PAGE_HOME) -> tuple[Any, ...]:
+def navigate_to_detail(card_id: str, from_page: str = PAGE_HOME, reload_trigger: int = 0) -> tuple[Any, ...]:
     """Navigate to the detail page for a specific card.
 
     Returns:
       - new page state
       - card_id state
       - previous page state (for Back button)
+      - reload_trigger (incremented to force reload)
       - one visibility update per page container
 
     Args:
         card_id: ID of the card to show.
         from_page: Page the user is navigating from (for Back button).
+        reload_trigger: Current trigger value (will be incremented).
 
     Returns:
-        Tuple: (page_state, card_id_state, previous_page_state, *visibility_updates)
+        Tuple: (page_state, card_id_state, previous_page_state, reload_trigger+1, *visibility_updates)
     """
     visibility = page_visibility(PAGE_DETAIL)
-    return (PAGE_DETAIL, card_id, from_page, *visibility)
+    return (PAGE_DETAIL, card_id, from_page, reload_trigger + 1, *visibility)
 
 
 def navigate_to_edit(card_id: str) -> tuple[Any, ...]:

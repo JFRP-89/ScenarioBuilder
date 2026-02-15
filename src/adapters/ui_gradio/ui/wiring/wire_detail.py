@@ -25,7 +25,7 @@ from adapters.ui_gradio.state_helpers import (
 )
 from adapters.ui_gradio.ui.components.search_helpers import escape_html
 from adapters.ui_gradio.ui.router import (
-    PAGE_CREATE,
+    PAGE_EDIT,
     PAGE_FAVORITES,
     PAGE_HOME,
     PAGE_LIST,
@@ -94,6 +94,8 @@ def wire_detail_page(  # noqa: C901
     page_containers: list[gr.Column],
     previous_page_state: gr.State,
     detail_card_id_state: gr.State,
+    detail_reload_trigger: gr.State,
+    editing_reload_trigger: gr.State | None = None,
     # Detail page widgets
     detail_title_md: gr.Markdown,
     detail_svg_preview: gr.HTML,
@@ -113,7 +115,7 @@ def wire_detail_page(  # noqa: C901
     create_heading_md: gr.Markdown | None = None,
     scenario_name: gr.Textbox | None = None,
     mode: gr.Radio | None = None,
-    seed: gr.Number | None = None,
+    is_replicable: gr.Checkbox | None = None,
     armies: gr.Textbox | None = None,
     table_preset: gr.Radio | None = None,
     deployment: gr.Textbox | None = None,
@@ -218,12 +220,25 @@ def wire_detail_page(  # noqa: C901
         detail_delete_confirm_row,
     ]
 
-    # When card_id changes: reset immediately → then load real data
+    # When card_id or reload_trigger changes: reset immediately → then load real data
     _load_inputs: list[gr.components.Component] = [detail_card_id_state]
     if actor_id_state is not None:
         _load_inputs.append(actor_id_state)
 
+    # Listen to both card_id changes AND reload_trigger changes
+    # This ensures reload happens even if clicking the same card multiple times
     detail_card_id_state.change(
+        fn=_reset_detail_for_loading,
+        inputs=[detail_card_id_state],
+        outputs=_detail_outputs,
+    ).then(
+        fn=_load_card_detail,
+        inputs=_load_inputs,
+        outputs=_detail_outputs,
+    )
+
+    # Also listen to reload_trigger to force reload even if card_id hasn't changed
+    detail_reload_trigger.change(
         fn=_reset_detail_for_loading,
         inputs=[detail_card_id_state],
         outputs=_detail_outputs,
@@ -323,10 +338,11 @@ def wire_detail_page(  # noqa: C901
             page_state=page_state,
             page_containers=page_containers,
             editing_card_id=editing_card_id,
+            editing_reload_trigger=editing_reload_trigger,
             create_heading_md=create_heading_md,
             scenario_name=scenario_name,
             mode=mode,
-            seed=seed,
+            is_replicable=is_replicable,
             armies=armies,
             table_preset=table_preset,
             deployment=deployment,
@@ -361,8 +377,6 @@ def wire_detail_page(  # noqa: C901
     else:
         # Fallback: navigate to old edit page (kept for compat)
         def _go_edit(card_id: str) -> tuple:
-            from adapters.ui_gradio.ui.router import PAGE_EDIT
-
             nav = navigate_to(PAGE_EDIT)
             if not card_id:
                 return (*nav, card_id, "## Edit", "", {})
@@ -392,10 +406,11 @@ def _wire_edit_button(  # noqa: C901
     page_state: gr.State,
     page_containers: list[gr.Column],
     editing_card_id: gr.State,
+    editing_reload_trigger: gr.State | None,
     create_heading_md: gr.Markdown,
     scenario_name: gr.Textbox,
     mode: gr.Radio,
-    seed: gr.Number,
+    is_replicable: gr.Checkbox,
     armies: gr.Textbox,
     table_preset: gr.Radio | None,
     deployment: gr.Textbox,
@@ -440,7 +455,7 @@ def _wire_edit_button(  # noqa: C901
         create_heading_md,
         scenario_name,
         mode,
-        seed,
+        is_replicable,
         armies,
     ]
     # Optional form fields
@@ -482,8 +497,8 @@ def _wire_edit_button(  # noqa: C901
 
     def _go_edit_form(card_id: str) -> tuple:  # noqa: C901
         """Fetch card data and navigate to Create page in edit mode."""
-        # Navigate to CREATE page
-        nav = navigate_to(PAGE_CREATE)
+        # Navigate to EDIT page (shows create_container via page_visibility)
+        nav = navigate_to(PAGE_EDIT)
 
         if not card_id:
             # No card selected — just navigate with defaults
@@ -493,8 +508,8 @@ def _wire_edit_button(  # noqa: C901
                 "## Create New Scenario",
                 "",
                 "casual",
-                1,
-                "",  # name, mode, seed, armies
+                True,
+                "",  # name, mode, is_replicable, armies
                 *([gr.update()] * len([c for c in _opt if c is not None])),
             )
 
@@ -506,7 +521,7 @@ def _wire_edit_button(  # noqa: C901
                 "## Create New Scenario",
                 "",
                 "casual",
-                1,
+                True,
                 "",
                 *([gr.update()] * len([c for c in _opt if c is not None])),
             )
@@ -545,7 +560,7 @@ def _wire_edit_button(  # noqa: C901
             heading,  # create_heading_md
             gr.update(value=name or ""),  # scenario_name
             gr.update(value=card_data.get("mode", "casual")),  # mode
-            gr.update(value=card_data.get("seed", 1)),  # seed
+            gr.update(value=card_data.get("is_replicable", True)),  # is_replicable
             gr.update(value=card_data.get("armies", "") or ""),  # armies
         ]
         # Optional fields (must match _opt order)
@@ -645,3 +660,19 @@ def _wire_edit_button(  # noqa: C901
         inputs=[detail_card_id_state],
         outputs=_all_outputs,
     )
+
+    # ── F5 edit restore: when editing_reload_trigger fires, repopulate
+    # the form from editing_card_id (set by _check_auth on page load).
+    if editing_reload_trigger is not None:
+
+        def _reload_edit_form(_trigger: int, card_id: str) -> tuple:
+            """Repopulate edit form from card_id on page reload (F5)."""
+            if not card_id:
+                return tuple(gr.update() for _ in _all_outputs)
+            return _go_edit_form(card_id)
+
+        editing_reload_trigger.change(
+            fn=_reload_edit_form,
+            inputs=[editing_reload_trigger, editing_card_id],
+            outputs=_all_outputs,
+        )

@@ -1,11 +1,12 @@
-"""Flask middleware — session loading, CSRF verification.
+"""Flask middleware — session loading, CSRF verification, API auth gate.
 
 Registered via ``init_middleware(app)`` in ``create_app()``.
 
 Session lifecycle:
 1. ``before_request``: load session from ``sb_session`` cookie → ``g.actor_id``
-2. CSRF check on mutating methods (POST/PUT/PATCH/DELETE) for non-auth routes
-3. Routes use ``g.actor_id`` (or the legacy ``X-Actor-Id`` header as fallback)
+2. Auth gate: API routes (``/cards``, ``/favorites``, etc.) require valid session.
+3. CSRF check on mutating methods (POST/PUT/PATCH/DELETE) for non-exempt routes.
+4. Routes use ``g.actor_id`` (or the legacy ``X-Actor-Id`` header as fallback).
 """
 
 from __future__ import annotations
@@ -25,6 +26,10 @@ _CSRF_EXEMPT_PREFIXES = ("/auth/login", "/health")
 
 # Methods that require CSRF verification
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+# Prefixes that require a valid session (API routes).
+# Auth routes handle their own session checks; health is public.
+_AUTH_REQUIRED_PREFIXES = ("/cards", "/favorites", "/maps", "/presets")
 
 
 def _load_session() -> None:
@@ -79,7 +84,23 @@ def _verify_csrf():
     return None
 
 
+def _require_auth():
+    """Return 401 for API routes that lack a valid session.
+
+    Only applies to paths starting with ``_AUTH_REQUIRED_PREFIXES``.
+    """
+    if not any(request.path.startswith(p) for p in _AUTH_REQUIRED_PREFIXES):
+        return None
+
+    actor_id = getattr(g, "actor_id", "")
+    if not actor_id:
+        return jsonify({"ok": False, "message": "Authentication required."}), 401
+
+    return None
+
+
 def init_middleware(app: Flask) -> None:
     """Attach ``before_request`` hooks to the Flask application."""
     app.before_request(_load_session)
+    app.before_request(_require_auth)
     app.before_request(_verify_csrf)

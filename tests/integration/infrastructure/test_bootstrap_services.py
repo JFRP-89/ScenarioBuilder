@@ -54,16 +54,20 @@ class TestBootstrapServicesIntegrationFlow:
         services = build_services()
         actor_id = "u1"
 
-        # Generate a card
+        # Generate a card with deterministic seed
         gen_request = GenerateScenarioCardRequest(
             actor_id=actor_id,
             mode="matched",
             table_preset="standard",
-            seed=123,
+            seed=None,  # Will be calculated based on is_replicable
+            is_replicable=True,  # Enable deterministic seed generation
             visibility="private",
             shared_with=None,
         )
         gen_response = services.generate_scenario_card.execute(gen_request)
+
+        # Capture the generated seed (it's deterministic based on config)
+        generated_seed = gen_response.seed
 
         # Build Card from response
         from application.use_cases._shape_normalization import (
@@ -106,7 +110,7 @@ class TestBootstrapServicesIntegrationFlow:
         # Assert - retrieved card matches
         assert card_out.card_id == card.card_id
         assert card_out.owner_id == "u1"
-        assert card_out.seed == 123
+        assert card_out.seed == generated_seed  # Seed should be preserved
 
     def test_services_share_repository_state(self) -> None:
         """Use cases share the same repository instance (state is preserved)."""
@@ -178,8 +182,13 @@ class TestBootstrapServicesIntegrationFlow:
 
     def test_multiple_calls_to_build_services_create_independent_instances(
         self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Multiple calls to build_services create independent service instances."""
+        """Multiple calls to build_services create independent service instances.
+
+        Forces in-memory repositories via DATABASE_URL="" so each
+        build_services() call creates truly independent repo instances.
+        """
         from application.use_cases.generate_scenario_card import (
             GenerateScenarioCardRequest,
         )
@@ -190,6 +199,10 @@ class TestBootstrapServicesIntegrationFlow:
         from domain.maps.table_size import TableSize
         from domain.security.authz import Visibility
         from infrastructure.bootstrap import build_services
+
+        # Force in-memory repos so instances are truly independent
+        monkeypatch.setenv("DATABASE_URL", "")
+        monkeypatch.delenv("DATABASE_URL_TEST", raising=False)
 
         # Arrange
         services1 = build_services()

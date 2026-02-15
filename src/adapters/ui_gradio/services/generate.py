@@ -10,23 +10,12 @@ All existing imports continue to work unchanged.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
-if TYPE_CHECKING:
-    import requests
-else:
-    try:
-        import requests  # type: ignore[import-untyped]
-    except ImportError:
-        requests = None  # type: ignore[assignment]
-
-from adapters.ui_gradio import api_client
 from adapters.ui_gradio.builders import payload as payload_builder
 from adapters.ui_gradio.builders import shapes as shapes_builder
 from adapters.ui_gradio.constants import (
     FIELD_MODE,
-    FIELD_SEED,
-    SUCCESS_STATUS_CODES,
 )
 
 # ── re-exports from internal modules ─────────────────────────────────────────
@@ -43,13 +32,16 @@ from adapters.ui_gradio.services._generate._submission import (  # noqa: F401
     handle_create_scenario,
     handle_update_scenario,
 )
+from infrastructure.generators.deterministic_seed_generator import (
+    calculate_seed_from_config,
+)
 
 
 def _prepare_payload(  # noqa: C901
     actor: str,
     name: str,
     m: str,
-    s: int,
+    is_replicable: bool,
     armies_val: str,
     preset: str,
     width: float,
@@ -107,7 +99,7 @@ def _prepare_payload(  # noqa: C901
     if not actor_id:
         return {"status": "error", "message": "Actor ID is required."}
 
-    payload = payload_builder.build_generate_payload(m, s)
+    payload = payload_builder.build_generate_payload(m, is_replicable)
 
     if name.strip():
         payload["name"] = name.strip()
@@ -147,6 +139,10 @@ def _prepare_payload(  # noqa: C901
         return cast(dict[str, Any], error_sr)
 
     payload_builder.apply_visibility(payload, vis, shared)
+
+    # -- Ensure required positional fields for GenerateScenarioCardRequest --
+    payload.setdefault("seed", None)
+    payload.setdefault("shared_with", None)
 
     # -- Build shapes ---------------------------------------------------
     scenography_specs: list[dict[str, Any]] = []
@@ -188,7 +184,7 @@ def handle_preview(
     actor: str,
     name: str,
     m: str,
-    s: int,
+    is_replicable: bool,
     armies_val: str,
     preset: str,
     width: float,
@@ -218,7 +214,7 @@ def handle_preview(
             actor,
             name,
             m,
-            s,
+            is_replicable,
             armies_val,
             preset,
             width,
@@ -251,23 +247,49 @@ def handle_preview(
             cm = _table_cm_from_preset(preset)
             table_mm = _build_table_mm_from_cm(cm)
 
+        # -- Calculate seed (deterministic if replicable, 0 if manual) --
+        # Use same config format as use case for consistency
+        if is_replicable:
+            seed_objectives = payload.get("objectives")
+            seed_config = {
+                "mode": m,
+                "table_preset": preset,
+                "table_width_mm": table_mm.get("width_mm") if table_mm else None,
+                "table_height_mm": table_mm.get("height_mm") if table_mm else None,
+                "armies": armies_val.strip() if armies_val else None,
+                "deployment": depl.strip() if depl else None,
+                "layout": lay.strip() if lay else None,
+                "objectives": seed_objectives,
+                "initial_priority": init_priority.strip() if init_priority else None,
+                "special_rules": rules_state if rules_state else None,
+                "deployment_shapes": prepared["shapes"]["deployment_shapes"],
+                "objective_shapes": prepared["shapes"]["objective_shapes"],
+                "scenography_specs": prepared["shapes"]["scenography_specs"],
+            }
+            seed = calculate_seed_from_config(seed_config)
+        else:
+            seed = 0
+
         # -- Build preview result (NOT persisted) -----------------------
+        # Note: _payload and _actor_id are internal fields needed for submission.
+        # They are stored in the preview dict but filtered out before display.
         preview: dict[str, Any] = {
             "status": "preview",
             "name": name.strip(),
             FIELD_MODE: m,
-            FIELD_SEED: int(s) if s else None,
+            "seed": seed,
+            "is_replicable": is_replicable,
             "armies": armies_val.strip() if armies_val else "",
             "table_preset": preset,
             "table_mm": table_mm,
             "deployment": depl.strip() if depl else "",
             "layout": lay.strip() if lay else "",
-            "objectives": obj.strip() if obj else "",
+            "objectives": payload.get("objectives") or (obj.strip() if obj else ""),
             "initial_priority": init_priority.strip() if init_priority else "",
             "visibility": vis,
             "shapes": prepared["shapes"],
-            "_payload": payload,
-            "_actor_id": actor_id,
+            "_payload": payload,  # Internal: for submission only, filtered from display
+            "_actor_id": actor_id,  # Internal: for submission only, filtered from display
         }
         if payload.get("special_rules"):
             preview["special_rules"] = payload["special_rules"]
@@ -284,7 +306,7 @@ def handle_generate(
     actor: str,
     name: str,
     m: str,
-    s: int,
+    is_replicable: bool,
     armies_val: str,
     preset: str,
     width: float,
@@ -303,13 +325,13 @@ def handle_generate(
     objectives_with_vp_enabled: bool,
     vp_state: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Generate a scenario card via HTTP API call."""
+    """Generate a scenario card via direct use-case call."""
     try:
         prepared = _prepare_payload(
             actor,
             name,
             m,
-            s,
+            is_replicable,
             armies_val,
             preset,
             width,
@@ -336,23 +358,41 @@ def handle_generate(
         custom_table = prepared["custom_table"]
         preset = prepared["preset"]
 
-        api_url = api_client.get_api_base_url()
-        headers = api_client.build_headers(actor_id)
-        response = api_client.post_generate_card(api_url, headers, payload)
+        from application.use_cases.generate_scenario_card import (
+            GenerateScenarioCardRequest,
+        )
+        from application.use_cases.save_card import SaveCardRequest
+        from infrastructure.bootstrap import get_services
 
-        if response is None:
-            return cast(dict[str, Any], api_client.normalize_error(None))
+        svc = get_services()
+        gen_req = GenerateScenarioCardRequest(actor_id=actor_id, **payload)
+        gen_resp = svc.generate_scenario_card.execute(gen_req)
 
-        if response.status_code not in SUCCESS_STATUS_CODES:
-            return cast(dict[str, Any], api_client.normalize_error(response))
+        save_req = SaveCardRequest(actor_id=actor_id, card=gen_resp.card)
+        svc.save_card.execute(save_req)
 
-        response_json = cast(dict[Any, Any], response.json())
+        response_json = {
+            "card_id": gen_resp.card_id,
+            "seed": gen_resp.seed,
+            "owner_id": gen_resp.owner_id,
+            "name": gen_resp.name,
+            "mode": gen_resp.mode,
+            "armies": gen_resp.armies,
+            "table_preset": gen_resp.table_preset,
+            "table_mm": gen_resp.table_mm,
+            "layout": gen_resp.layout,
+            "deployment": gen_resp.deployment,
+            "initial_priority": gen_resp.initial_priority,
+            "objectives": gen_resp.objectives,
+            "special_rules": gen_resp.special_rules,
+            "visibility": gen_resp.visibility,
+            "shared_with": gen_resp.shared_with or [],
+            "shapes": gen_resp.shapes,
+        }
         return _augment_generated_card(response_json, payload, preset, custom_table)  # type: ignore[no-any-return]
 
-    except requests.RequestException as exc:
-        return cast(dict[str, Any], api_client.normalize_error(None, exc))
     except Exception as exc:
-        return cast(dict[str, Any], api_client.normalize_error(None, exc))
+        return {"status": "error", "message": f"Generate failed: {exc}"}
 
 
 def _get_default_actor_id() -> str:

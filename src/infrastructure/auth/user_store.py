@@ -175,3 +175,55 @@ def reset_stores() -> None:
         _USERS.clear()
         _LOCKOUT.clear()
     _seed_demo_users()
+
+
+def seed_demo_users_to_database() -> None:
+    """Attempt to seed demo users to PostgreSQL (if available, idempotent).
+
+    This is called at app startup to populate the users table.
+    If PostgreSQL is not available, silently skips (falls back to in-memory).
+    """
+    try:
+        from infrastructure.db.models import UserModel
+        from infrastructure.db.session import SessionLocal
+
+        demo_accounts = {
+            "demo-user": {"name": "Demo User", "email": "demo@example.com"},
+            "alice": {"name": "Alice", "email": "alice@example.com"},
+            "bob": {"name": "Bob", "email": "bob@example.com"},
+            "charlie": {"name": "Charlie", "email": "charlie@example.com"},
+            "dave": {"name": "Dave", "email": "dave@example.com"},
+        }
+
+        session = SessionLocal()
+        try:
+            for username, info in demo_accounts.items():
+                existing = (
+                    session.query(UserModel)
+                    .filter_by(username=username)
+                    .first()
+                )
+                if existing is None:
+                    # Get hash and salt from in-memory store
+                    if username in _USERS:
+                        user_rec = _USERS[username]
+                        model = UserModel(
+                            username=username,
+                            password_hash=user_rec["password_hash"],
+                            salt=user_rec["salt"],
+                            name=user_rec["name"],
+                            email=user_rec["email"],
+                        )
+                        session.add(model)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+    except ImportError:
+        # SQLAlchemy not installed or DB not configured — skip
+        pass
+    except Exception:
+        # DB connection failed or other error — log and skip
+        pass

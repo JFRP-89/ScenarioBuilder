@@ -12,26 +12,26 @@ class TestBuildGeneratePayload:
     """Characterization tests for _build_generate_payload()."""
 
     def test_builds_payload_with_mode_and_seed(self):
-        """Builds payload with mode and seed."""
+        """Builds payload with mode and is_replicable."""
         from adapters.ui_gradio.builders.payload import build_generate_payload
 
-        result = build_generate_payload("matched_play", 12345)
-        assert result == {"mode": "matched_play", "seed": 12345}
+        result = build_generate_payload("matched_play", True)
+        assert result == {"mode": "matched_play", "is_replicable": True}
 
     def test_seed_none_returns_none_in_payload(self):
-        """seed=None returns seed: None in payload."""
+        """is_replicable=False returns is_replicable: False in payload."""
         from adapters.ui_gradio.builders.payload import build_generate_payload
 
-        result = build_generate_payload("matched_play", None)
-        assert result == {"mode": "matched_play", "seed": None}
+        result = build_generate_payload("matched_play", False)
+        assert result == {"mode": "matched_play", "is_replicable": False}
 
     def test_seed_zero_is_falsy_returns_none(self):
-        """seed=0 is falsy, so returns None (current behavior)."""
+        """is_replicable=False means manual scenario (seed=0 internally)."""
         from adapters.ui_gradio.builders.payload import build_generate_payload
 
-        result = build_generate_payload("competitive", 0)
-        # Characterization: seed=0 is falsy, so `int(seed) if seed else None` → None
-        assert result == {"mode": "competitive", "seed": None}
+        result = build_generate_payload("competitive", False)
+        # Characterization: is_replicable=False → seed=0 (manual scenario)
+        assert result == {"mode": "competitive", "is_replicable": False}
 
 
 class TestApplyTableConfig:

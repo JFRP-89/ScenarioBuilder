@@ -27,11 +27,9 @@ from typing import Any
 
 import gradio as gr
 from adapters.ui_gradio.auth import (
-    authenticate,
     get_logged_in_label,
     get_profile,
     is_session_valid,
-    logout,
     update_profile,
 )
 from adapters.ui_gradio.ui.components import build_svg_preview, configure_renderer
@@ -41,8 +39,9 @@ from adapters.ui_gradio.ui.pages.home import build_home_page
 from adapters.ui_gradio.ui.pages.list_scenarios import build_list_page
 from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
 from adapters.ui_gradio.ui.router import (
-    PAGE_HOME,
+    PAGE_TO_URL,
     build_detail_card_id_state,
+    build_detail_reload_trigger,
     build_page_state,
     build_previous_page_state,
 )
@@ -82,40 +81,275 @@ def _close_profile():
     return gr.update(visible=False)
 
 
-def _restore_session(stored_sid: str, stored_actor: str):
-    """Restore login state from browser-persisted session if still valid.
+def _check_auth(request: gr.Request):  # noqa: C901
+    """Validate the ``sb_session`` HttpOnly cookie on page load.
 
-    Returns a tuple of 10 outputs:
-        actor_id_state, session_id_state, actor_id textbox, user_label,
-        login_panel, top_bar_row, home_container, login_message,
-        browser_sid_box, browser_actor_box.
-    The last two feed a JS `.then()` that clears localStorage on expiry.
+    If the cookie carries a valid session, populate actor/session state
+    and show the main UI.  Also reads the ``?page=`` query parameter from
+    the browser ``Referer`` header so that the correct page container is
+    shown immediately (e.g. after F5 on ``/sb/myscenarios/``).
+
+    For the detail page (``scenario_detail``) the ``?id=`` query param
+    is also extracted so the card content reloads on F5.
+
+    Otherwise show the authentication-required gate with a login link.
+
+    Returns a tuple of N outputs:
+        page_state, detail_card_id_state, detail_reload_trigger,
+        editing_card_id, editing_reload_trigger,
+        actor_id_state, session_id_state, actor_id textbox,
+        user_label, auth_gate, top_bar_row, *page_containers (one per page).
     """
-    if stored_sid and stored_actor and is_session_valid(stored_sid):
-        return (
-            stored_actor,  # actor_id_state
-            stored_sid,  # session_id_state
-            gr.update(value=stored_actor),  # actor_id textbox
-            gr.update(value=get_logged_in_label(stored_actor)),  # user_label
-            gr.update(visible=False),  # login_panel
-            gr.update(visible=True),  # top_bar_row
-            gr.update(visible=True),  # home_container
-            gr.update(value="", visible=False),  # login_message
-            stored_sid,  # browser_sid_box (keep)
-            stored_actor,  # browser_actor_box (keep)
-        )
-    # No valid session — show login panel
+    from adapters.ui_gradio.ui.router import (
+        ALL_PAGES,
+        PAGE_CREATE,
+        PAGE_DETAIL,
+        PAGE_EDIT,
+        PAGE_HOME,
+        URL_TO_PAGE,
+    )
+
+    def _page_visibility(target: str) -> list:
+        """Return visibility updates for all page containers."""
+        # Edit mode reuses the create form container
+        effective = PAGE_CREATE if target == PAGE_EDIT else target
+        return [gr.update(visible=(p == effective)) for p in ALL_PAGES]
+
+    session_id = request.cookies.get("sb_session", "")
+    if session_id:
+        from infrastructure.auth.session_store import get_session
+
+        session = get_session(session_id)
+        if session is not None:
+            actor_id = session["actor_id"]
+
+            # ── Determine initial page + card_id from Referer URL ─
+            initial_page = PAGE_HOME
+            card_id_from_url = ""
+            editing_id_from_url = ""
+            referer = request.headers.get("referer", "")
+            if referer:
+                from urllib.parse import parse_qs, urlparse
+
+                parsed = urlparse(referer)
+                qs = parse_qs(parsed.query)
+
+                # 1) Check ?page= query param  (redirect from /sb/create/)
+                qp = qs.get("page", [None])[0]
+                if qp and qp in ALL_PAGES:
+                    initial_page = qp
+                # 2) Check path directly  (e.g. /sb/myfavorites/)
+                elif parsed.path:
+                    path_norm = parsed.path.rstrip("/") + "/"
+                    matched = URL_TO_PAGE.get(path_norm)
+                    if matched and matched in ALL_PAGES:
+                        initial_page = matched
+
+                # 3) Extract card_id for detail page
+                if initial_page == PAGE_DETAIL:
+                    cid = qs.get("id", [None])[0]
+                    if cid and cid.strip():
+                        card_id_from_url = cid.strip()
+
+                # 4) Extract card_id for edit page
+                if initial_page == PAGE_EDIT:
+                    cid = qs.get("id", [None])[0]
+                    if cid and cid.strip():
+                        editing_id_from_url = cid.strip()
+
+            # detail_reload_trigger: bump to 1 so the .change handler fires
+            reload_trigger = 1 if card_id_from_url else gr.update()
+
+            # editing_reload_trigger: bump to 1 so the edit form repopulates
+            edit_reload = 1 if editing_id_from_url else gr.update()
+
+            return (
+                initial_page,                              # page_state
+                card_id_from_url or gr.update(),           # detail_card_id_state
+                reload_trigger,                            # detail_reload_trigger
+                editing_id_from_url or gr.update(),        # editing_card_id
+                edit_reload,                               # editing_reload_trigger
+                actor_id,                                  # actor_id_state
+                session_id,                                # session_id_state
+                gr.update(value=actor_id),                 # actor_id textbox
+                gr.update(value=get_logged_in_label(actor_id)),  # user_label
+                gr.update(visible=False),                  # auth_gate → hide
+                gr.update(visible=True),                   # top_bar_row → show
+                *_page_visibility(initial_page),           # page containers
+            )
+
+    # Not authenticated — show the auth gate, hide everything else
     return (
-        "",  # actor_id_state
-        "",  # session_id_state
-        gr.update(),  # actor_id textbox
-        gr.update(),  # user_label
-        gr.update(visible=True),  # login_panel → show
-        gr.update(),  # top_bar_row
-        gr.update(),  # home_container
-        gr.update(),  # login_message
-        "",  # browser_sid_box → empty triggers JS cleanup
-        "",  # browser_actor_box → empty triggers JS cleanup
+        gr.update(),                    # page_state (unchanged)
+        gr.update(),                    # detail_card_id_state (unchanged)
+        gr.update(),                    # detail_reload_trigger (unchanged)
+        gr.update(),                    # editing_card_id (unchanged)
+        gr.update(),                    # editing_reload_trigger (unchanged)
+        "",                             # actor_id_state
+        "",                             # session_id_state
+        gr.update(),                    # actor_id textbox
+        gr.update(),                    # user_label
+        gr.update(visible=True),        # auth_gate → show
+        gr.update(visible=False),       # top_bar_row → hide
+        *_page_visibility("__none__"),  # hide all page containers
+    )
+
+
+# =============================================================================
+# URL-sync JavaScript (injected into <head>)
+# =============================================================================
+
+# Elem-ID of each page container (must match what build_*_page sets).
+_ELEM_ID_TO_PAGE = {
+    "page-home": "home",
+    "page-list-scenarios": "list_scenarios",
+    "page-scenario-detail": "scenario_detail",
+    "page-create-scenario": "create_scenario",
+    "page-edit-scenario": "edit_scenario",
+    "page-favorites": "favorites",
+}
+
+
+def _build_url_sync_head_js() -> str:
+    """Return a ``<script>`` tag that keeps the browser URL in sync.
+
+    Client-side behaviour:
+    1. **MutationObserver** — watches each page container for
+       attribute changes.  When a container becomes visible,
+       it pushes the matching URL via ``history.pushState``.
+    2. **popstate** — handles browser back/forward by showing
+       the correct page container directly via style manipulation.
+    """
+    import json
+
+    # Python dicts → JS object literals
+    elem_to_page_js = json.dumps(_ELEM_ID_TO_PAGE)
+    page_to_url_js = json.dumps(PAGE_TO_URL)
+
+    # Reverse map: page name → elem id
+    page_to_elem_js = json.dumps(
+        {v: k for k, v in _ELEM_ID_TO_PAGE.items()}
+    )
+
+    return (
+        "<script>\n"
+        "(function() {\n"
+        f"  var ELEM_TO_PAGE = {elem_to_page_js};\n"
+        f"  var PAGE_TO_URL  = {page_to_url_js};\n"
+        f"  var PAGE_TO_ELEM = {page_to_elem_js};\n"
+        "\n"
+        "  /* 1. Push URL when a page container becomes visible */\n"
+        "  function _getInputVal(elemId) {\n"
+        "    var c = document.getElementById(elemId);\n"
+        "    if (!c) return '';\n"
+        "    var inp = c.querySelector('textarea') || c.querySelector('input');\n"
+        "    return inp ? inp.value : '';\n"
+        "  }\n"
+        "\n"
+        "  function startObserver() {\n"
+        "    var observer = new MutationObserver(function(mutations) {\n"
+        "      for (var i = 0; i < mutations.length; i++) {\n"
+        "        var el = mutations[i].target;\n"
+        "        var pageName = ELEM_TO_PAGE[el.id];\n"
+        "        if (!pageName) continue;\n"
+        "        var isVisible = el.offsetParent !== null\n"
+        "                        || getComputedStyle(el).display !== 'none';\n"
+        "        if (isVisible) {\n"
+        "          var targetUrl = PAGE_TO_URL[pageName];\n"
+        "          if (targetUrl) {\n"
+        "            /* Create container is shared: check editing mirror */\n"
+        "            if (pageName === 'create_scenario') {\n"
+        "              var eid = _getInputVal('editing-card-id-mirror');\n"
+        "              if (eid) {\n"
+        "                targetUrl = PAGE_TO_URL['edit_scenario'] + '?id=' + encodeURIComponent(eid);\n"
+        "                pageName = 'edit_scenario';\n"
+        "              }\n"
+        "            }\n"
+        "            var current = window.location.pathname + window.location.search;\n"
+        "            if (current !== targetUrl) {\n"
+        "              history.pushState({page: pageName}, '', targetUrl);\n"
+        "            }\n"
+        "          }\n"
+        "        }\n"
+        "      }\n"
+        "    });\n"
+        "    var ids = Object.keys(ELEM_TO_PAGE);\n"
+        "    for (var j = 0; j < ids.length; j++) {\n"
+        "      var el = document.getElementById(ids[j]);\n"
+        "      if (el) observer.observe(el, { attributes: true });\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  /* 2. Handle browser back/forward — hide/show containers */\n"
+        "  window.addEventListener('popstate', function(e) {\n"
+        "    var page = (e.state && e.state.page) ? e.state.page : 'home';\n"
+        "    /* edit_scenario reuses create_scenario container */\n"
+        "    var showPage = (page === 'edit_scenario') ? 'create_scenario' : page;\n"
+        "    var allIds = Object.keys(ELEM_TO_PAGE);\n"
+        "    for (var k = 0; k < allIds.length; k++) {\n"
+        "      var container = document.getElementById(allIds[k]);\n"
+        "      if (!container) continue;\n"
+        "      var shouldShow = (ELEM_TO_PAGE[allIds[k]] === showPage);\n"
+        "      container.style.display = shouldShow ? '' : 'none';\n"
+        "    }\n"
+        "  });\n"
+        "\n"
+        "  /* 3. Detail page: replace URL with ?id=<card_id> when mirror updates */\n"
+        "  var _lastDetailMirror = '';\n"
+        "  var _lastEditMirror = '';\n"
+        "  setInterval(function() {\n"
+        "    /* Detail view mirror */\n"
+        "    var dval = _getInputVal('detail-card-id-mirror');\n"
+        "    if (dval && dval !== _lastDetailMirror) {\n"
+        "      _lastDetailMirror = dval;\n"
+        "      var detailEl = document.getElementById('page-scenario-detail');\n"
+        "      if (detailEl && (detailEl.offsetParent !== null\n"
+        "                       || getComputedStyle(detailEl).display !== 'none')) {\n"
+        "        var url = PAGE_TO_URL['scenario_detail'] + '?id=' + encodeURIComponent(dval);\n"
+        "        var current = window.location.pathname + window.location.search;\n"
+        "        if (current !== url) {\n"
+        "          history.replaceState({page: 'scenario_detail'}, '', url);\n"
+        "        }\n"
+        "      }\n"
+        "    }\n"
+        "    /* Edit form mirror */\n"
+        "    var eval2 = _getInputVal('editing-card-id-mirror');\n"
+        "    if (eval2 && eval2 !== _lastEditMirror) {\n"
+        "      _lastEditMirror = eval2;\n"
+        "      var createEl = document.getElementById('page-create-scenario');\n"
+        "      if (createEl && (createEl.offsetParent !== null\n"
+        "                       || getComputedStyle(createEl).display !== 'none')) {\n"
+        "        var url2 = PAGE_TO_URL['edit_scenario'] + '?id=' + encodeURIComponent(eval2);\n"
+        "        var cur2 = window.location.pathname + window.location.search;\n"
+        "        if (cur2 !== url2) {\n"
+        "          history.replaceState({page: 'edit_scenario'}, '', url2);\n"
+        "        }\n"
+        "      }\n"
+        "    }\n"
+        "    /* When editing mirror clears and create form is visible, revert to /sb/create/ */\n"
+        "    if (!eval2 && _lastEditMirror) {\n"
+        "      _lastEditMirror = '';\n"
+        "      var createEl2 = document.getElementById('page-create-scenario');\n"
+        "      if (createEl2 && (createEl2.offsetParent !== null\n"
+        "                        || getComputedStyle(createEl2).display !== 'none')) {\n"
+        "        var cur3 = window.location.pathname + window.location.search;\n"
+        "        if (cur3 !== PAGE_TO_URL['create_scenario']) {\n"
+        "          history.replaceState({page: 'create_scenario'}, '', PAGE_TO_URL['create_scenario']);\n"
+        "        }\n"
+        "      }\n"
+        "    }\n"
+        "  }, 300);\n"
+        "\n"
+        "  /* Boot — start observer after Gradio renders */\n"
+        "  if (document.readyState === 'loading') {\n"
+        "    document.addEventListener('DOMContentLoaded', function() {\n"
+        "      setTimeout(startObserver, 800);\n"
+        "    });\n"
+        "  } else {\n"
+        "    setTimeout(startObserver, 800);\n"
+        "  }\n"
+        "})();\n"
+        "</script>"
     )
 
 
@@ -129,12 +363,16 @@ def build_app() -> gr.Blocks:
            Edit Scenario, Favorites.
 
     Navigation uses gr.State to track the current page and show/hide
-    gr.Column containers.
+    gr.Column containers.  Browser URL is kept in sync via JS.
 
     Returns:
         A gradio.Blocks instance ready to launch
     """
-    with gr.Blocks(title="Scenario Card Generator") as app:
+    # ── Build URL-sync JavaScript for <head> ─────────────────────
+    # Mirrors PAGE_TO_URL from router.py on the client side.
+    _URL_SYNC_JS = _build_url_sync_head_js()
+
+    with gr.Blocks(title="Scenario Card Generator", head=_URL_SYNC_JS) as app:
         # ── Inject infrastructure renderer (composition root) ────────
         from infrastructure.maps.svg_map_renderer import SvgMapRenderer
 
@@ -143,41 +381,24 @@ def build_app() -> gr.Blocks:
         # ── Global state ─────────────────────────────────────────────
         page_state = build_page_state()
         detail_card_id_state = build_detail_card_id_state()
+        detail_reload_trigger = build_detail_reload_trigger()
         previous_page_state = build_previous_page_state()
         editing_card_id = gr.State(value="")
+        editing_reload_trigger = gr.State(value=0)
         actor_id_state = gr.State(value="")
         session_id_state = gr.State(value="")
 
-        # Hidden textboxes — bridge between localStorage and Python
-        browser_sid_box = gr.Textbox(value="", visible=False, elem_id="browser-sid")
-        browser_actor_box = gr.Textbox(value="", visible=False, elem_id="browser-actor")
-
         # ════════════════════════════════════════════════════════════
-        # LOGIN GATE — starts hidden; _restore_session decides visibility
+        # AUTH GATE — shown when the user has no valid session cookie.
+        # Flask's /login page is the real login form; this is just a
+        # placeholder that appears if someone navigates to /sb directly.
         # ════════════════════════════════════════════════════════════
-        with gr.Column(visible=False, elem_id="login-panel") as login_panel:
-            gr.Markdown("## Scenario Card Generator \u2014 Login")
-            login_username = gr.Textbox(
-                label="Username",
-                placeholder="Enter username",
-                elem_id="login-username",
-            )
-            login_password = gr.Textbox(
-                label="Password",
-                type="password",
-                placeholder="Enter password",
-                elem_id="login-password",
-            )
-            login_btn = gr.Button(
-                "Login",
-                variant="primary",
-                elem_id="login-btn",
-            )
-            login_message = gr.Textbox(
-                label="",
-                interactive=False,
-                visible=False,
-                elem_id="login-message",
+        with gr.Column(visible=False, elem_id="auth-gate") as auth_gate:
+            gr.Markdown("## Scenario Card Generator — Authentication Required")
+            auth_message = gr.Markdown(
+                'You are not logged in. Please <a href="/login">log in</a> '
+                "to continue.",
+                elem_id="auth-message",
             )
 
         # ════════════════════════════════════════════════════════════
@@ -323,7 +544,7 @@ def build_app() -> gr.Blocks:
             # ── Existing form sections (unchanged) ───────────────
             actor_id = actor_section.build_actor_section("")
 
-            scenario_name, mode, seed, armies = (
+            scenario_name, mode, is_replicable, armies = (
                 scenario_meta_section.build_scenario_meta_section()
             )
 
@@ -471,6 +692,9 @@ def build_app() -> gr.Blocks:
                 elem_id="generate-button",
             )
             output = gr.JSON(label="Generated Card", elem_id="result-json")
+            # Hidden state to store full preview data (with _payload and _actor_id)
+            # Needed for submission, but filtered from JSON display
+            preview_full_state = gr.State(value=None)
 
             create_scenario_btn = gr.Button(
                 "Create Scenario",
@@ -549,6 +773,34 @@ def build_app() -> gr.Blocks:
             elem_id="view-card-btn",
         )
 
+        # ── Hidden mirror of detail_card_id_state for JS URL sync ─
+        # Updated whenever detail_card_id_state changes so the JS
+        # MutationObserver can include ?id=<card_id> in the URL.
+        detail_card_id_mirror = gr.Textbox(
+            value="",
+            visible=False,
+            elem_id="detail-card-id-mirror",
+        )
+        detail_card_id_state.change(
+            fn=lambda cid: cid,
+            inputs=[detail_card_id_state],
+            outputs=[detail_card_id_mirror],
+        )
+
+        # ── Hidden mirror of editing_card_id for JS URL sync ─────
+        # Updated whenever editing_card_id changes so the JS
+        # can show /sb/edit/?id=<card_id> instead of /sb/create/.
+        editing_card_id_mirror = gr.Textbox(
+            value="",
+            visible=False,
+            elem_id="editing-card-id-mirror",
+        )
+        editing_card_id.change(
+            fn=lambda cid: cid,
+            inputs=[editing_card_id],
+            outputs=[editing_card_id_mirror],
+        )
+
         # ── Wire navigation ──────────────────────────────────────
         wire_navigation(
             page_state=page_state,
@@ -562,9 +814,9 @@ def build_app() -> gr.Blocks:
             favorites_back_btn=favorites_back_btn,
             session_id_state=session_id_state,
             actor_id_state=actor_id_state,
-            login_panel=login_panel,
+            login_panel=auth_gate,
             top_bar_row=top_bar_row,
-            login_message=login_message,
+            login_message=auth_message,
         )
 
         # ── Wire home page (initial load) ────────────────────────
@@ -614,6 +866,8 @@ def build_app() -> gr.Blocks:
             page_containers=page_containers,
             previous_page_state=previous_page_state,
             detail_card_id_state=detail_card_id_state,
+            detail_reload_trigger=detail_reload_trigger,
+            editing_reload_trigger=editing_reload_trigger,
             detail_title_md=detail_title_md,
             detail_svg_preview=detail_svg_preview,
             detail_content_html=detail_content_html,
@@ -631,7 +885,7 @@ def build_app() -> gr.Blocks:
             create_heading_md=create_heading_md,
             scenario_name=scenario_name,
             mode=mode,
-            seed=seed,
+            is_replicable=is_replicable,
             armies=armies,
             table_preset=table_preset,
             deployment=deployment,
@@ -701,13 +955,14 @@ def build_app() -> gr.Blocks:
             view_card_btn=view_card_btn,
             page_state=page_state,
             detail_card_id_state=detail_card_id_state,
+            detail_reload_trigger=detail_reload_trigger,
             previous_page_state=previous_page_state,
             page_containers=page_containers,
             session_id_state=session_id_state,
             actor_id_state=actor_id_state,
-            login_panel=login_panel,
+            login_panel=auth_gate,
             top_bar_row=top_bar_row,
-            login_message=login_message,
+            login_message=auth_message,
         )
 
         # ── Wire existing create-form events (unchanged) ─────────
@@ -715,7 +970,7 @@ def build_app() -> gr.Blocks:
             actor_id=actor_id,
             scenario_name=scenario_name,
             mode=mode,
-            seed=seed,
+            is_replicable=is_replicable,
             armies=armies,
             table_preset=table_preset,
             prev_unit_state=prev_unit_state,
@@ -831,6 +1086,7 @@ def build_app() -> gr.Blocks:
             generate_btn=generate_btn,
             svg_preview=svg_preview,
             output=output,
+            preview_full_state=preview_full_state,
             create_scenario_btn=create_scenario_btn,
             create_scenario_status=create_scenario_status,
             page_state=page_state,
@@ -841,185 +1097,23 @@ def build_app() -> gr.Blocks:
         )
 
         # ════════════════════════════════════════════════════════════
-        # AUTH EVENT WIRING — login, logout, profile
+        # AUTH EVENT WIRING — logout (JS → Flask), profile
         # ════════════════════════════════════════════════════════════
 
-        def _handle_login(username: str, password: str, current_actor: str):
-            """Authenticate and update session state."""
-            result = authenticate(username, password)
-            if result["ok"]:
-                new_actor = str(result["actor_id"])
-                new_session = str(result.get("session_id", ""))
-                return (
-                    new_actor,  # actor_id_state
-                    new_session,  # session_id_state
-                    gr.update(value=new_actor),  # actor_id textbox
-                    gr.update(value=get_logged_in_label(new_actor)),  # user_label
-                    gr.update(value="", visible=False),  # login_message → clear
-                    gr.update(visible=False),  # login_panel → hide
-                    gr.update(visible=True),  # top_bar_row → show
-                    gr.update(visible=True),  # home_container → show
-                    "",  # login_username → clear
-                    "",  # login_password → clear
-                    new_session,  # browser_sid_box (for localStorage)
-                    new_actor,  # browser_actor_box (for localStorage)
-                )
-            return (
-                current_actor,  # actor_id_state unchanged
-                gr.update(),  # session_id_state unchanged
-                gr.update(),  # actor_id textbox unchanged
-                gr.update(),  # user_label unchanged
-                gr.update(value=str(result["message"]), visible=True),  # login_message
-                gr.update(visible=True),  # login_panel stays open
-                gr.update(visible=False),  # top_bar_row stays hidden
-                gr.update(visible=False),  # home_container stays hidden
-                gr.update(),  # login_username unchanged
-                "",  # login_password → clear
-                gr.update(),  # browser_sid_box unchanged
-                gr.update(),  # browser_actor_box unchanged
-            )
-
-        login_event = _event(login_btn, "click")(
-            fn=_handle_login,
-            inputs=[login_username, login_password, actor_id_state],
-            outputs=[
-                actor_id_state,
-                session_id_state,
-                actor_id,
-                user_label,
-                login_message,
-                login_panel,
-                top_bar_row,
-                home_container,
-                login_username,
-                login_password,
-                browser_sid_box,
-                browser_actor_box,
-            ],
-        )
-        login_persist = login_event.then(
-            fn=None,
-            inputs=[browser_sid_box, browser_actor_box],
-            outputs=[],
-            js="(sid, actor) => {"
-            "  if (sid && actor) {"
-            "    localStorage.setItem('sb_sid', sid);"
-            "    localStorage.setItem('sb_actor', actor);"
-            "  }"
-            "}",
-        )
-        # After login + localStorage persist, load home page for new user
-        login_persist.then(
-            fn=load_recent_cards,
-            inputs=[
-                home_mode_filter,
-                home_preset_filter,
-                home_unit_selector,
-                home_page_state,
-                home_search_box,
-                home_per_page_dropdown,
-                actor_id_state,
-            ],
-            outputs=[
-                home_recent_html,
-                home_page_info,
-                home_page_state,
-                home_cards_cache_state,
-                home_fav_ids_cache_state,
-            ],
-        )
-
-        def _handle_logout(_current_actor: str, sid: str):
-            """Logout and return to login screen.
-
-            Also resets list and favorites cache states to prevent the
-            next user from seeing cached data from the previous session.
-            """
-            from infrastructure.auth.session_store import invalidate_session
-
-            if sid:
-                invalidate_session(sid)
-            result = logout(_current_actor)
-            new_actor = str(result["actor_id"])
-            return (
-                new_actor,  # actor_id_state → ""
-                "",  # session_id_state → ""
-                gr.update(value=new_actor),  # actor_id textbox
-                gr.update(value=""),  # user_label → clear
-                gr.update(visible=True),  # login_panel → show
-                gr.update(visible=False),  # top_bar_row → hide
-                gr.update(visible=False),  # profile_panel → hide
-                # Reset list page cache
-                False,  # list_loaded_state → not loaded
-                {},  # list_cards_cache_state → empty dict
-                [],  # list_fav_ids_cache_state → empty list
-                # Reset favorites page cache
-                False,  # favorites_loaded_state → not loaded
-                [],  # favorites_cards_cache_state → empty list
-                [],  # favorites_fav_ids_cache_state → empty list
-                # Reset detail page (security: prevent stale owner buttons)
-                "",  # detail_card_id_state → clear
-                "## Scenario Detail",  # detail_title_md → default
-                "",  # detail_svg_preview → clear
-                '<div style="color:#999;">No card selected</div>',  # detail_content_html
-                gr.update(visible=False),  # detail_edit_btn → hide
-                gr.update(visible=False),  # detail_delete_btn → hide
-                gr.update(visible=False),  # detail_delete_confirm_row → hide
-                "",  # editing_card_id → clear
-                PAGE_HOME,  # previous_page_state → reset
-                # Reset home page cache + visible HTML
-                gr.update(value=""),  # home_recent_html → clear
-                gr.update(value=""),  # home_page_info → clear
-                1,  # home_page_state → reset to page 1
-                [],  # home_cards_cache_state → empty list
-                [],  # home_fav_ids_cache_state → empty list
-                # Hide all page containers
-                *(gr.update(visible=False) for _ in page_containers),
-            )
-
-        logout_event = _event(logout_btn, "click")(
-            fn=_handle_logout,
-            inputs=[actor_id_state, session_id_state],
-            outputs=[
-                actor_id_state,
-                session_id_state,
-                actor_id,
-                user_label,
-                login_panel,
-                top_bar_row,
-                profile_panel,
-                list_loaded_state,
-                list_cards_cache_state,
-                list_fav_ids_cache_state,
-                favorites_loaded_state,
-                favorites_cards_cache_state,
-                favorites_fav_ids_cache_state,
-                detail_card_id_state,
-                detail_title_md,
-                detail_svg_preview,
-                detail_content_html,
-                detail_edit_btn,
-                detail_delete_btn,
-                detail_delete_confirm_row,
-                editing_card_id,
-                previous_page_state,
-                home_recent_html,
-                home_page_info,
-                home_page_state,
-                home_cards_cache_state,
-                home_fav_ids_cache_state,
-                *page_containers,
-            ],
-        )
-        logout_event.then(
-            fn=None,
-            inputs=[],
-            outputs=[],
-            js="() => {"
-            "  localStorage.removeItem('sb_sid');"
-            "  localStorage.removeItem('sb_actor');"
-            "}",
-        )
+        # Logout via JavaScript: POST /auth/logout (clears cookie on
+        # Flask side), then redirect to /login.
+        _LOGOUT_JS = """
+        () => {
+            const m = document.cookie.match(/sb_csrf=([^;]+)/);
+            const csrf = m ? m[1] : "";
+            fetch("/auth/logout", {
+                method: "POST",
+                headers: {"X-CSRF-Token": csrf},
+                credentials: "same-origin"
+            }).finally(() => { window.location.href = "/login"; });
+        }
+        """
+        _event(logout_btn, "click")(fn=None, js=_LOGOUT_JS)
 
         def _open_profile(current_actor: str, sid: str):
             """Open profile panel and load data, with session guard."""
@@ -1032,21 +1126,20 @@ def build_app() -> gr.Blocks:
                     gr.update(value="", visible=False),
                     "",  # session_id_state
                     "",  # actor_id_state
-                    gr.update(visible=True),  # login_panel
+                    gr.update(visible=True),  # auth_gate
                     gr.update(visible=False),  # top_bar_row
                     gr.update(
-                        value="Session expired — please log in again.",
-                        visible=True,
-                    ),  # login_message
+                        value='Session expired \u2014 please <a href="/login">log in</a> again.',
+                    ),  # auth_message
                     *(gr.update(visible=False) for _ in page_containers),
                 )
             result = get_profile(current_actor)
             no_change = (
                 gr.update(),  # session_id_state
                 gr.update(),  # actor_id_state
-                gr.update(),  # login_panel
+                gr.update(),  # auth_gate
                 gr.update(),  # top_bar_row
-                gr.update(),  # login_message
+                gr.update(),  # auth_message
                 *(gr.update() for _ in page_containers),
             )
             if result["ok"]:
@@ -1079,9 +1172,9 @@ def build_app() -> gr.Blocks:
                 profile_message,
                 session_id_state,
                 actor_id_state,
-                login_panel,
+                auth_gate,
                 top_bar_row,
-                login_message,
+                auth_message,
                 *page_containers,
             ],
         )
@@ -1091,13 +1184,13 @@ def build_app() -> gr.Blocks:
             if not is_session_valid(sid):
                 return (
                     gr.update(
-                        value="Session expired — please log in again.",
+                        value='Session expired \u2014 please <a href="/login">log in</a> again.',
                         visible=True,
                     ),
                     "",  # session_id_state
                     "",  # actor_id_state
                     gr.update(visible=False),  # profile_panel
-                    gr.update(visible=True),  # login_panel
+                    gr.update(visible=True),  # auth_gate
                     gr.update(visible=False),  # top_bar_row
                     *(gr.update(visible=False) for _ in page_containers),
                 )
@@ -1106,7 +1199,7 @@ def build_app() -> gr.Blocks:
                 gr.update(),  # session_id_state
                 gr.update(),  # actor_id_state
                 gr.update(),  # profile_panel
-                gr.update(),  # login_panel
+                gr.update(),  # auth_gate
                 gr.update(),  # top_bar_row
                 *(gr.update() for _ in page_containers),
             )
@@ -1128,7 +1221,7 @@ def build_app() -> gr.Blocks:
                 session_id_state,
                 actor_id_state,
                 profile_panel,
-                login_panel,
+                auth_gate,
                 top_bar_row,
                 *page_containers,
             ],
@@ -1140,42 +1233,31 @@ def build_app() -> gr.Blocks:
             outputs=[profile_panel],
         )
 
-        # ── Session restore on page load (F5 / refresh) ─────────
-        # JS preprocesses the inputs: reads localStorage and replaces
-        # the (empty) textbox values before _restore_session runs.
-        restore_event = _event(app, "load")(
-            fn=_restore_session,
-            inputs=[browser_sid_box, browser_actor_box],
+        # ── Auth check on page load (F5 / refresh) ──────────────
+        # Reads the sb_session HttpOnly cookie (set by Flask /auth/login)
+        # and either shows the main UI or the auth gate.
+        # Also reads ?page= from Referer to show the correct page,
+        # and ?id= to restore detail card view on F5.
+        auth_load_event = _event(app, "load")(
+            fn=_check_auth,
+            inputs=[],
             outputs=[
+                page_state,
+                detail_card_id_state,
+                detail_reload_trigger,
+                editing_card_id,
+                editing_reload_trigger,
                 actor_id_state,
                 session_id_state,
                 actor_id,
                 user_label,
-                login_panel,
+                auth_gate,
                 top_bar_row,
-                home_container,
-                login_message,
-                browser_sid_box,
-                browser_actor_box,
+                *page_containers,
             ],
-            js="(sid, actor) => ["
-            "  localStorage.getItem('sb_sid') || '',"
-            "  localStorage.getItem('sb_actor') || ''"
-            "]",
         )
-        restore_cleanup = restore_event.then(
-            fn=None,
-            inputs=[browser_sid_box, browser_actor_box],
-            outputs=[],
-            js="(sid, actor) => {"
-            "  if (!sid || !actor) {"
-            "    localStorage.removeItem('sb_sid');"
-            "    localStorage.removeItem('sb_actor');"
-            "  }"
-            "}",
-        )
-        # After session restore, reload home page with correct actor
-        restore_cleanup.then(
+        # After successful auth check, load home page content
+        auth_load_event.then(
             fn=load_recent_cards,
             inputs=[
                 home_mode_filter,
@@ -1199,7 +1281,7 @@ def build_app() -> gr.Blocks:
 
 
 # =============================================================================
-# Main entry point
+# Main entry point (standalone — prefer combined_app for production)
 # =============================================================================
 if __name__ == "__main__":
     build_app().launch(

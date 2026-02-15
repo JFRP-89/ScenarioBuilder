@@ -108,8 +108,8 @@ def fake_list():
 
 
 @pytest.fixture
-def client(fake_toggle, fake_list):
-    """Create Flask test client with fake services."""
+def client(fake_toggle, fake_list, session_factory):
+    """Create Flask test client with fake services and session."""
     app = create_app()
 
     # Inject fake services
@@ -119,6 +119,8 @@ def client(fake_toggle, fake_list):
     )
 
     with app.test_client() as test_client:
+        auth = session_factory(test_client, "u1")
+        test_client._test_csrf = auth["csrf_token"]
         yield test_client
 
 
@@ -126,13 +128,20 @@ def client(fake_toggle, fake_list):
 # TESTS: POST /favorites/<card_id>/toggle - Missing Actor ID
 # =============================================================================
 class TestToggleFavoriteMissingActorId:
-    """Tests for POST /favorites/<card_id>/toggle without X-Actor-Id header."""
+    """Tests for POST /favorites/<card_id>/toggle without valid session."""
 
-    def test_post_toggle_missing_actor_id_returns_400(self, client):
-        """POST /favorites/<card_id>/toggle without X-Actor-Id returns 400."""
-        response = client.post("/favorites/card-001/toggle")
+    def test_post_toggle_missing_auth_returns_401(self, fake_toggle, fake_list):
+        """POST /favorites/<card_id>/toggle without session returns 401."""
+        app = create_app()
+        app.config["services"] = FakeServices(
+            toggle_favorite=fake_toggle,
+            list_favorites=fake_list,
+        )
+        unauth_client = app.test_client()
 
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        response = unauth_client.post("/favorites/card-001/toggle")
+
+        assert response.status_code == 401, "Missing auth should return 401"
 
 
 # =============================================================================
@@ -142,10 +151,10 @@ class TestToggleFavoriteHappyPath:
     """Tests for POST /favorites/<card_id>/toggle happy path."""
 
     def test_post_toggle_returns_200_with_json(self, client, fake_toggle):
-        """POST /favorites/<card_id>/toggle with valid header returns 200 + JSON."""
+        """POST /favorites/<card_id>/toggle with valid session returns 200 + JSON."""
         response = client.post(
             "/favorites/card-001/toggle",
-            headers={"X-Actor-Id": "u1"},
+            headers={"X-CSRF-Token": client._test_csrf},
         )
 
         assert response.status_code == 200, "Valid POST should return 200"
@@ -161,7 +170,7 @@ class TestToggleFavoriteHappyPath:
         """POST /favorites/<card_id>/toggle passes correct data to use case."""
         response = client.post(
             "/favorites/card-001/toggle",
-            headers={"X-Actor-Id": "u1"},
+            headers={"X-CSRF-Token": client._test_csrf},
         )
 
         assert response.status_code == 200
@@ -182,7 +191,7 @@ class TestToggleFavoriteForbidden:
     """Tests for POST /favorites/<card_id>/toggle when use case raises forbidden."""
 
     @pytest.fixture
-    def client_forbidden(self, fake_list):
+    def client_forbidden(self, fake_list, session_factory):
         """Create client with toggle that raises forbidden error."""
         app = create_app()
 
@@ -196,13 +205,15 @@ class TestToggleFavoriteForbidden:
         )
 
         with app.test_client() as test_client:
+            auth = session_factory(test_client, "u1")
+            test_client._test_csrf = auth["csrf_token"]
             yield test_client
 
     def test_post_toggle_forbidden_returns_403(self, client_forbidden):
         """POST /favorites/<card_id>/toggle returns 403 when forbidden."""
         response = client_forbidden.post(
             "/favorites/card-001/toggle",
-            headers={"X-Actor-Id": "u1"},
+            headers={"X-CSRF-Token": client_forbidden._test_csrf},
         )
 
         assert response.status_code == 403, "Forbidden should return 403"
@@ -212,13 +223,20 @@ class TestToggleFavoriteForbidden:
 # TESTS: GET /favorites - Missing Actor ID
 # =============================================================================
 class TestListFavoritesMissingActorId:
-    """Tests for GET /favorites without X-Actor-Id header."""
+    """Tests for GET /favorites without valid session."""
 
-    def test_get_favorites_missing_actor_id_returns_400(self, client):
-        """GET /favorites without X-Actor-Id returns 400."""
-        response = client.get("/favorites")
+    def test_get_favorites_missing_auth_returns_401(self, fake_toggle, fake_list):
+        """GET /favorites without session returns 401."""
+        app = create_app()
+        app.config["services"] = FakeServices(
+            toggle_favorite=fake_toggle,
+            list_favorites=fake_list,
+        )
+        unauth_client = app.test_client()
 
-        assert response.status_code == 400, "Missing X-Actor-Id should return 400"
+        response = unauth_client.get("/favorites")
+
+        assert response.status_code == 401, "Missing auth should return 401"
 
 
 # =============================================================================
@@ -228,11 +246,8 @@ class TestListFavoritesHappyPath:
     """Tests for GET /favorites happy path."""
 
     def test_get_favorites_returns_200_with_card_ids(self, client, fake_list):
-        """GET /favorites with valid header returns 200 + JSON with card_ids."""
-        response = client.get(
-            "/favorites",
-            headers={"X-Actor-Id": "u1"},
-        )
+        """GET /favorites with valid session returns 200 + JSON with card_ids."""
+        response = client.get("/favorites")
 
         assert response.status_code == 200, "Valid GET should return 200"
 
@@ -244,10 +259,7 @@ class TestListFavoritesHappyPath:
 
     def test_get_favorites_calls_use_case_with_correct_request(self, client, fake_list):
         """GET /favorites passes correct data to use case."""
-        response = client.get(
-            "/favorites",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client.get("/favorites")
 
         assert response.status_code == 200
         assert (
@@ -266,7 +278,7 @@ class TestListFavoritesNotFound:
     """Tests for GET /favorites when use case raises not found."""
 
     @pytest.fixture
-    def client_not_found(self, fake_toggle):
+    def client_not_found(self, fake_toggle, session_factory):
         """Create client with list that raises not found error."""
         app = create_app()
 
@@ -280,13 +292,11 @@ class TestListFavoritesNotFound:
         )
 
         with app.test_client() as test_client:
+            session_factory(test_client, "u1")
             yield test_client
 
     def test_get_favorites_not_found_returns_404(self, client_not_found):
         """GET /favorites returns 404 when not found."""
-        response = client_not_found.get(
-            "/favorites",
-            headers={"X-Actor-Id": "u1"},
-        )
+        response = client_not_found.get("/favorites")
 
         assert response.status_code == 404, "Not found should return 404"

@@ -1,6 +1,11 @@
 # =============================================================================
 # Docker Compose for ScenarioBuilder
-# Stack: PostgreSQL 16 + Flask API + Gradio UI
+# Stack: PostgreSQL 16 + Combined App (FastAPI + Flask Auth/API + Gradio UI)
+#
+# The combined app runs on a single port (8000) and handles:
+# - Authentication and API endpoints (Flask)
+# - Interactive UI (Gradio at /sb/)
+# - Shared cookie handling via ASGI/FastAPI
 #
 # NOTE: Quality analysis tools (pylint, radon, vulture, mypy, bandit) are
 #       NOT included in production images to minimize size. For development:
@@ -35,24 +40,32 @@ services:
       - scenariobuilder
 
   # ===========================================================================
-  # Flask API (REST)
+  # Combined App (FastAPI + Flask Auth/API + Gradio UI)
+  # Routes:
+  #  - / → redirect to /sb/
+  #  - /sb/** → Gradio UI (with authentication via cookie)
+  #  - /auth/**, /cards/**, /health, /login, etc. → Flask REST API
   # ===========================================================================
-  api:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
       target: final
-    container_name: scenariobuilder-api
+    container_name: scenariobuilder-app
     restart: unless-stopped
     environment:
-      # Flask configuration
+      # ASGI server (Uvicorn)
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /app/src
+      
+      # Flask configuration (for internal auth system)
       FLASK_ENV: ${FLASK_ENV:-production}
       FLASK_DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       
       # Server configuration
-      API_HOST: 0.0.0.0
-      API_PORT: 8000
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
       
       # Database connection
       DATABASE_URL: postgresql://${POSTGRES_USER:-scenario}:${POSTGRES_PASSWORD:-scenario}@db:5432/${POSTGRES_DB:-scenario}
@@ -60,14 +73,14 @@ services:
       # Application defaults
       DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
     command: [
-      "python", "-m", "flask",
-      "--app", "adapters.http_flask.app:create_app",
-      "run",
-      "--host=0.0.0.0",
-      "--port=8000"
+      "python", "-m", "uvicorn",
+      "adapters.combined_app:create_combined_app",
+      "--factory",
+      "--host", "0.0.0.0",
+      "--port", "8000"
     ]
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${APP_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -77,41 +90,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - scenariobuilder
-
-  # ===========================================================================
-  # Gradio UI (Interactive Web Interface)
-  # ===========================================================================
-  ui:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: final
-    container_name: scenariobuilder-ui
-    restart: unless-stopped
-    environment:
-      # API connection (internal Docker network)
-      API_BASE_URL: http://api:8000
-      
-      # Server configuration
-      UI_HOST: 0.0.0.0
-      UI_PORT: 7860
-      
-      # Application defaults
-      DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
-    command: ["python", "-m", "adapters.ui_gradio.app"]
-    ports:
-      - "${UI_PORT:-7860}:7860"
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:7860/"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
     networks:
       - scenariobuilder
 

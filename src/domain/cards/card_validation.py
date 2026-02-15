@@ -12,7 +12,21 @@ from domain.validation import validate_non_empty_str
 
 
 def validate_seed(value: Any) -> int:
-    """Validate seed is int >= 0, rejecting bool."""
+    """Validate seed is int >= 0, rejecting bool.
+
+    Seed convention:
+    - seed=0: Manual scenario (no automatic generation)
+    - seed>=1: Generated scenario (seed controls shape generation)
+
+    Args:
+        value: Seed value to validate.
+
+    Returns:
+        Valid seed as int.
+
+    Raises:
+        ValidationError: If seed is not int or is negative.
+    """
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValidationError("seed must be int")
     if value < 0:

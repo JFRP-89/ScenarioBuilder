@@ -43,27 +43,24 @@ def e2e_mode() -> str:
 
 @pytest.fixture(scope="session")
 def e2e_base_urls() -> dict[str, str]:
-    """URLs base para API y UI. API se controla con E2E_BASE_URL."""
-    api_base = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-    ui_base = os.environ.get("UI_BASE_URL", "http://localhost:7860").rstrip("/")
+    """URLs base para la aplicación unificada (FastAPI + Flask/Gradio)."""
+    app_base = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
     return {
-        "api": api_base,
-        "ui": ui_base,
+        "app": app_base,
     }
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _set_e2e_env_vars(e2e_base_urls: dict[str, str]) -> Generator[None, None, None]:
-    """Sincroniza env vars de base URLs para tests y helpers."""
-    os.environ["API_BASE_URL"] = e2e_base_urls["api"]
-    os.environ.setdefault("UI_BASE_URL", e2e_base_urls["ui"])
+    """Sincroniza env vars de base URL para tests y helpers."""
+    os.environ["APP_BASE_URL"] = e2e_base_urls["app"]
     yield
 
 
 @pytest.fixture(scope="session")
 def base_url(e2e_base_urls: dict[str, str]) -> str:
-    """Base URL común para API en E2E."""
-    return e2e_base_urls["api"]
+    """Base URL para la aplicación unificada."""
+    return e2e_base_urls["app"]
 
 
 # ============================================================================
@@ -82,8 +79,10 @@ def e2e_services(
     - docker: docker compose up/down
     - local: proceso Flask local (sin Docker)
     """
-    if e2e_mode == "local" and _is_ui_test(request):
-        pytest.skip("E2E_MODE=local no levanta UI; saltando test UI.")
+    if e2e_mode == "local":
+        # En modo local, el app combinado incluye tanto API como UI
+        # No hay razón para skipear tests de UI
+        pass
 
     if e2e_mode == "docker":
         if not _docker_available():
@@ -92,9 +91,9 @@ def e2e_services(
         # Fail early if a rogue Python process is competing on port 8000
         check_port_clean(8000)
 
-        print("\n🐳 Levantando docker-compose (api + ui)...")
+        print("\n🐳 Levantando docker-compose (app)...")
         result = subprocess.run(
-            ["docker", "compose", "up", "-d", "--build", "api", "ui"],
+            ["docker", "compose", "up", "-d", "--build", "app"],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -113,7 +112,7 @@ def e2e_services(
         _dump_docker_debug()
 
         try:
-            _wait_for_health(e2e_base_urls, check_ui=True)
+            _wait_for_health(e2e_base_urls)
             print("✅ Health checks OK")
         except (TimeoutError, requests.RequestException) as exc:
             print(f"❌ Health checks fallaron: {exc}")
@@ -135,10 +134,10 @@ def e2e_services(
         print("✅ docker-compose down completado")
         return
 
-    process = _start_local_api(e2e_base_urls["api"])
+    process = _start_local_api(e2e_base_urls["app"])
     try:
-        _wait_for_health(e2e_base_urls, check_ui=False)
-        print("✅ Health checks OK (local API)")
+        _wait_for_health(e2e_base_urls)
+        print("✅ Health checks OK (local app)")
     except (TimeoutError, requests.RequestException) as exc:
         print(f"❌ Health checks fallaron: {exc}")
         _terminate_process(process)
@@ -157,57 +156,38 @@ def docker_compose_up(e2e_services: None) -> Generator[None, None, None]:
 
 def _wait_for_health(
     base_urls: dict[str, str],
-    *,
-    check_ui: bool,
     timeout_s: int = 120,
     interval_s: float = 2.0,
 ) -> None:
     """
-    Polling de health checks hasta que API y UI respondan.
+    Polling de health check hasta que el app responda.
 
-    API: GET /health debe devolver 200
-    UI: GET / debe devolver 200 o 302 (redirect aceptable)
+    App (FastAPI + Flask/Gradio): GET /health debe devolver 200
     """
-    api_url = f"{base_urls['api']}/health"
-    ui_url = base_urls["ui"]
+    health_url = f"{base_urls['app']}/health"
 
     start = time.time()
-    api_ok = False
-    ui_ok = False
 
-    print(f"⏳ Esperando health checks (timeout={timeout_s}s)...")
+    print(f"⏳ Esperando health check (timeout={timeout_s}s)...")
 
     while time.time() - start < timeout_s:
-        # Check API
-        if not api_ok:
-            api_ok = _check_endpoint(api_url, (200,), f"  ✓ API health OK ({api_url})")
-
-        # Check UI
-        if check_ui and not ui_ok:
-            ui_ok = _check_endpoint(ui_url, (200, 302), f"  ✓ UI health OK ({ui_url})")
-
-        # Ambos OK?
-        if api_ok and (ui_ok or not check_ui):
+        if _check_endpoint(health_url, (200,), f"  ✓ App health OK ({health_url})"):
             return
 
         time.sleep(interval_s)
 
     # Timeout
-    raise TimeoutError(
-        f"Health checks timeout después de {timeout_s}s. "
-        f"API OK={api_ok}, UI OK={ui_ok}"
-    )
+    raise TimeoutError(f"Health check timeout después de {timeout_s}s en {health_url}")
 
 
 @pytest.fixture
 def wait_for_health(
     e2e_base_urls: dict[str, str],
-    e2e_mode: str,
 ) -> Generator[Callable[[], None], None, None]:
-    """Fixture callable para esperar health checks de API/UI."""
+    """Fixture callable para esperar health check del app."""
 
     def _wait() -> None:
-        _wait_for_health(e2e_base_urls, check_ui=e2e_mode == "docker")
+        _wait_for_health(e2e_base_urls)
 
     yield _wait
 

@@ -16,7 +16,7 @@ def build_form_resets() -> list[Any]:
     return [
         gr.update(value=""),  # scenario_name
         gr.update(value="casual"),  # mode
-        gr.update(value=1),  # seed
+        gr.update(value=True),  # is_replicable
         gr.update(value=""),  # armies
         gr.update(value=""),  # deployment
         gr.update(value=""),  # layout

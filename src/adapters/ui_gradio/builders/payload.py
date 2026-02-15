@@ -31,17 +31,17 @@ from adapters.ui_gradio.builders._payload._visibility import (  # noqa: F401
 )
 
 
-def build_generate_payload(mode: str, seed: int | None) -> dict[str, Any]:
+def build_generate_payload(mode: str, is_replicable: bool) -> dict[str, Any]:
     """Build base payload for generate card request.
 
     Args:
         mode: Game mode
-        seed: Optional seed for generation
+        is_replicable: Whether to generate reproducible scenario
 
     Returns:
-        Dict with mode and seed fields
+        Dict with mode and is_replicable fields
     """
     return {
         "mode": mode,
-        "seed": int(seed) if seed else None,
+        "is_replicable": is_replicable,
     }

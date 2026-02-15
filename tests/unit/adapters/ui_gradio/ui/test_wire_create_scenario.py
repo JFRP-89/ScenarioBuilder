@@ -49,7 +49,7 @@ class TestOnCreateScenario:
         # Form components for reset
         scenario_name = _FakeComponent()
         mode = _FakeComponent()
-        seed = _FakeComponent()
+        is_replicable = _FakeComponent()
         armies = _FakeComponent()
         deployment = _FakeComponent()
         layout = _FakeComponent()
@@ -73,6 +73,7 @@ class TestOnCreateScenario:
 
         _wire_create_scenario(
             output=output,
+            preview_full_state=output,
             create_scenario_btn=btn,
             create_scenario_status=status,
             svg_preview=svg_preview,
@@ -81,7 +82,7 @@ class TestOnCreateScenario:
             home_recent_html=home_recent_html,
             scenario_name=scenario_name,
             mode=mode,
-            seed=seed,
+            is_replicable=is_replicable,
             armies=armies,
             deployment=deployment,
             layout=layout,

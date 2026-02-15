@@ -70,7 +70,7 @@ class TestMinimumJsonSchema:
         request = GenerateScenarioCardRequest(
             actor_id="demo-user",
             mode="casual",
-            seed=1,
+            seed=None,
             table_preset="standard",
             visibility="private",
             shared_with=None,
@@ -81,23 +81,23 @@ class TestMinimumJsonSchema:
             initial_priority="a",
             objectives="a",
             special_rules=None,
+            is_replicable=True,  # Use deterministic seed
         )
 
         response = use_case.execute(request)
 
         assert response.card_id == "test-card-001"
-        assert response.seed == 1
+        assert response.seed > 0  # Deterministic seed
         assert response.owner_id == "demo-user"
         assert response.name == "a"
         assert response.mode == "casual"
         assert response.visibility == "private"
         assert response.table_mm == {"width_mm": 1200, "height_mm": 1200}
         assert response.table_preset == "standard"
-        assert response.shapes == {
-            "deployment_shapes": [],
-            "objective_shapes": [],
-            "scenography_specs": [],
-        }
+        # Shapes should be generated because seed > 0
+        assert "deployment_shapes" in response.shapes
+        assert "objective_shapes" in response.shapes
+        assert "scenography_specs" in response.shapes
         assert response.special_rules is None
         assert response.shared_with == []
         assert response.objectives == "a"
