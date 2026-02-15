@@ -127,7 +127,9 @@ def navigate_to(target_page: str) -> tuple[Any, ...]:
     return (target_page, *visibility)
 
 
-def navigate_to_detail(card_id: str, from_page: str = PAGE_HOME, reload_trigger: int = 0) -> tuple[Any, ...]:
+def navigate_to_detail(
+    card_id: str, from_page: str = PAGE_HOME, reload_trigger: int = 0
+) -> tuple[Any, ...]:
     """Navigate to the detail page for a specific card.
 
     Returns:

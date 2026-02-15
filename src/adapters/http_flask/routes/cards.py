@@ -64,7 +64,9 @@ def _parse_card_payload(payload: dict) -> dict:
     :class:`GenerateScenarioCardRequest`.
     """
     mode = payload.get(KEY_MODE, DEFAULT_MODE)
-    is_replicable = payload.get("is_replicable", True)  # Default to True for replicable scenarios
+    is_replicable = payload.get(
+        "is_replicable", True
+    )  # Default to True for replicable scenarios
     table_preset = payload.get(KEY_TABLE_PRESET, DEFAULT_TABLE_PRESET)
     visibility = payload.get(KEY_VISIBILITY, DEFAULT_VISIBILITY)
     shared_with = payload.get(KEY_SHARED_WITH)

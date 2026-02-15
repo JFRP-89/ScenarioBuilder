@@ -25,6 +25,7 @@ SRC_PATH = os.path.join(REPO_ROOT, "src")
 if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 
+
 def _load_env_file(path: str, override: bool = False) -> None:
     """Minimal .env loader for environments without python-dotenv."""
     if not os.path.exists(path):
@@ -109,9 +110,7 @@ def _ensure_database_exists(url: str) -> None:
         conn = psycopg2.connect(admin_url)
         conn.autocommit = True
         cur = conn.cursor()
-        cur.execute(
-            "SELECT 1 FROM pg_database WHERE datname = %s", (db_name,)
-        )
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
         exists = cur.fetchone() is not None
         if not exists:
             # Identifiers can't be parameterised; safe because db_name
@@ -125,6 +124,7 @@ def _ensure_database_exists(url: str) -> None:
         # a clearer message from the normal connection path.
         print(f"  [alembic/env] Warning: could not ensure DB exists: {exc}")
 
+
 from infrastructure.db.models import Base  # noqa: E402
 
 # Alembic Config object
@@ -136,7 +136,9 @@ if config.config_file_name is not None:
 
 # Set SQLAlchemy URL from env
 built_url = _build_postgres_url_from_env()
-DATABASE_URL = built_url or os.environ.get("DATABASE_URL") or "sqlite:///./scenario_dev.db"
+DATABASE_URL = (
+    built_url or os.environ.get("DATABASE_URL") or "sqlite:///./scenario_dev.db"
+)
 DATABASE_URL = _escape_password_in_url(DATABASE_URL)
 
 # Create the database if it doesn't exist yet
@@ -169,7 +171,7 @@ def run_migrations_online() -> None:
     sqlalchemy_url = config.get_main_option("sqlalchemy.url")
     if not sqlalchemy_url:
         sqlalchemy_url = DATABASE_URL
-    
+
     connectable = create_engine(sqlalchemy_url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
@@ -181,7 +183,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-    
+
     connectable.dispose()
 
 

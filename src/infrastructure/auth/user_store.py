@@ -197,24 +197,18 @@ def seed_demo_users_to_database() -> None:
 
         session = SessionLocal()
         try:
-            for username, info in demo_accounts.items():
-                existing = (
-                    session.query(UserModel)
-                    .filter_by(username=username)
-                    .first()
-                )
-                if existing is None:
-                    # Get hash and salt from in-memory store
-                    if username in _USERS:
-                        user_rec = _USERS[username]
-                        model = UserModel(
-                            username=username,
-                            password_hash=user_rec["password_hash"],
-                            salt=user_rec["salt"],
-                            name=user_rec["name"],
-                            email=user_rec["email"],
-                        )
-                        session.add(model)
+            for username, _info in demo_accounts.items():
+                existing = session.query(UserModel).filter_by(username=username).first()
+                if existing is None and username in _USERS:
+                    user_rec = _USERS[username]
+                    model = UserModel(
+                        username=username,
+                        password_hash=user_rec["password_hash"],
+                        salt=user_rec["salt"],
+                        name=user_rec["name"],
+                        email=user_rec["email"],
+                    )
+                    session.add(model)
             session.commit()
         except Exception:
             session.rollback()

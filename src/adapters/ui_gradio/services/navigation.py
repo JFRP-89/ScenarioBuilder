@@ -56,9 +56,7 @@ def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
     """Retrieve a single card (direct use-case call)."""
     try:
         svc = get_services()
-        r = svc.get_card.execute(
-            GetCardRequest(actor_id=actor_id, card_id=card_id)
-        )
+        r = svc.get_card.execute(GetCardRequest(actor_id=actor_id, card_id=card_id))
         return {
             "card_id": r.card_id,
             "owner_id": r.owner_id,
@@ -118,9 +116,7 @@ def list_favorites(actor_id: str) -> dict[str, Any]:
     """List favourite card IDs (direct use-case call)."""
     try:
         svc = get_services()
-        r = svc.list_favorites.execute(
-            ListFavoritesRequest(actor_id=actor_id)
-        )
+        r = svc.list_favorites.execute(ListFavoritesRequest(actor_id=actor_id))
         return {"card_ids": r.card_ids}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}

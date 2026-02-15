@@ -31,7 +31,7 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
             value=True,
             label="Replicable Scenario",
             info="Generate reproducible scenario with deterministic seed",
-            elem_id="is-replicable-checkbox"
+            elem_id="is-replicable-checkbox",
         )
 
     # Armies

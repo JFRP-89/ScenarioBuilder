@@ -30,9 +30,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("actor_id", "card_id"),
     )
-    op.create_index(
-        "ix_favorites_actor_id", "favorites", ["actor_id"], unique=False
-    )
+    op.create_index("ix_favorites_actor_id", "favorites", ["actor_id"], unique=False)
 
 
 def downgrade() -> None:

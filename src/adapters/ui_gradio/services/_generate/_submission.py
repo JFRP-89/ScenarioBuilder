@@ -118,6 +118,7 @@ def handle_update_scenario(
 
         # Retrieve existing card to preserve seed
         from application.use_cases.get_card import GetCardRequest
+
         existing = svc.get_card.execute(
             GetCardRequest(actor_id=actor_id, card_id=card_id)
         )

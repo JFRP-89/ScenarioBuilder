@@ -12,6 +12,7 @@ from dataclasses import dataclass
 # Load .env early so DATABASE_URL is available
 try:
     from dotenv import load_dotenv
+
     load_dotenv(override=False)
 except ImportError:
     pass
@@ -57,9 +58,7 @@ def get_services() -> "Services":
     Raises ``RuntimeError`` if ``build_services()`` has not been called yet.
     """
     if _services_instance is None:
-        raise RuntimeError(
-            "Services not initialised — call build_services() first."
-        )
+        raise RuntimeError("Services not initialised — call build_services() first.")
     return _services_instance
 
 
@@ -205,6 +204,7 @@ def build_services() -> Services:
     # 0b) Seed demo users to database (if available, idempotent)
     try:
         from infrastructure.auth.user_store import seed_demo_users_to_database
+
         seed_demo_users_to_database()
     except Exception:
         # Failed to seed — app still boots, falls back to in-memory auth
@@ -256,7 +256,7 @@ def build_services() -> Services:
     delete_card = DeleteCard(repository=card_repo)
 
     # 3) Build services container and cache as singleton
-    global _services_instance  # noqa: PLW0603
+    global _services_instance
     _services_instance = Services(
         generate_scenario_card=generate_scenario_card,
         save_card=save_card,

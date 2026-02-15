@@ -49,6 +49,7 @@ class SessionRecord(TypedDict):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _generate_session_id() -> str:
     """Generate a cryptographically secure session ID (hex, 64 chars)."""
     return secrets.token_hex(_SESSION_ID_BYTES)
@@ -87,6 +88,7 @@ def _is_valid(model: SessionModel, now: datetime) -> bool:
 
 
 # ── PostgresSessionStore ─────────────────────────────────────────────────────
+
 
 class PostgresSessionStore:
     """PostgreSQL-backed session store.
@@ -144,11 +146,7 @@ class PostgresSessionStore:
 
         db = self._sf()
         try:
-            model = (
-                db.query(SessionModel)
-                .filter_by(session_id=session_id)
-                .first()
-            )
+            model = db.query(SessionModel).filter_by(session_id=session_id).first()
             if model is None:
                 return None
 
@@ -176,11 +174,7 @@ class PostgresSessionStore:
         """Soft-revoke a session. Return True if it existed and was active."""
         db = self._sf()
         try:
-            model = (
-                db.query(SessionModel)
-                .filter_by(session_id=session_id)
-                .first()
-            )
+            model = db.query(SessionModel).filter_by(session_id=session_id).first()
             if model is None or model.revoked_at is not None:
                 return False
             model.revoked_at = _now()
@@ -211,7 +205,9 @@ class PostgresSessionStore:
             db.commit()
             if count:
                 logger.info(
-                    "sessions_revoked_all: user=%s count=%d", username, count,
+                    "sessions_revoked_all: user=%s count=%d",
+                    username,
+                    count,
                 )
             return count
         except Exception:
@@ -226,11 +222,7 @@ class PostgresSessionStore:
         """Mark a session as recently re-authenticated."""
         db = self._sf()
         try:
-            model = (
-                db.query(SessionModel)
-                .filter_by(session_id=session_id)
-                .first()
-            )
+            model = db.query(SessionModel).filter_by(session_id=session_id).first()
             if model is None or model.revoked_at is not None:
                 return False
             model.reauth_at = _now()
@@ -246,11 +238,7 @@ class PostgresSessionStore:
         """Return True if the session was re-authenticated within the window."""
         db = self._sf()
         try:
-            model = (
-                db.query(SessionModel)
-                .filter_by(session_id=session_id)
-                .first()
-            )
+            model = db.query(SessionModel).filter_by(session_id=session_id).first()
             if model is None or model.revoked_at is not None:
                 return False
             if model.reauth_at is None:
@@ -272,11 +260,7 @@ class PostgresSessionStore:
         """
         db = self._sf()
         try:
-            old = (
-                db.query(SessionModel)
-                .filter_by(session_id=old_session_id)
-                .first()
-            )
+            old = db.query(SessionModel).filter_by(session_id=old_session_id).first()
             if old is None or old.revoked_at is not None:
                 return None
 
@@ -323,11 +307,7 @@ class PostgresSessionStore:
         """Return the CSRF token for a valid session, or None."""
         db = self._sf()
         try:
-            model = (
-                db.query(SessionModel)
-                .filter_by(session_id=session_id)
-                .first()
-            )
+            model = db.query(SessionModel).filter_by(session_id=session_id).first()
             if model is None or model.revoked_at is not None:
                 return None
             now = _now()
@@ -349,9 +329,7 @@ class PostgresSessionStore:
         db = self._sf()
         try:
             expired = (
-                db.query(SessionModel)
-                .filter(SessionModel.expires_at < _now())
-                .count()
+                db.query(SessionModel).filter(SessionModel.expires_at < _now()).count()
             )
             db.query(SessionModel).filter(
                 SessionModel.expires_at < _now(),

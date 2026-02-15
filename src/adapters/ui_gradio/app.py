@@ -164,33 +164,33 @@ def _check_auth(request: gr.Request):  # noqa: C901
             edit_reload = 1 if editing_id_from_url else gr.update()
 
             return (
-                initial_page,                              # page_state
-                card_id_from_url or gr.update(),           # detail_card_id_state
-                reload_trigger,                            # detail_reload_trigger
-                editing_id_from_url or gr.update(),        # editing_card_id
-                edit_reload,                               # editing_reload_trigger
-                actor_id,                                  # actor_id_state
-                session_id,                                # session_id_state
-                gr.update(value=actor_id),                 # actor_id textbox
+                initial_page,  # page_state
+                card_id_from_url or gr.update(),  # detail_card_id_state
+                reload_trigger,  # detail_reload_trigger
+                editing_id_from_url or gr.update(),  # editing_card_id
+                edit_reload,  # editing_reload_trigger
+                actor_id,  # actor_id_state
+                session_id,  # session_id_state
+                gr.update(value=actor_id),  # actor_id textbox
                 gr.update(value=get_logged_in_label(actor_id)),  # user_label
-                gr.update(visible=False),                  # auth_gate → hide
-                gr.update(visible=True),                   # top_bar_row → show
-                *_page_visibility(initial_page),           # page containers
+                gr.update(visible=False),  # auth_gate → hide
+                gr.update(visible=True),  # top_bar_row → show
+                *_page_visibility(initial_page),  # page containers
             )
 
     # Not authenticated — show the auth gate, hide everything else
     return (
-        gr.update(),                    # page_state (unchanged)
-        gr.update(),                    # detail_card_id_state (unchanged)
-        gr.update(),                    # detail_reload_trigger (unchanged)
-        gr.update(),                    # editing_card_id (unchanged)
-        gr.update(),                    # editing_reload_trigger (unchanged)
-        "",                             # actor_id_state
-        "",                             # session_id_state
-        gr.update(),                    # actor_id textbox
-        gr.update(),                    # user_label
-        gr.update(visible=True),        # auth_gate → show
-        gr.update(visible=False),       # top_bar_row → hide
+        gr.update(),  # page_state (unchanged)
+        gr.update(),  # detail_card_id_state (unchanged)
+        gr.update(),  # detail_reload_trigger (unchanged)
+        gr.update(),  # editing_card_id (unchanged)
+        gr.update(),  # editing_reload_trigger (unchanged)
+        "",  # actor_id_state
+        "",  # session_id_state
+        gr.update(),  # actor_id textbox
+        gr.update(),  # user_label
+        gr.update(visible=True),  # auth_gate → show
+        gr.update(visible=False),  # top_bar_row → hide
         *_page_visibility("__none__"),  # hide all page containers
     )
 
@@ -227,9 +227,7 @@ def _build_url_sync_head_js() -> str:
     page_to_url_js = json.dumps(PAGE_TO_URL)
 
     # Reverse map: page name → elem id
-    page_to_elem_js = json.dumps(
-        {v: k for k, v in _ELEM_ID_TO_PAGE.items()}
-    )
+    page_to_elem_js = json.dumps({v: k for k, v in _ELEM_ID_TO_PAGE.items()})
 
     return (
         "<script>\n"

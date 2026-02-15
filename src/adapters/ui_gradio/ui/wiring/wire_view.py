@@ -45,7 +45,9 @@ def wire_view_navigation(
     n = len(page_containers)
 
     # Actually, let me flatten this properly.
-    def _guarded_view(card_id: str, current_page: str, sid: str, reload_trigger: int) -> tuple[Any, ...]:
+    def _guarded_view(
+        card_id: str, current_page: str, sid: str, reload_trigger: int
+    ) -> tuple[Any, ...]:
         """View a card with session guard."""
         if not is_session_valid(sid):
             return (
@@ -79,7 +81,9 @@ def wire_view_navigation(
                 "",
             )
 
-        nav = navigate_to_detail(card_id.strip(), from_page=current_page, reload_trigger=reload_trigger)
+        nav = navigate_to_detail(
+            card_id.strip(), from_page=current_page, reload_trigger=reload_trigger
+        )
         # nav = (page_state, card_id, prev_page, reload_trigger, *visibility)
         return (
             *nav,

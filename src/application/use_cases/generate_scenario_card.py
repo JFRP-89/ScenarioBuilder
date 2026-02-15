@@ -317,9 +317,7 @@ class GenerateScenarioCard:
             shared_with=final_shared_with,
         )
 
-    def _resolve_final_shapes(
-        self, card: Card
-    ) -> dict:
+    def _resolve_final_shapes(self, card: Card) -> dict:
         """Resolve and validate final shape lists from card's map_spec.
 
         The card's map_spec already contains the merged shapes from:
@@ -387,9 +385,11 @@ class GenerateScenarioCard:
         objective_shapes = request.objective_shapes or []
 
         return {
-            "mode": request.mode.value
-            if isinstance(request.mode, GameMode)
-            else request.mode,
+            "mode": (
+                request.mode.value
+                if isinstance(request.mode, GameMode)
+                else request.mode
+            ),
             "table_preset": request.table_preset,
             "table_width_mm": table.width_mm,  # Use resolved dimensions
             "table_height_mm": table.height_mm,  # Use resolved dimensions

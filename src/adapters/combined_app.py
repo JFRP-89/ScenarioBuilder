@@ -72,6 +72,7 @@ def create_combined_app() -> FastAPI:
                 for key, val in request.query_params.items():
                     target += f"&{key}={val}"
                 return RedirectResponse(target)
+
             return _redirect
 
         # Register both /sb/create and /sb/create/
