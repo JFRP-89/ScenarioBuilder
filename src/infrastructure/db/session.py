@@ -85,9 +85,7 @@ def _get_session_local():
                 "DATABASE_URL is not set — cannot create a database session. "
                 "Set DATABASE_URL to a valid PostgreSQL connection string."
             )
-        _session_local = sessionmaker(
-            autocommit=False, autoflush=False, bind=eng
-        )
+        _session_local = sessionmaker(autocommit=False, autoflush=False, bind=eng)
     return _session_local
 
 
@@ -159,7 +157,5 @@ def init_db() -> None:
 
     eng = _get_engine()
     if eng is None:
-        raise RuntimeError(
-            "DATABASE_URL is not set — cannot initialise the database."
-        )
+        raise RuntimeError("DATABASE_URL is not set — cannot initialise the database.")
     Base.metadata.create_all(bind=eng)
