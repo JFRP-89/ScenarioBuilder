@@ -1,10 +1,13 @@
 """Shared fixtures for authentication integration tests.
 
 Provides DATABASE_URL setup for tests that need a real PostgreSQL database.
+Tests are automatically **skipped** when no DATABASE_URL is available
+(e.g. in CI environments without PostgreSQL).
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -37,6 +40,13 @@ def restore_database_url_session():
 
     The global conftest removes DATABASE_URL so general unit tests use
     InMemoryCardRepository. This fixture restores it for integration tests.
+    Skips the entire auth test suite when no DATABASE_URL is available.
     """
     _load_db_env()
+    url = os.environ.get("DATABASE_URL_TEST") or os.environ.get("DATABASE_URL")
+    if not url:
+        pytest.skip(
+            "DATABASE_URL or DATABASE_URL_TEST must be set "
+            "for auth integration tests."
+        )
     yield

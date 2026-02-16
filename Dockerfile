@@ -46,9 +46,11 @@ FROM base AS final
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
-# Copy application code
+# Copy application code and migrations
 COPY src/ /app/src/
 COPY content/ /app/content/
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/
 COPY pytest.ini /app/
 
 # Create non-root user for security
@@ -59,9 +61,8 @@ USER appuser
 
 EXPOSE 8000
 
-# Default command: Uvicorn ASGI server (combined FastAPI + Flask/Gradio app)
-# This serves both the API and UI from a single process with shared cookie handling
-CMD ["python", "-m", "uvicorn", "adapters.combined_app:create_combined_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+# Default command: run migrations, then start Uvicorn ASGI server
+CMD ["sh", "-c", "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000"]
 
 # =============================================================================
 # Quality check stage (for CI/CD pipelines)
