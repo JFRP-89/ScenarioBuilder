@@ -83,7 +83,7 @@ def create_combined_app() -> FastAPI:
     main_app = gr.mount_gradio_app(main_app, gradio_blocks, path="/sb")
 
     # Mount Flask as WSGI catch-all (auth, API, /login, /health, etc.)
-    main_app.mount("/", WSGIMiddleware(flask_app))
+    main_app.mount("/", WSGIMiddleware(flask_app))  # type: ignore[arg-type]
 
     return main_app
 

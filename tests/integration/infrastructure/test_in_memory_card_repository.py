@@ -167,6 +167,66 @@ class TestInMemoryCardRepositoryListAll:
 
 
 # =============================================================================
+# FIND_BY_SEED TESTS
+# =============================================================================
+class TestInMemoryCardRepositoryFindBySeed:
+    """Tests for find_by_seed operation."""
+
+    def test_find_by_seed_returns_matching_card(self) -> None:
+        """find_by_seed returns a card when a matching seed exists."""
+        from infrastructure.repositories.in_memory_card_repository import (
+            InMemoryCardRepository,
+        )
+
+        repo = InMemoryCardRepository()
+        card = make_card(card_id="c1", seed=42)
+        repo.save(card)
+
+        result = repo.find_by_seed(42)
+
+        assert result is not None
+        assert result.card_id == "c1"
+        assert result.seed == 42
+
+    def test_find_by_seed_returns_none_when_not_found(self) -> None:
+        """find_by_seed returns None when no card has the given seed."""
+        from infrastructure.repositories.in_memory_card_repository import (
+            InMemoryCardRepository,
+        )
+
+        repo = InMemoryCardRepository()
+        card = make_card(card_id="c1", seed=42)
+        repo.save(card)
+
+        assert repo.find_by_seed(999) is None
+
+    def test_find_by_seed_returns_first_match(self) -> None:
+        """find_by_seed returns the first card when multiple share a seed."""
+        from infrastructure.repositories.in_memory_card_repository import (
+            InMemoryCardRepository,
+        )
+
+        repo = InMemoryCardRepository()
+        card1 = make_card(card_id="c1", seed=42)
+        card2 = make_card(card_id="c2", seed=42)
+        repo.save(card1)
+        repo.save(card2)
+
+        result = repo.find_by_seed(42)
+        assert result is not None
+        assert result.card_id == "c1"  # first inserted
+
+    def test_find_by_seed_empty_repo(self) -> None:
+        """find_by_seed returns None for an empty repository."""
+        from infrastructure.repositories.in_memory_card_repository import (
+            InMemoryCardRepository,
+        )
+
+        repo = InMemoryCardRepository()
+        assert repo.find_by_seed(42) is None
+
+
+# =============================================================================
 # ISOLATION TESTS
 # =============================================================================
 class TestInMemoryCardRepositoryIsolation:

@@ -542,9 +542,14 @@ def build_app() -> gr.Blocks:
             # ── Existing form sections (unchanged) ───────────────
             actor_id = actor_section.build_actor_section("")
 
-            scenario_name, mode, is_replicable, armies = (
-                scenario_meta_section.build_scenario_meta_section()
-            )
+            (
+                scenario_name,
+                mode,
+                is_replicable,
+                generate_from_seed,
+                apply_seed_btn,
+                armies,
+            ) = scenario_meta_section.build_scenario_meta_section()
 
             visibility, shared_with_row, shared_with = (
                 visibility_section.build_visibility_section()
@@ -969,6 +974,8 @@ def build_app() -> gr.Blocks:
             scenario_name=scenario_name,
             mode=mode,
             is_replicable=is_replicable,
+            generate_from_seed=generate_from_seed,
+            apply_seed_btn=apply_seed_btn,
             armies=armies,
             table_preset=table_preset,
             prev_unit_state=prev_unit_state,

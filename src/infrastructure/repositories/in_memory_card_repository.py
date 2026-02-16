@@ -58,6 +58,20 @@ class InMemoryCardRepository:
             return True
         return False
 
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        """Find the first card matching a given seed.
+
+        Args:
+            seed: The seed value to search for.
+
+        Returns:
+            The first card with a matching seed, or None.
+        """
+        for card in self._cards.values():
+            if card.seed == seed:
+                return card
+        return None
+
     def list_all(self) -> list[Card]:
         """List all cards in the repository.
 

@@ -223,6 +223,7 @@ def build_services() -> Services:
         id_generator=id_gen,
         seed_generator=seed_gen,
         scenario_generator=scenario_gen,
+        card_repository=card_repo,
     )
 
     save_card = SaveCard(repository=card_repo)

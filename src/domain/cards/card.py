@@ -95,6 +95,8 @@ class Card:
     objectives: Optional[Union[str, dict[str, Any]]] = None
     initial_priority: Optional[str] = None
     special_rules: Optional[list[dict[str, Any]]] = field(default=None)
+    seed_attempt: Optional[int] = None
+    generator_version: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""

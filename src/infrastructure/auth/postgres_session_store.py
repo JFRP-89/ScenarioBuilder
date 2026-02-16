@@ -244,7 +244,7 @@ class PostgresSessionStore:
             if model.reauth_at is None:
                 return False
             window = timedelta(minutes=REAUTH_WINDOW_MINUTES)
-            return _now() - model.reauth_at <= window
+            return bool(_now() - model.reauth_at <= window)
         except Exception:
             db.rollback()
             raise
@@ -313,7 +313,7 @@ class PostgresSessionStore:
             now = _now()
             if not _is_valid(model, now):
                 return None
-            token = model.csrf_token
+            token: str | None = model.csrf_token
         except Exception:
             db.rollback()
             raise
@@ -349,7 +349,7 @@ class PostgresSessionStore:
             ).delete(synchronize_session="fetch")
 
             db.commit()
-            total = expired + revoked_old
+            total = int(expired + revoked_old)
             if total:
                 logger.info(
                     "sessions_cleaned: expired=%d revoked_old=%d",
@@ -369,7 +369,7 @@ class PostgresSessionStore:
         idle_limit = now - timedelta(minutes=SESSION_IDLE_MINUTES)
         db = self._sf()
         try:
-            return (
+            return int(
                 db.query(SessionModel)
                 .filter(
                     SessionModel.revoked_at.is_(None),

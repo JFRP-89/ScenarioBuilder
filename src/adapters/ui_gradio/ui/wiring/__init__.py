@@ -39,6 +39,8 @@ def wire_events(
     scenario_name: gr.Textbox,
     mode: gr.Radio,
     is_replicable: gr.Checkbox,
+    generate_from_seed: gr.Number,
+    apply_seed_btn: gr.Button,
     armies: gr.Textbox,
     # Table
     table_preset: gr.Radio,
@@ -187,6 +189,95 @@ def wire_events(
         objective_cy_input=objective_cy_input,
     )
 
+    # ── Reactive: is_replicable ↔ generate_from_seed ──────────
+    # When Replicable Scenario is checked, ENABLE the seed field;
+    # when unchecked (manual), DISABLE it.
+    def _toggle_seed_field(replicable: bool) -> tuple[dict, dict]:
+        if replicable:
+            return gr.update(interactive=True), gr.update(interactive=True)
+        return (
+            gr.update(value=None, interactive=False),
+            gr.update(interactive=False),
+        )
+
+    is_replicable.change(
+        fn=_toggle_seed_field,
+        inputs=[is_replicable],
+        outputs=[generate_from_seed, apply_seed_btn],
+    )
+
+    # ── Apply Seed: fill form fields + shapes from seed ─────
+    def _apply_seed(
+        seed_value: float | None,
+        tw: float | None,
+        th: float | None,
+    ) -> tuple[dict, dict, dict, dict, dict, dict, list, dict, list, dict, list, dict]:
+        from adapters.ui_gradio._state._deployment_zones import (
+            get_deployment_zones_choices,
+        )
+        from adapters.ui_gradio._state._objective_points import (
+            get_objective_points_choices,
+        )
+        from adapters.ui_gradio._state._scenography import get_scenography_choices
+        from adapters.ui_gradio._state._seed_sync import (
+            api_deployment_to_ui_state,
+            api_objectives_to_ui_state,
+            api_scenography_to_ui_state,
+        )
+        from infrastructure.bootstrap import get_services
+
+        seed_int = int(seed_value) if seed_value and seed_value > 0 else 0
+        svc = get_services()
+        content = svc.generate_scenario_card.resolve_seed_preview(seed_int)
+
+        # Resolve full seed shapes (need table dimensions in mm)
+        table_w = int(tw * 10) if tw and tw > 0 else 1200
+        table_h = int(th * 10) if th and th > 0 else 1200
+        full = svc.generate_scenario_card.resolve_full_seed_scenario(
+            seed_int,
+            table_w,
+            table_h,
+        )
+
+        # Convert API shapes → UI state
+        dep_state = api_deployment_to_ui_state(full.get("deployment_shapes", []))
+        obj_state = api_objectives_to_ui_state(full.get("objective_shapes", []))
+        scen_state = api_scenography_to_ui_state(full.get("scenography_specs", []))
+
+        return (
+            gr.update(value=content["armies"]),
+            gr.update(value=content["deployment"]),
+            gr.update(value=content["layout"]),
+            gr.update(value=content["objectives"]),
+            gr.update(value=content["initial_priority"]),
+            gr.update(value=content.get("name", "")),
+            dep_state,
+            gr.update(choices=get_deployment_zones_choices(dep_state), value=None),
+            obj_state,
+            gr.update(choices=get_objective_points_choices(obj_state), value=None),
+            scen_state,
+            gr.update(choices=get_scenography_choices(scen_state), value=None),
+        )
+
+    apply_seed_btn.click(
+        fn=_apply_seed,
+        inputs=[generate_from_seed, table_width, table_height],
+        outputs=[
+            armies,
+            deployment,
+            layout,
+            objectives,
+            initial_priority,
+            scenario_name,
+            deployment_zones_state,
+            deployment_zones_list,
+            objective_points_state,
+            objective_points_list,
+            scenography_state,
+            scenography_list,
+        ],
+    )
+
     wire_special_rules(
         special_rules_state=special_rules_state,
         special_rules_toggle=special_rules_toggle,
@@ -324,6 +415,7 @@ def wire_events(
         scenario_name=scenario_name,
         mode=mode,
         is_replicable=is_replicable,
+        generate_from_seed=generate_from_seed,
         armies=armies,
         table_preset=table_preset,
         table_width=table_width,

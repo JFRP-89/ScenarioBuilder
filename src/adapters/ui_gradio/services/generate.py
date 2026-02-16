@@ -42,6 +42,7 @@ def _prepare_payload(  # noqa: C901
     name: str,
     m: str,
     is_replicable: bool,
+    generate_from_seed: float | None,
     armies_val: str,
     preset: str,
     width: float,
@@ -100,6 +101,10 @@ def _prepare_payload(  # noqa: C901
         return {"status": "error", "message": "Actor ID is required."}
 
     payload = payload_builder.build_generate_payload(m, is_replicable)
+
+    # Attach generate_from_seed when provided
+    if generate_from_seed is not None and generate_from_seed > 0:
+        payload["generate_from_seed"] = int(generate_from_seed)
 
     if name.strip():
         payload["name"] = name.strip()
@@ -185,6 +190,7 @@ def handle_preview(
     name: str,
     m: str,
     is_replicable: bool,
+    generate_from_seed: float | None,
     armies_val: str,
     preset: str,
     width: float,
@@ -215,6 +221,7 @@ def handle_preview(
             name,
             m,
             is_replicable,
+            generate_from_seed,
             armies_val,
             preset,
             width,
@@ -247,35 +254,67 @@ def handle_preview(
             cm = _table_cm_from_preset(preset)
             table_mm = _build_table_mm_from_cm(cm)
 
-        # -- Calculate seed (deterministic if replicable, 0 if manual) --
-        # Use same config format as use case for consistency
-        if is_replicable:
-            seed_objectives = payload.get("objectives")
-            seed_config = {
-                "mode": m,
-                "table_preset": preset,
-                "table_width_mm": table_mm.get("width_mm") if table_mm else None,
-                "table_height_mm": table_mm.get("height_mm") if table_mm else None,
-                "armies": armies_val.strip() if armies_val else None,
-                "deployment": depl.strip() if depl else None,
-                "layout": lay.strip() if lay else None,
-                "objectives": seed_objectives,
-                "initial_priority": init_priority.strip() if init_priority else None,
-                "special_rules": rules_state if rules_state else None,
-                "deployment_shapes": prepared["shapes"]["deployment_shapes"],
-                "objective_shapes": prepared["shapes"]["objective_shapes"],
-                "scenography_specs": prepared["shapes"]["scenography_specs"],
-            }
+        # -- Calculate seed -----------------------------------------------
+        # Build config for hash-based seed (reusable across branches)
+        seed_objectives = payload.get("objectives")
+        seed_config = {
+            "mode": m,
+            "table_preset": preset,
+            "table_width_mm": table_mm.get("width_mm") if table_mm else None,
+            "table_height_mm": table_mm.get("height_mm") if table_mm else None,
+            "armies": armies_val.strip() if armies_val else None,
+            "deployment": depl.strip() if depl else None,
+            "layout": lay.strip() if lay else None,
+            "objectives": seed_objectives,
+            "initial_priority": init_priority.strip() if init_priority else None,
+            "special_rules": rules_state if rules_state else None,
+            "deployment_shapes": prepared["shapes"]["deployment_shapes"],
+            "objective_shapes": prepared["shapes"]["objective_shapes"],
+            "scenography_specs": prepared["shapes"]["scenography_specs"],
+        }
+
+        gfs = (
+            int(generate_from_seed)
+            if generate_from_seed and generate_from_seed > 0
+            else 0
+        )
+        if gfs > 0:
+            # Check if user modified content after applying the seed.
+            # If unmodified → keep generate_from_seed as card seed.
+            # If modified → recalculate so seed reflects actual data.
+            from infrastructure.bootstrap import get_services
+
+            svc = get_services()
+            original = svc.generate_scenario_card.resolve_seed_preview(gfs)
+            content_unmodified = (
+                (armies_val.strip() if armies_val else "") == original["armies"]
+                and (depl.strip() if depl else "") == original["deployment"]
+                and (lay.strip() if lay else "") == original["layout"]
+                and (obj.strip() if obj else "") == original["objectives"]
+                and (init_priority.strip() if init_priority else "")
+                == original["initial_priority"]
+            )
+            seed = (
+                gfs if content_unmodified else calculate_seed_from_config(seed_config)
+            )
+        elif is_replicable:
             seed = calculate_seed_from_config(seed_config)
         else:
             seed = 0
+
+        # Shapes come strictly from the UI form state — no auto-fill from seed.
+        # The "Apply Seed" button is the only mechanism that injects seed shapes.
+        preview_shapes = prepared["shapes"]
+        preview_objectives = payload.get("objectives") or (obj.strip() if obj else "")
+        preview_name = name.strip()
+        preview_special_rules = payload.get("special_rules")
 
         # -- Build preview result (NOT persisted) -----------------------
         # Note: _payload and _actor_id are internal fields needed for submission.
         # They are stored in the preview dict but filtered out before display.
         preview: dict[str, Any] = {
             "status": "preview",
-            "name": name.strip(),
+            "name": preview_name,
             FIELD_MODE: m,
             "seed": seed,
             "is_replicable": is_replicable,
@@ -284,15 +323,15 @@ def handle_preview(
             "table_mm": table_mm,
             "deployment": depl.strip() if depl else "",
             "layout": lay.strip() if lay else "",
-            "objectives": payload.get("objectives") or (obj.strip() if obj else ""),
+            "objectives": preview_objectives,
             "initial_priority": init_priority.strip() if init_priority else "",
             "visibility": vis,
-            "shapes": prepared["shapes"],
+            "shapes": preview_shapes,
             "_payload": payload,  # Internal: for submission only, filtered from display
             "_actor_id": actor_id,  # Internal: for submission only, filtered from display
         }
-        if payload.get("special_rules"):
-            preview["special_rules"] = payload["special_rules"]
+        if preview_special_rules:
+            preview["special_rules"] = preview_special_rules
         if payload.get("shared_with"):
             preview["shared_with"] = payload["shared_with"]
 
@@ -307,6 +346,7 @@ def handle_generate(
     name: str,
     m: str,
     is_replicable: bool,
+    generate_from_seed: float | None,
     armies_val: str,
     preset: str,
     width: float,
@@ -332,6 +372,7 @@ def handle_generate(
             name,
             m,
             is_replicable,
+            generate_from_seed,
             armies_val,
             preset,
             width,

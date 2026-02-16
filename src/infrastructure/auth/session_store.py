@@ -30,7 +30,7 @@ import pathlib
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import TypedDict
+from typing import Protocol, TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +57,27 @@ class SessionRecord(TypedDict):
     csrf_token: str
 
 
-# ── Pluggable backend ───────────────────────────────────────────────────────
-_store: object | None = None  # PostgresSessionStore when configured
+# ── Pluggable backend protocol ───────────────────────────────────────────────
 
 
-def configure_store(store: object) -> None:
+class SessionStoreBackend(Protocol):
+    """Structural protocol for pluggable session store backends."""
+
+    def create_session(self, actor_id: str) -> SessionRecord: ...
+    def get_session(self, session_id: str) -> SessionRecord | None: ...
+    def invalidate_session(self, session_id: str) -> bool: ...
+    def mark_reauth(self, session_id: str) -> bool: ...
+    def rotate_session_id(self, old_session_id: str) -> SessionRecord | None: ...
+    def is_recently_reauthed(self, session_id: str) -> bool: ...
+    def get_csrf_token(self, session_id: str) -> str | None: ...
+    def reset_sessions(self) -> None: ...
+    def active_session_count(self) -> int: ...
+
+
+_store: SessionStoreBackend | None = None
+
+
+def configure_store(store: SessionStoreBackend) -> None:
     """Set the session backend (typically ``PostgresSessionStore``).
 
     Must be called once at application startup (from ``build_services()``).
@@ -72,7 +88,7 @@ def configure_store(store: object) -> None:
     logger.info("session_store: backend configured → %s", type(store).__name__)
 
 
-def get_store() -> object | None:
+def get_store() -> SessionStoreBackend | None:
     """Return the currently configured store (or None for in-memory)."""
     return _store
 
@@ -159,7 +175,7 @@ def _now() -> datetime:
 def create_session(actor_id: str) -> SessionRecord:
     """Create a new session for *actor_id* and return the record."""
     if _store is not None:
-        return _store.create_session(actor_id)  # type: ignore[union-attr]
+        return _store.create_session(actor_id)
 
     now = _now()
     session_id = _generate_session_id()
@@ -180,7 +196,7 @@ def create_session(actor_id: str) -> SessionRecord:
 def get_session(session_id: str) -> SessionRecord | None:
     """Retrieve a session if it exists and is not expired."""
     if _store is not None:
-        return _store.get_session(session_id)  # type: ignore[union-attr]
+        return _store.get_session(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -212,7 +228,7 @@ def get_session(session_id: str) -> SessionRecord | None:
 def invalidate_session(session_id: str) -> bool:
     """Invalidate a session. Return True if it existed and was active."""
     if _store is not None:
-        return _store.invalidate_session(session_id)  # type: ignore[union-attr]
+        return _store.invalidate_session(session_id)
 
     with _lock:
         removed = _SESSIONS.pop(session_id, None) is not None
@@ -224,7 +240,7 @@ def invalidate_session(session_id: str) -> bool:
 def mark_reauth(session_id: str) -> bool:
     """Mark a session as recently re-authenticated."""
     if _store is not None:
-        return _store.mark_reauth(session_id)  # type: ignore[union-attr]
+        return _store.mark_reauth(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -238,7 +254,7 @@ def mark_reauth(session_id: str) -> bool:
 def rotate_session_id(old_session_id: str) -> SessionRecord | None:
     """Rotate the session ID (session fixation prevention)."""
     if _store is not None:
-        return _store.rotate_session_id(old_session_id)  # type: ignore[union-attr]
+        return _store.rotate_session_id(old_session_id)
 
     with _lock:
         old_record = _SESSIONS.pop(old_session_id, None)
@@ -263,7 +279,7 @@ def rotate_session_id(old_session_id: str) -> SessionRecord | None:
 def is_recently_reauthed(session_id: str) -> bool:
     """Return True if the session was re-authenticated within the reauth window."""
     if _store is not None:
-        return _store.is_recently_reauthed(session_id)  # type: ignore[union-attr]
+        return _store.is_recently_reauthed(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -279,7 +295,7 @@ def is_recently_reauthed(session_id: str) -> bool:
 def get_csrf_token(session_id: str) -> str | None:
     """Return the CSRF token for a session, or None."""
     if _store is not None:
-        return _store.get_csrf_token(session_id)  # type: ignore[union-attr]
+        return _store.get_csrf_token(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -291,7 +307,7 @@ def get_csrf_token(session_id: str) -> str | None:
 def reset_sessions() -> None:
     """Clear all sessions — **for testing only**."""
     if _store is not None:
-        _store.reset_sessions()  # type: ignore[union-attr]
+        _store.reset_sessions()
         return
 
     with _lock:
@@ -302,7 +318,7 @@ def reset_sessions() -> None:
 def active_session_count() -> int:
     """Return the number of active sessions — **for testing/monitoring**."""
     if _store is not None:
-        return _store.active_session_count()  # type: ignore[union-attr]
+        return _store.active_session_count()
 
     with _lock:
         return len(_SESSIONS)

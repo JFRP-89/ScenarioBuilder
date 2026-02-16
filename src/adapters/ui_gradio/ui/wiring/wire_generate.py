@@ -30,6 +30,7 @@ def wire_generate(
     scenario_name: gr.Textbox,
     mode: gr.Radio,
     is_replicable: gr.Checkbox,
+    generate_from_seed: gr.Number,
     armies: gr.Textbox,
     table_preset: gr.Radio,
     table_width: gr.Number,
@@ -72,6 +73,25 @@ def wire_generate(
 
     # -- Preview (no API call) ------------------------------------------
 
+    # Build outputs: always include core 3, plus shape state/dropdown when available
+    preview_outputs: list[gr.components.Component] = [
+        output,
+        svg_preview,
+        preview_full_state,
+    ]
+    # Shape state + dropdown outputs (positions 3-8 in the return tuple)
+    _shape_outputs: list[gr.components.Component | None] = [
+        deployment_zones_state,
+        deployment_zones_list,
+        objective_points_state,
+        objective_points_list,
+        scenography_state,
+        scenography_list,
+    ]
+    for comp in _shape_outputs:
+        if comp is not None:
+            preview_outputs.append(comp)
+
     generate_btn.click(
         fn=preview_and_render,
         inputs=[
@@ -79,6 +99,7 @@ def wire_generate(
             scenario_name,
             mode,
             is_replicable,
+            generate_from_seed,
             armies,
             table_preset,
             table_width,
@@ -97,7 +118,7 @@ def wire_generate(
             objectives_with_vp_toggle,
             vp_state,
         ],
-        outputs=[output, svg_preview, preview_full_state],
+        outputs=preview_outputs,
     )
 
     # -- Create Scenario (calls API + resets form) ----------------------
@@ -121,6 +142,7 @@ def wire_generate(
             scenario_name=scenario_name,
             mode=mode,
             is_replicable=is_replicable,
+            generate_from_seed=generate_from_seed,
             armies=armies,
             deployment=deployment,
             layout=layout,
@@ -159,6 +181,7 @@ def _wire_create_scenario(
     scenario_name: gr.Textbox,
     mode: gr.Radio,
     is_replicable: gr.Checkbox,
+    generate_from_seed: gr.Number,
     armies: gr.Textbox,
     deployment: gr.Textbox,
     layout: gr.Textbox,
@@ -194,6 +217,7 @@ def _wire_create_scenario(
         scenario_name,
         mode,
         is_replicable,
+        generate_from_seed,
         armies,
         deployment,
         layout,

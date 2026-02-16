@@ -94,6 +94,17 @@ class PostgresCardRepository:
         finally:
             session.close()
 
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        """Find the first card matching a given seed, or None."""
+        session = self._session_factory()
+        try:
+            model = session.query(CardModel).filter_by(seed=seed).first()
+            if model is None:
+                return None
+            return self._model_to_domain(model)
+        finally:
+            session.close()
+
     def list_all(self) -> list[Card]:
         """List all cards in the database."""
         session = self._session_factory()

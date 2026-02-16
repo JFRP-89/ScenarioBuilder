@@ -103,7 +103,15 @@ class CreateVariant:
             mode=base.mode,
         )
 
-        # 5a) Enforce contract: shapes MUST be list[dict], not dict
+        # 5a) Capture generation metadata (if available)
+        seed_attempt: int | None = getattr(
+            self._scenario_generator, "last_attempt_index", None
+        )
+        gen_version: str | None = getattr(
+            self._scenario_generator, "generator_version", None
+        )
+
+        # 5b) Enforce contract: shapes MUST be list[dict], not dict
         if not isinstance(shapes, list):
             raise ValidationError(
                 f"ScenarioGenerator contract violation: generate_shapes() returned "
@@ -135,6 +143,8 @@ class CreateVariant:
             seed=seed,
             table=base.table,
             map_spec=map_spec,
+            seed_attempt=seed_attempt,
+            generator_version=gen_version,
         )
 
         # 9) Persist
