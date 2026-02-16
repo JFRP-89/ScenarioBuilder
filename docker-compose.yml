@@ -73,11 +73,8 @@ services:
       # Application defaults
       DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
     command: [
-      "python", "-m", "uvicorn",
-      "adapters.combined_app:create_combined_app",
-      "--factory",
-      "--host", "0.0.0.0",
-      "--port", "8000"
+      "sh", "-c",
+      "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000"
     ]
     ports:
       - "${APP_PORT:-8000}:8000"
