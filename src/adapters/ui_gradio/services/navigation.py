@@ -136,6 +136,6 @@ def get_card_svg(actor_id: str, card_id: str) -> str:
         r = svc.render_map_svg.execute(
             RenderMapSvgRequest(actor_id=actor_id, card_id=card_id)
         )
-        return r.svg
+        return str(r.svg)
     except Exception:
         return placeholder

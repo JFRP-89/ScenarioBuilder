@@ -148,8 +148,9 @@ class TestHappyPath:
         assert response.mode == "matched"
         assert response.visibility == "private"  # default when None
         assert response.table_mm == {"width_mm": 1200, "height_mm": 1200}
-        assert response.name == "Battle with Test Deployment"
-        assert response.initial_priority == "Check the rulebook rules for it"
+        assert response.name
+        assert response.initial_priority
+        assert response.initial_priority.strip() != ""
         # shapes is a dict with deployment_shapes, objective_shapes, and scenography_specs
         assert isinstance(response.shapes, dict)
         assert "deployment_shapes" in response.shapes
@@ -214,6 +215,510 @@ class TestSeedResolution:
         assert response.seed == 0
         # ScenarioGenerator was NOT called
         assert len(spy_scenario_generator.calls) == 0
+
+
+# =============================================================================
+# SEEDED CONTENT DEFAULTS
+# =============================================================================
+class TestSeededContentDefaults:
+    """Seeded defaults populate missing content fields for replicable scenarios."""
+
+    def test_replicable_populates_missing_fields(self, use_case: GenerateScenarioCard):
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+        )
+
+        response = use_case.execute(request)
+        response2 = use_case.execute(request)
+
+        assert response.seed == response2.seed
+        assert response.armies
+        assert response.deployment
+        assert response.layout
+        assert response.objectives
+        assert response.initial_priority
+        assert response.armies == response2.armies
+        assert response.deployment == response2.deployment
+        assert response.layout == response2.layout
+        assert response.objectives == response2.objectives
+        assert response.initial_priority == response2.initial_priority
+
+
+# =============================================================================
+# GENERATE FROM SEED
+# =============================================================================
+class TestGenerateFromSeed:
+    """Tests for the 'Generate Scenario From Seed' feature."""
+
+    def test_generate_from_seed_uses_provided_seed(
+        self, use_case: GenerateScenarioCard
+    ):
+        """When generate_from_seed is provided, card seed = that value."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=42,
+        )
+
+        response = use_case.execute(request)
+
+        assert response.seed == 42
+
+    def test_generate_from_seed_fills_content_fields(
+        self, use_case: GenerateScenarioCard
+    ):
+        """generate_from_seed auto-fills armies, deployment, layout, etc."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=12345,
+        )
+
+        response = use_case.execute(request)
+
+        assert response.seed == 12345
+        assert response.armies
+        assert response.deployment
+        assert response.layout
+        assert response.objectives
+        assert response.initial_priority
+
+    def test_generate_from_seed_is_deterministic(self, use_case: GenerateScenarioCard):
+        """Same generate_from_seed always produces identical content."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=99999,
+        )
+
+        r1 = use_case.execute(request)
+        r2 = use_case.execute(request)
+
+        assert r1.seed == r2.seed == 99999
+        assert r1.armies == r2.armies
+        assert r1.deployment == r2.deployment
+        assert r1.layout == r2.layout
+        assert r1.objectives == r2.objectives
+        assert r1.initial_priority == r2.initial_priority
+
+    def test_generate_from_seed_respects_user_provided_fields(
+        self, use_case: GenerateScenarioCard
+    ):
+        """User-provided fields are NOT overwritten by seed generation."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=42,
+            armies="My Custom Army",
+        )
+
+        response = use_case.execute(request)
+
+        assert response.armies == "My Custom Army"  # not overwritten
+        # Other fields are auto-filled
+        assert response.deployment
+        assert response.layout
+
+    def test_generate_from_seed_recalculates_when_content_modified(
+        self, use_case: GenerateScenarioCard
+    ):
+        """If user modifies a seed-generated field, the seed should change."""
+        from application.use_cases.generate_scenario_card import (
+            resolve_seed_preview,
+        )
+
+        seed_val = 15000
+        original = resolve_seed_preview(seed_val)
+
+        # Unmodified request → seed stays
+        unmodified_req = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=seed_val,
+        )
+        unmodified_resp = use_case.execute(unmodified_req)
+        assert unmodified_resp.seed == seed_val
+
+        # Modified request → seed recalculates
+        modified_req = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=seed_val,
+            armies=original["armies"] + " MODIFIED",
+        )
+        modified_resp = use_case.execute(modified_req)
+        assert modified_resp.seed != seed_val
+
+    def test_generate_from_seed_recalc_is_deterministic(
+        self, use_case: GenerateScenarioCard
+    ):
+        """Modified content → recalculated seed is still deterministic."""
+        req = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=15000,
+            armies="Completely Custom Army",
+        )
+        r1 = use_case.execute(req)
+        r2 = use_case.execute(req)
+        assert r1.seed == r2.seed
+        assert r1.seed != 15000  # recalculated, not the original seed
+
+    def test_generate_from_seed_rejected_when_not_replicable(
+        self, use_case: GenerateScenarioCard
+    ):
+        """is_replicable=False + generate_from_seed → ValidationError."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.MATCHED,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=False,
+            generate_from_seed=42,
+        )
+
+        with pytest.raises(ValidationError, match="(?i)generate.*seed.*replicable"):
+            use_case.execute(request)
+
+    def test_generate_from_seed_none_is_manual(self, use_case: GenerateScenarioCard):
+        """No generate_from_seed + is_replicable=False → seed=0, no auto-fill."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=False,
+            generate_from_seed=None,
+        )
+
+        response = use_case.execute(request)
+
+        assert response.seed == 0
+
+    def test_generate_from_seed_zero_is_ignored(self, use_case: GenerateScenarioCard):
+        """generate_from_seed=0 treated as 'not provided'."""
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode=GameMode.CASUAL,
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=False,
+            generate_from_seed=0,
+        )
+
+        response = use_case.execute(request)
+
+        assert response.seed == 0
+
+
+# =============================================================================
+# RESOLVE SEED PREVIEW (public helper)
+# =============================================================================
+class TestResolveSeedPreview:
+    """Tests for resolve_seed_preview — public API used by Apply Seed button."""
+
+    def test_positive_seed_returns_all_fields(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            resolve_seed_preview,
+        )
+
+        result = resolve_seed_preview(42)
+        for key in ("armies", "deployment", "layout", "objectives", "initial_priority"):
+            assert result[key], f"{key} should be non-empty"
+
+    def test_zero_seed_returns_empty_strings(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            resolve_seed_preview,
+        )
+
+        result = resolve_seed_preview(0)
+        for key in ("armies", "deployment", "layout", "objectives", "initial_priority"):
+            assert result[key] == "", f"{key} should be empty for seed=0"
+
+    def test_negative_seed_returns_empty_strings(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            resolve_seed_preview,
+        )
+
+        result = resolve_seed_preview(-1)
+        for key in ("armies", "deployment", "layout", "objectives", "initial_priority"):
+            assert result[key] == "", f"{key} should be empty for negative seed"
+
+    def test_deterministic(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            resolve_seed_preview,
+        )
+
+        r1 = resolve_seed_preview(12345)
+        r2 = resolve_seed_preview(12345)
+        assert r1 == r2
+
+
+# =============================================================================
+# OBJECTIVES MATCH SEED HELPER
+# =============================================================================
+class TestObjectivesMatchSeed:
+    """Tests for _objectives_match_seed helper."""
+
+    def test_matching_string(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            _objectives_match_seed,
+        )
+
+        assert _objectives_match_seed("Hold the gate", "Hold the gate") is True
+
+    def test_mismatching_string(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            _objectives_match_seed,
+        )
+
+        assert _objectives_match_seed("Hold the gate", "Secure the bridge") is False
+
+    def test_dict_never_matches(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            _objectives_match_seed,
+        )
+
+        assert (
+            _objectives_match_seed(
+                {"objective": "Hold the gate", "victory_points": []}, "Hold the gate"
+            )
+            is False
+        )
+
+    def test_none_is_unmodified(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            _objectives_match_seed,
+        )
+
+        # None means blank → will be auto-filled by seed → unmodified
+        assert _objectives_match_seed(None, "") is True
+
+    def test_none_still_unmodified_with_nonempty_seed(self) -> None:
+        from application.use_cases.generate_scenario_card import (
+            _objectives_match_seed,
+        )
+
+        # None means blank → auto-fill → unmodified regardless of seed value
+        assert _objectives_match_seed(None, "Hold the gate") is True
+
+
+# =============================================================================
+# SEED LOOKUP FROM EXISTING CARDS
+# =============================================================================
+class TestSeedLookupFromExistingCards:
+    """Tests for seed resolution when existing cards are in the repository."""
+
+    @staticmethod
+    def _make_card(
+        card_id: str = "existing-001",
+        seed: int = 42,
+        armies: str = "Saved Army",
+        deployment: str = "Saved Deployment",
+        layout: str = "Saved Layout",
+        objectives: str = "Saved Objectives",
+        initial_priority: str = "Saved Priority",
+    ):
+        from domain.cards.card import Card, GameMode
+        from domain.maps.map_spec import MapSpec
+        from domain.maps.table_size import TableSize
+        from domain.security.authz import Visibility
+
+        table = TableSize.standard()
+        return Card(
+            card_id=card_id,
+            owner_id="u1",
+            visibility=Visibility.PRIVATE,
+            shared_with=frozenset(),
+            mode=GameMode.CASUAL,
+            seed=seed,
+            table=table,
+            map_spec=MapSpec(table=table, shapes=[]),
+            armies=armies,
+            deployment=deployment,
+            layout=layout,
+            objectives=objectives,
+            initial_priority=initial_priority,
+        )
+
+    def _build_use_case_with_repo(self, cards=None):
+        from infrastructure.repositories.in_memory_card_repository import (
+            InMemoryCardRepository,
+        )
+
+        repo = InMemoryCardRepository()
+        if cards:
+            for c in cards:
+                repo.save(c)
+        uc = GenerateScenarioCard(
+            id_generator=FakeIdGenerator(),
+            seed_generator=FakeSeedGenerator(),
+            scenario_generator=SpyScenarioGenerator(shapes=[]),
+            card_repository=repo,
+        )
+        return uc, repo
+
+    def test_resolve_seed_preview_returns_existing_card_data(self):
+        """Instance resolve_seed_preview returns existing card's fields."""
+        card = self._make_card(seed=15000)
+        uc, _ = self._build_use_case_with_repo([card])
+
+        result = uc.resolve_seed_preview(15000)
+
+        assert result["armies"] == "Saved Army"
+        assert result["deployment"] == "Saved Deployment"
+        assert result["layout"] == "Saved Layout"
+        assert result["objectives"] == "Saved Objectives"
+        assert result["initial_priority"] == "Saved Priority"
+
+    def test_resolve_seed_preview_falls_back_to_themes_when_no_existing(self):
+        """Without existing card, resolve_seed_preview uses theme generation."""
+        uc, _ = self._build_use_case_with_repo([])
+
+        result = uc.resolve_seed_preview(42)
+
+        # Should get theme-generated content (non-empty)
+        for key in ("armies", "deployment", "layout", "objectives", "initial_priority"):
+            assert result[key], f"{key} should be non-empty"
+
+    def test_execute_uses_existing_card_content_for_autofill(self):
+        """When seed matches existing card, auto-fill uses that card's data."""
+        card = self._make_card(seed=15000)
+        uc, _ = self._build_use_case_with_repo([card])
+
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode="casual",
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=15000,
+        )
+        response = uc.execute(request)
+
+        assert response.seed == 15000
+        assert response.armies == "Saved Army"
+        assert response.deployment == "Saved Deployment"
+        assert response.layout == "Saved Layout"
+        assert response.objectives == "Saved Objectives"
+        assert response.initial_priority == "Saved Priority"
+
+    def test_execute_without_repo_falls_back_to_themes(self):
+        """Use case without card_repository still works (theme-based)."""
+        uc = GenerateScenarioCard(
+            id_generator=FakeIdGenerator(),
+            seed_generator=FakeSeedGenerator(),
+            scenario_generator=SpyScenarioGenerator(shapes=[]),
+            card_repository=None,
+        )
+
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode="casual",
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=42,
+        )
+        response = uc.execute(request)
+
+        # Should still work, using theme content
+        assert response.seed == 42
+        assert response.armies  # non-empty from themes
+
+    def test_execute_existing_card_preserves_seed_when_unmodified(self):
+        """Seed stays when content matches existing card (not just themes)."""
+        card = self._make_card(seed=15000)
+        uc, _ = self._build_use_case_with_repo([card])
+
+        # Pass the existing card's exact content → seed should stay
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode="casual",
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=15000,
+            armies="Saved Army",
+            deployment="Saved Deployment",
+            layout="Saved Layout",
+            objectives="Saved Objectives",
+            initial_priority="Saved Priority",
+        )
+        response = uc.execute(request)
+        assert response.seed == 15000
+
+    def test_execute_existing_card_recalculates_when_modified(self):
+        """Seed recalculates when content diverges from existing card."""
+        card = self._make_card(seed=15000)
+        uc, _ = self._build_use_case_with_repo([card])
+
+        request = GenerateScenarioCardRequest(
+            actor_id="user-123",
+            mode="casual",
+            seed=None,
+            table_preset="standard",
+            visibility=None,
+            shared_with=None,
+            is_replicable=True,
+            generate_from_seed=15000,
+            armies="Saved Army MODIFIED",
+        )
+        response = uc.execute(request)
+        assert response.seed != 15000
 
 
 # =============================================================================

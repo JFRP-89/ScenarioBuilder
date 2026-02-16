@@ -9,7 +9,7 @@ from adapters.ui_gradio.ui.components.svg_preview import _PLACEHOLDER_HTML
 
 
 def build_form_resets() -> list[Any]:
-    """Return the 18-element list that resets every form component.
+    """Return the 19-element list that resets every form component.
 
     Order must match ``_form_components`` in ``wire_generate``.
     """
@@ -17,6 +17,9 @@ def build_form_resets() -> list[Any]:
         gr.update(value=""),  # scenario_name
         gr.update(value="casual"),  # mode
         gr.update(value=True),  # is_replicable
+        gr.update(
+            value=None, interactive=True
+        ),  # generate_from_seed (enabled: replicable defaults True)
         gr.update(value=""),  # armies
         gr.update(value=""),  # deployment
         gr.update(value=""),  # layout

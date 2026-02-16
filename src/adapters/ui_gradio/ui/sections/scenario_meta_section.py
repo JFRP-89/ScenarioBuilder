@@ -5,11 +5,12 @@ from typing import Any
 import gradio as gr
 
 
-def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
+def build_scenario_meta_section() -> tuple[Any, Any, Any, Any, Any, Any]:
     """Build scenario metadata UI components.
 
     Returns:
-        Tuple of (scenario_name, mode, is_replicable, armies)
+        Tuple of (scenario_name, mode, is_replicable, generate_from_seed,
+                  apply_seed_btn, armies)
     """
     # Scenario Name
     with gr.Row():
@@ -30,8 +31,27 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
         is_replicable = gr.Checkbox(
             value=True,
             label="Replicable Scenario",
-            info="Generate reproducible scenario with deterministic seed",
+            info="Design every field manually from scratch",
             elem_id="is-replicable-checkbox",
+        )
+
+    # Generate Scenario From Seed (enabled when is_replicable is True)
+    with gr.Row():
+        generate_from_seed = gr.Number(
+            label="Generate Scenario From Seed",
+            value=None,
+            precision=0,
+            minimum=1,
+            interactive=True,  # Starts enabled (is_replicable defaults True)
+            info="Enter a seed number to auto-fill the scenario (requires Replicable Scenario)",
+            elem_id="generate-from-seed-input",
+        )
+        apply_seed_btn = gr.Button(
+            "\U0001f3b2 Apply Seed",
+            variant="secondary",
+            size="sm",
+            interactive=True,
+            elem_id="apply-seed-btn",
         )
 
     # Armies
@@ -43,4 +63,11 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any]:
             elem_id="armies-input",
         )
 
-    return scenario_name, mode, is_replicable, armies
+    return (
+        scenario_name,
+        mode,
+        is_replicable,
+        generate_from_seed,
+        apply_seed_btn,
+        armies,
+    )

@@ -11,8 +11,8 @@ from adapters.ui_gradio.ui.wiring.wire_generate import _wire_create_scenario
 # Number of page containers (mirrors ALL_PAGES)
 _N_PAGES = len(ALL_PAGES)
 
-# Form components: 18 items (see _form_components list in wire_generate.py)
-_N_FORM = 18
+# Form components: 19 items (see _form_components list in wire_generate.py)
+_N_FORM = 19
 # Dropdown/list components passed to wire: 6
 _N_DROPDOWNS = 6
 # Handler returns: page_state + N visibilities + home_recent_html
@@ -50,6 +50,7 @@ class TestOnCreateScenario:
         scenario_name = _FakeComponent()
         mode = _FakeComponent()
         is_replicable = _FakeComponent()
+        generate_from_seed = _FakeComponent()
         armies = _FakeComponent()
         deployment = _FakeComponent()
         layout = _FakeComponent()
@@ -83,6 +84,7 @@ class TestOnCreateScenario:
             scenario_name=scenario_name,
             mode=mode,
             is_replicable=is_replicable,
+            generate_from_seed=generate_from_seed,
             armies=armies,
             deployment=deployment,
             layout=layout,

@@ -116,8 +116,8 @@ class _EngineProxy:
         return getattr(eng, name)
 
 
-engine = _EngineProxy()  # type: ignore[assignment]
-SessionLocal = _SessionLocalProxy()  # type: ignore[assignment]
+engine = _EngineProxy()
+SessionLocal = _SessionLocalProxy()
 
 
 # ---------------------------------------------------------------------------

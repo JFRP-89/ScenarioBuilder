@@ -16,9 +16,9 @@ from adapters.ui_gradio.ui.wiring._generate._resets import (
 class TestBuildFormResets:
     """Verify the shape and default values of form resets."""
 
-    def test_returns_18_elements(self) -> None:
+    def test_returns_19_elements(self) -> None:
         resets = build_form_resets()
-        assert len(resets) == 18
+        assert len(resets) == 19
 
     def test_scenario_name_reset(self) -> None:
         resets = build_form_resets()
@@ -32,34 +32,40 @@ class TestBuildFormResets:
 
     def test_seed_reset_to_1(self) -> None:
         resets = build_form_resets()
-        assert resets[2].get("value") == 1
+        # is_replicable defaults True
+        assert resets[2].get("value") is True
+
+    def test_generate_from_seed_reset(self) -> None:
+        resets = build_form_resets()
+        # generate_from_seed is at index 3, value=None, interactive=True
+        assert resets[3].get("value") is None
 
     def test_visibility_reset_to_public(self) -> None:
         resets = build_form_resets()
-        # visibility is at index 8
-        assert resets[8].get("value") == "public"
+        # visibility is at index 9 (shifted +1 due to generate_from_seed)
+        assert resets[9].get("value") == "public"
 
     def test_special_rules_state_is_empty_list(self) -> None:
         resets = build_form_resets()
-        # special_rules_state is at index 10
-        assert resets[10] == []
+        # special_rules_state is at index 11
+        assert resets[11] == []
 
     def test_objectives_with_vp_toggle_false(self) -> None:
         resets = build_form_resets()
-        # objectives_with_vp_toggle is at index 11
-        assert resets[11].get("value") is False
+        # objectives_with_vp_toggle is at index 12
+        assert resets[12].get("value") is False
 
     def test_state_lists_are_empty(self) -> None:
         resets = build_form_resets()
-        # vp_state (12), scenography_state (13),
-        # deployment_zones_state (14), objective_points_state (15)
-        for idx in (12, 13, 14, 15):
+        # vp_state (13), scenography_state (14),
+        # deployment_zones_state (15), objective_points_state (16)
+        for idx in (13, 14, 15, 16):
             assert resets[idx] == [], f"Index {idx} should be []"
 
     def test_output_reset_to_none(self) -> None:
         resets = build_form_resets()
-        # output is at index 17
-        assert resets[17].get("value") is None
+        # output is at index 18
+        assert resets[18].get("value") is None
 
 
 # ── build_dropdown_resets ────────────────────────────────────────────
