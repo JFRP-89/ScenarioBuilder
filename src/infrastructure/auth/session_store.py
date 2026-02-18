@@ -29,8 +29,11 @@ import os
 import pathlib
 import secrets
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Protocol, TypedDict
+
+from application.ports.clock import Clock
+from infrastructure.clock import SystemClock
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +165,19 @@ def _generate_csrf_token() -> str:
     return secrets.token_hex(32)
 
 
+# ── Clock (injectable for testing) ───────────────────────────────────────────
+_clock: Clock = SystemClock()
+
+
+def set_clock(clock: Clock) -> None:
+    """Replace the module clock — **for testing only**."""
+    global _clock
+    _clock = clock
+
+
 def _now() -> datetime:
-    """Return current UTC time."""
-    return datetime.now(timezone.utc)
+    """Return current UTC time via the configured clock."""
+    return _clock.now_utc()
 
 
 # ── Public API ───────────────────────────────────────────────────────────────

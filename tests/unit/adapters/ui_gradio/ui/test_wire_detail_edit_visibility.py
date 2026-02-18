@@ -149,7 +149,7 @@ class TestDetailPageEditButtonDefaultState:
 
         with gr.Blocks():
             result = build_detail_page()
-            edit_btn = result[4]
+            edit_btn = result.edit_btn
             assert edit_btn.visible is False, (
                 "Edit button must start hidden (visible=False) "
                 "to prevent flash before ownership check"
@@ -162,7 +162,7 @@ class TestDetailPageEditButtonDefaultState:
 
         with gr.Blocks():
             result = build_detail_page()
-            delete_btn = result[5]
+            delete_btn = result.delete_btn
             assert delete_btn.visible is False, (
                 "Delete button must start hidden (visible=False) "
                 "to prevent flash before ownership check"

@@ -72,6 +72,9 @@ services:
       
       # Application defaults
       DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
+      
+      # Production mode — strict fail-fast, no fallbacks
+      APP_ENV: prod
     command: [
       "sh", "-c",
       "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000"

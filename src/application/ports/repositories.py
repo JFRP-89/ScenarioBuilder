@@ -27,6 +27,8 @@ class CardRepository(Protocol):
 
     def list_all(self) -> list[Card]: ...
 
+    def list_for_owner(self, owner_id: str) -> list[Card]: ...
+
 
 class FavoritesRepository(Protocol):
     """Port for favorites persistence."""

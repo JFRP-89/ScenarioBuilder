@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import time
-from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
-
 import pytest
 from infrastructure.auth import session_store
 from infrastructure.auth.session_store import (
@@ -19,14 +15,26 @@ from infrastructure.auth.session_store import (
     reset_sessions,
     rotate_session_id,
 )
+from infrastructure.clock import SystemClock
+
+from tests.helpers.fake_clock import FakeClock
 
 
 @pytest.fixture(autouse=True)
-def _clean():
-    """Reset sessions before each test."""
+def _deterministic_clock():
+    """Install a FakeClock and restore SystemClock after each test."""
+    clock = FakeClock()
+    session_store.set_clock(clock)
     reset_sessions()
-    yield
+    yield clock
     reset_sessions()
+    session_store.set_clock(SystemClock())
+
+
+@pytest.fixture()
+def fake_clock(_deterministic_clock: FakeClock) -> FakeClock:
+    """Expose the FakeClock for tests that need to manipulate time."""
+    return _deterministic_clock
 
 
 # ── create_session ───────────────────────────────────────────────────────────
@@ -73,34 +81,30 @@ class TestGetSession:
     def test_returns_none_for_unknown_id(self):
         assert get_session("nonexistent") is None
 
-    def test_updates_last_seen_at(self):
+    def test_updates_last_seen_at(self, fake_clock):
         rec = create_session("alice")
         old_last = rec["last_seen_at"]
-        # Tiny sleep to ensure time difference
-        time.sleep(0.01)
+        fake_clock.advance(seconds=1)
         result = get_session(rec["session_id"])
         assert result is not None
-        assert result["last_seen_at"] >= old_last
+        assert result["last_seen_at"] > old_last
 
-    def test_expired_by_idle_timeout(self):
+    def test_expired_by_idle_timeout(self, fake_clock):
         rec = create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(minutes=20)
-        with patch.object(session_store, "_now", return_value=future):
-            assert get_session(rec["session_id"]) is None
+        fake_clock.advance(minutes=20)
+        assert get_session(rec["session_id"]) is None
         assert active_session_count() == 0
 
-    def test_expired_by_max_lifetime(self):
+    def test_expired_by_max_lifetime(self, fake_clock):
         rec = create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(hours=13)
-        with patch.object(session_store, "_now", return_value=future):
-            assert get_session(rec["session_id"]) is None
+        fake_clock.advance(hours=13)
+        assert get_session(rec["session_id"]) is None
 
-    def test_not_expired_within_limits(self):
+    def test_not_expired_within_limits(self, fake_clock):
         rec = create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(minutes=10)
-        with patch.object(session_store, "_now", return_value=future):
-            result = get_session(rec["session_id"])
-            assert result is not None
+        fake_clock.advance(minutes=10)
+        result = get_session(rec["session_id"])
+        assert result is not None
 
 
 # ── invalidate_session ───────────────────────────────────────────────────────
@@ -144,12 +148,11 @@ class TestIsRecentlyReauthed:
         mark_reauth(rec["session_id"])
         assert is_recently_reauthed(rec["session_id"]) is True
 
-    def test_false_after_window_expires(self):
+    def test_false_after_window_expires(self, fake_clock):
         rec = create_session("alice")
         mark_reauth(rec["session_id"])
-        future = datetime.now(timezone.utc) + timedelta(minutes=15)
-        with patch.object(session_store, "_now", return_value=future):
-            assert is_recently_reauthed(rec["session_id"]) is False
+        fake_clock.advance(minutes=15)
+        assert is_recently_reauthed(rec["session_id"]) is False
 
     def test_false_for_unknown(self):
         assert is_recently_reauthed("nonexistent") is False

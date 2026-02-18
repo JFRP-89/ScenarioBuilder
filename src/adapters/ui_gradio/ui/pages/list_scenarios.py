@@ -8,25 +8,12 @@ Shows:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import gradio as gr
 
 
-def build_list_page() -> tuple[
-    gr.Column,
-    gr.Radio,
-    gr.Radio,
-    gr.Textbox,
-    gr.Dropdown,
-    gr.Button,
-    gr.HTML,
-    gr.Button,
-    gr.HTML,
-    gr.Button,
-    gr.State,
-    gr.State,
-    gr.State,
-    gr.State,
-]:
+def build_list_page() -> SimpleNamespace:
     """Build the list-scenarios page layout.
 
     Returns:
@@ -108,20 +95,20 @@ def build_list_page() -> tuple[
         loaded_state = gr.State(value=False)
         page_state = gr.State(value=1)
 
-    return (  # type: ignore[return-value]
-        container,
-        filter_radio,
-        unit_selector,
-        search_box,
-        per_page_dropdown,
-        reload_btn,
-        cards_html,
-        back_btn,
-        page_info,
-        prev_btn,
-        next_btn,
-        cards_cache_state,
-        fav_ids_cache_state,
-        loaded_state,
-        page_state,
+    return SimpleNamespace(
+        container=container,
+        filter_radio=filter_radio,
+        unit_selector=unit_selector,
+        search_box=search_box,
+        per_page_dropdown=per_page_dropdown,
+        reload_btn=reload_btn,
+        cards_html=cards_html,
+        back_btn=back_btn,
+        page_info=page_info,
+        prev_btn=prev_btn,
+        next_btn=next_btn,
+        cards_cache_state=cards_cache_state,
+        fav_ids_cache_state=fav_ids_cache_state,
+        loaded_state=loaded_state,
+        page_state=page_state,
     )

@@ -42,6 +42,40 @@ pytest -q --cov=src --cov-report=term-missing  # Con coverage
 ruff check .
 ```
 
+### Test profiles
+
+The test suite supports two execution profiles:
+
+**Profile A — local-dev (default)**
+No PostgreSQL required. Tests marked `@pytest.mark.db` are auto-skipped.
+
+```bash
+pytest tests/unit tests/integration -q
+# → 2500+ passed, ~55 skipped (DB), 0 errors
+```
+
+**Profile B — with-db**
+Requires a running PostgreSQL instance. Runs *all* tests including DB integration.
+
+```bash
+# 1. Start PostgreSQL (local or Docker)
+# 2. Set env vars and run:
+RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql+psycopg2://user:pass@localhost:5432/test_db \
+  pytest tests/unit tests/integration -q
+```
+
+| Variable | Purpose |
+|---|---|
+| `RUN_DB_TESTS` | Set to `1` to enable DB tests |
+| `DATABASE_URL_TEST` | PostgreSQL URL for test database |
+
+> **Tip (Windows PowerShell):**
+> ```powershell
+> $env:RUN_DB_TESTS="1"
+> $env:DATABASE_URL_TEST="postgresql+psycopg2://postgres:postgres@localhost:5434/scenario_test"
+> pytest tests/unit tests/integration -q
+> ```
+
 ### Docker
 
 ```bash

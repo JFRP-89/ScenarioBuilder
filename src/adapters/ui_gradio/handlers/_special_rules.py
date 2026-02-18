@@ -59,7 +59,7 @@ def add_special_rule(
         "value": value_stripped,
     }
     new_state = [*current_state, new_rule]
-    choices = get_choices_fn(new_state)
+    choices = get_choices_fn(new_state)  # type: ignore[arg-type]
 
     return {
         "special_rules_state": new_state,

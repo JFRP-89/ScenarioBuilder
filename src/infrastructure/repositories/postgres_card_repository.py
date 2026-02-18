@@ -38,26 +38,27 @@ class PostgresCardRepository:
             if model is None:
                 model = CardModel(card_id=card.card_id)
 
-            model.owner_id = card.owner_id
-            model.visibility = card.visibility.value
-            model.shared_with = list(card.shared_with) if card.shared_with else None
-            model.mode = card.mode.value
-            model.seed = card.seed
-            model.table_width = card.table.width_mm
-            model.table_height = card.table.height_mm
-            model.table_unit = "mm"
-            model.map_spec = self._map_spec_to_json(card.map_spec)
-            model.name = card.name
-            model.armies = card.armies
-            model.deployment = card.deployment
-            model.layout = card.layout
-            model.objectives = (
+            model.owner_id = card.owner_id  # type: ignore[assignment]
+            model.visibility = card.visibility.value  # type: ignore[assignment]
+            model.shared_with = list(card.shared_with) if card.shared_with else None  # type: ignore[assignment]
+            model.mode = card.mode.value  # type: ignore[assignment]
+            model.seed = card.seed  # type: ignore[assignment]
+            model.table_width = card.table.width_mm  # type: ignore[assignment]
+            model.table_height = card.table.height_mm  # type: ignore[assignment]
+            model.table_unit = "mm"  # type: ignore[assignment]
+            model.map_spec = self._map_spec_to_json(card.map_spec)  # type: ignore[assignment]
+            model.name = card.name  # type: ignore[assignment]
+            model.armies = card.armies  # type: ignore[assignment]
+            model.deployment = card.deployment  # type: ignore[assignment]
+            model.layout = card.layout  # type: ignore[assignment]
+            _obj = (
                 card.objectives
                 if isinstance(card.objectives, (dict, type(None)))
                 else str(card.objectives)
             )
-            model.initial_priority = card.initial_priority
-            model.special_rules = card.special_rules
+            model.objectives = _obj  # type: ignore[assignment]
+            model.initial_priority = card.initial_priority  # type: ignore[assignment]
+            model.special_rules = card.special_rules  # type: ignore[assignment]
 
             session.add(model)
             session.commit()
@@ -147,22 +148,22 @@ class PostgresCardRepository:
     def _model_to_domain(self, model: CardModel) -> Card:
         """Convert CardModel (ORM) → Card (domain)."""
         return Card(
-            card_id=model.card_id,
-            owner_id=model.owner_id,
+            card_id=model.card_id,  # type: ignore[arg-type]
+            owner_id=model.owner_id,  # type: ignore[arg-type]
             visibility=Visibility(model.visibility),
-            shared_with=model.shared_with if model.shared_with else None,
+            shared_with=model.shared_with if model.shared_with else None,  # type: ignore[arg-type]
             mode=parse_game_mode(model.mode),
-            seed=model.seed,
+            seed=model.seed,  # type: ignore[arg-type]
             table=TableSize(
-                width_mm=model.table_width,
-                height_mm=model.table_height,
+                width_mm=model.table_width,  # type: ignore[arg-type]
+                height_mm=model.table_height,  # type: ignore[arg-type]
             ),
-            map_spec=self._json_to_map_spec(model.map_spec),
-            name=model.name,
-            armies=model.armies,
-            deployment=model.deployment,
-            layout=model.layout,
-            objectives=model.objectives,
-            initial_priority=model.initial_priority,
-            special_rules=model.special_rules,
+            map_spec=self._json_to_map_spec(model.map_spec),  # type: ignore[arg-type]
+            name=model.name,  # type: ignore[arg-type]
+            armies=model.armies,  # type: ignore[arg-type]
+            deployment=model.deployment,  # type: ignore[arg-type]
+            layout=model.layout,  # type: ignore[arg-type]
+            objectives=model.objectives,  # type: ignore[arg-type]
+            initial_priority=model.initial_priority,  # type: ignore[arg-type]
+            special_rules=model.special_rules,  # type: ignore[arg-type]
         )

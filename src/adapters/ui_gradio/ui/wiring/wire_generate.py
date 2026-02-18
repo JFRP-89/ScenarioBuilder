@@ -262,7 +262,7 @@ def _wire_create_scenario(
 
         def _stay(msg: str) -> tuple[Any, ...]:
             """Stay on the current page, show error status."""
-            return build_stay_outputs(  # type: ignore[no-any-return]
+            return build_stay_outputs(
                 msg,
                 n_nav=n_nav,
                 n_form=n_form,

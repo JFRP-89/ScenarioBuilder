@@ -86,6 +86,8 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run unit tests with coverage
+        env:
+          STRICT_KWARGS_CONTRACT: "1"
         run: |
           python -m pytest tests/unit \
             --cov=src \
@@ -120,7 +122,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [lint]
-    
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -136,11 +138,13 @@ jobs:
           --health-start-period 5s
         ports:
           - 5432:5432
-    
+
     env:
       DATABASE_URL: postgresql://scenario:scenario@localhost:5432/scenario
       DATABASE_URL_TEST: postgresql://scenario:scenario@localhost:5432/scenario_test
-    
+      APP_ENV: dev
+      RUN_DB_TESTS: "1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -156,13 +160,81 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Run database migrations
+      - name: Install postgres client
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Wait for Postgres to be ready
+        env:
+          PGPASSWORD: scenario
+        run: |
+          set -euo pipefail
+          echo "Waiting for Postgres (max 60s)..."
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -U scenario -d scenario -q; then
+              echo "Postgres is ready (attempt $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres did not become ready in 60s"
+          exit 1
+
+      - name: Create test database (scenario_test)
+        env:
+          PGPASSWORD: scenario
+        run: |
+          set -euo pipefail
+          psql -h localhost -U scenario -d scenario -c "SELECT 1;"
+          psql -h localhost -U scenario -d scenario -tc \
+            "SELECT 1 FROM pg_database WHERE datname='scenario_test'" \
+            | grep -q 1 \
+            || psql -h localhost -U scenario -d scenario -c "CREATE DATABASE scenario_test;"
+
+      - name: Run database migrations (scenario + scenario_test)
+        run: |
+          set -euo pipefail
           export PYTHONPATH=src
+          # Migrate main DB (scenario)
+          alembic upgrade head
+          # Migrate test DB (scenario_test)
+          export DATABASE_URL="${DATABASE_URL_TEST}"
           alembic upgrade head
 
-      - name: Run integration tests
-        run: python -m pytest tests/integration -v
+      - name: DB integration tests (must run, no skips)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Collect DB tests..."
+          COLLECT_OUT=$(python -m pytest tests/integration -m db --collect-only -q 2>&1 || true)
+          echo "$COLLECT_OUT"
+
+          # Fail if no tests were collected
+          if echo "$COLLECT_OUT" | grep -qiE "collected 0 items|no tests collected|no tests ran"; then
+            echo "::error::No DB tests were collected. Check @pytest.mark.db markers."
+            exit 1
+          fi
+
+          echo "Run DB tests..."
+          RUN_OUT=$(python -m pytest tests/integration -m db -v --tb=short 2>&1)
+          echo "$RUN_OUT"
+
+          # Fail if any test was skipped
+          if echo "$RUN_OUT" | grep -qiE "[0-9]+ skipped"; then
+            echo "::error::DB tests were skipped in CI. They must all run when RUN_DB_TESTS=1."
+            exit 1
+          fi
+
+          echo "DB tests OK (no skips)."
+
+      - name: Integration tests (non-DB)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest tests/integration -m "not db" -v
+
 
   docker-build:
     name: Docker Build
@@ -255,15 +327,17 @@ jobs:
 
       - name: Wait for API health
         run: |
-          for i in {1..60}; do
-            if curl -fsS http://localhost:8000/health > /dev/null; then
-              echo "API is healthy"
+          echo "Waiting for API health (max 120s)..."
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/health > /dev/null 2>&1; then
+              echo "API is healthy (attempt $i)"
               exit 0
             fi
             sleep 2
           done
-          echo "API did not become healthy in time"
+          echo "ERROR: API did not become healthy in 120s"
           docker compose ps
+          docker compose logs --no-color --tail=50
           exit 1
 
       - name: Run E2E tests (marker:e2e)

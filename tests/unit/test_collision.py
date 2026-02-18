@@ -273,3 +273,8 @@ class TestShapeInBounds:
             "points": [{"x": -1, "y": 10}, {"x": 100, "y": 10}, {"x": 50, "y": 100}],
         }
         assert not shape_in_bounds(shape, 1200, 1200)
+
+    def test_unknown_type_returns_false(self) -> None:
+        """Unknown shape types are conservatively treated as out-of-bounds."""
+        shape = {"type": "hexagon", "cx": 100, "cy": 100, "r": 30}
+        assert not shape_in_bounds(shape, 1200, 1200)

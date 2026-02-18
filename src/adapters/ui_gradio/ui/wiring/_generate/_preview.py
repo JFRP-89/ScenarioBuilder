@@ -13,6 +13,7 @@ from adapters.ui_gradio._state._seed_sync import (
     api_objectives_to_ui_state,
     api_scenography_to_ui_state,
 )
+from adapters.ui_gradio.services._generate._form_state import FormState
 from adapters.ui_gradio.services.generate import handle_preview
 from adapters.ui_gradio.ui.components.svg_preview import render_svg_from_card
 
@@ -82,7 +83,7 @@ def preview_and_render(*args: Any) -> _PreviewResult:
         7. scenography_state             (State — editable scenography)
         8. scenography_choices           (gr.update — dropdown)
     """
-    preview_data = handle_preview(*args)
+    preview_data = handle_preview(FormState(*args))
 
     # On error, return empty shapes + no-op dropdowns
     if preview_data.get("status") == "error":

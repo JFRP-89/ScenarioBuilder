@@ -129,7 +129,8 @@ def repo_db_url():
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
         engine.dispose()
         os.environ.pop("DATABASE_URL", None)
-        os.environ.pop("DATABASE_URL_TEST", None)
+        # Keep DATABASE_URL_TEST — it must survive across fixtures in CI
+        # (where .env doesn't exist to reload it).
 
 
 @pytest.fixture()

@@ -41,6 +41,14 @@ class _FakeSeedGen:
     def generate_seed(self) -> int:
         return 999
 
+    def calculate_from_config(self, config: dict) -> int:
+        """Delegate to the real deterministic implementation."""
+        from infrastructure.generators.deterministic_seed_generator import (
+            calculate_seed_from_config,
+        )
+
+        return calculate_seed_from_config(config)
+
 
 @dataclass
 class _FakeScenarioGen:

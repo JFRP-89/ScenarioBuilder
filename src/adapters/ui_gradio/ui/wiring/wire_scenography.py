@@ -17,6 +17,7 @@ from adapters.ui_gradio.state_helpers import (
 )
 
 from ._scenography._builder import build_scenography_data
+from ._scenography._context import ScenographyCtx
 from ._scenography._form_state import (
     UNCHANGED,
     default_scenography_form,
@@ -28,42 +29,42 @@ from ._scenography._ui_updates import (
 )
 
 
-def wire_scenography(  # noqa: C901
-    *,
-    scenography_toggle: gr.Checkbox,
-    scenography_group: gr.Group,
-    scenography_state: gr.State,
-    scenography_description: gr.Textbox,
-    scenography_type: gr.Radio,
-    circle_form_row: gr.Row,
-    circle_cx: gr.Number,
-    circle_cy: gr.Number,
-    circle_r: gr.Number,
-    rect_form_row: gr.Row,
-    rect_x: gr.Number,
-    rect_y: gr.Number,
-    rect_width: gr.Number,
-    rect_height: gr.Number,
-    polygon_form_col: gr.Column,
-    polygon_preset: gr.Dropdown,
-    polygon_points: gr.Dataframe,
-    delete_polygon_row_btn: gr.Button,
-    polygon_delete_msg: gr.Textbox,
-    allow_overlap_checkbox: gr.Checkbox,
-    add_scenography_btn: gr.Button,
-    remove_last_scenography_btn: gr.Button,
-    scenography_list: gr.Dropdown,
-    remove_selected_scenography_btn: gr.Button,
-    table_width: gr.Number,
-    table_height: gr.Number,
-    table_unit: gr.Radio,
-    scenography_unit_state: gr.State,
-    scenography_unit: gr.Radio,
-    scenography_editing_state: gr.State,
-    cancel_edit_scenography_btn: gr.Button,
-    output: gr.JSON,
-) -> None:
+def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
     """Wire scenography add/remove/toggle/edit events."""
+
+    # Unpack widget references for local access (preserves closure patterns)
+    scenography_toggle = ctx.scenography_toggle
+    scenography_group = ctx.scenography_group
+    scenography_state = ctx.scenography_state
+    scenography_description = ctx.scenography_description
+    scenography_type = ctx.scenography_type
+    circle_form_row = ctx.circle_form_row
+    circle_cx = ctx.circle_cx
+    circle_cy = ctx.circle_cy
+    circle_r = ctx.circle_r
+    rect_form_row = ctx.rect_form_row
+    rect_x = ctx.rect_x
+    rect_y = ctx.rect_y
+    rect_width = ctx.rect_width
+    rect_height = ctx.rect_height
+    polygon_form_col = ctx.polygon_form_col
+    polygon_preset = ctx.polygon_preset
+    polygon_points = ctx.polygon_points
+    delete_polygon_row_btn = ctx.delete_polygon_row_btn
+    polygon_delete_msg = ctx.polygon_delete_msg
+    allow_overlap_checkbox = ctx.allow_overlap_checkbox
+    add_scenography_btn = ctx.add_scenography_btn
+    remove_last_scenography_btn = ctx.remove_last_scenography_btn
+    scenography_list = ctx.scenography_list
+    remove_selected_scenography_btn = ctx.remove_selected_scenography_btn
+    table_width = ctx.table_width
+    table_height = ctx.table_height
+    table_unit = ctx.table_unit
+    scenography_unit_state = ctx.scenography_unit_state
+    scenography_unit = ctx.scenography_unit
+    scenography_editing_state = ctx.scenography_editing_state
+    cancel_edit_scenography_btn = ctx.cancel_edit_scenography_btn
+    output = ctx.output
 
     # -- helpers -----------------------------------------------------------
 

@@ -7,8 +7,6 @@ Delegates sanitisation, geometry and primitive rendering to
 
 from __future__ import annotations
 
-from typing import cast
-
 from infrastructure.maps._renderer._geometry import (
     calculate_circle_center,
     calculate_polygon_center,
@@ -48,32 +46,32 @@ class SvgMapRenderer:
 
     # -- kept for backward compat (tests reference via instance) ---------------
     def _escape_text(self, text: str) -> str:  # pragma: no cover - delegate
-        return cast(str, escape_text(text))
+        return escape_text(text)
 
     @staticmethod
     def _escape_attr(value: str) -> str:  # pragma: no cover - delegate
-        return cast(str, escape_attr(value))
+        return escape_attr(value)
 
     @staticmethod
     def _safe_paint(value: str, default: str) -> str:  # pragma: no cover - delegate
-        return cast(str, safe_paint(value, default))
+        return safe_paint(value, default)
 
     @staticmethod
     def _safe_numeric(value: str, default: str) -> str:  # pragma: no cover - delegate
-        return cast(str, safe_numeric(value, default))
+        return safe_numeric(value, default)
 
     # -- geometry delegates (tests call these via instance) --------------------
     def _calculate_rect_center(self, shape: dict) -> tuple[int, int]:
-        return cast(tuple[int, int], calculate_rect_center(shape))
+        return calculate_rect_center(shape)
 
     def _calculate_circle_center(self, shape: dict) -> tuple[int, int]:
-        return cast(tuple[int, int], calculate_circle_center(shape))
+        return calculate_circle_center(shape)
 
     def _calculate_polygon_center(self, shape: dict) -> tuple[int, int]:
-        return cast(tuple[int, int], calculate_polygon_center(shape))
+        return calculate_polygon_center(shape)
 
     def _estimate_text_width(self, text: str, font_size_px: int = 14) -> int:
-        return cast(int, estimate_text_width(text, font_size_px))
+        return estimate_text_width(text, font_size_px)
 
     def _text_fits_in_bounds(
         self,
@@ -83,17 +81,14 @@ class SvgMapRenderer:
         offset: int = 0,
         direction: str = "up",
     ) -> bool:
-        return cast(
-            bool,
-            text_fits_in_bounds(
-                text,
-                center_x,
-                center_y,
-                self.table_width_mm,
-                self.table_height_mm,
-                offset,
-                direction,
-            ),
+        return text_fits_in_bounds(
+            text,
+            center_x,
+            center_y,
+            self.table_width_mm,
+            self.table_height_mm,
+            offset,
+            direction,
         )
 
     def _get_position_preference_order(
@@ -101,14 +96,11 @@ class SvgMapRenderer:
         cx: int,
         cy: int,
     ) -> list[tuple[int, int, str]]:
-        return cast(
-            list[tuple[int, int, str]],
-            get_position_preference_order(
-                cx,
-                cy,
-                self.table_width_mm,
-                self.table_height_mm,
-            ),
+        return get_position_preference_order(
+            cx,
+            cy,
+            self.table_width_mm,
+            self.table_height_mm,
         )
 
     def _find_best_objective_position(
@@ -117,35 +109,32 @@ class SvgMapRenderer:
         cy: int,
         text: str,
     ) -> tuple[int, int, str]:
-        return cast(
-            tuple[int, int, str],
-            find_best_objective_position(
-                cx,
-                cy,
-                text,
-                self.table_width_mm,
-                self.table_height_mm,
-            ),
+        return find_best_objective_position(
+            cx,
+            cy,
+            text,
+            self.table_width_mm,
+            self.table_height_mm,
         )
 
     # -- primitive delegates (tests call these via instance) -------------------
     def _svg_header(self, width: int, height: int) -> str:
-        return cast(str, svg_header(width, height))
+        return svg_header(width, height)
 
     def _rect_svg(self, shape: dict) -> str:
-        return cast(str, rect_svg(shape))
+        return rect_svg(shape)
 
     def _circle_svg(self, shape: dict) -> str:
-        return cast(str, circle_svg(shape))
+        return circle_svg(shape)
 
     def _polygon_svg(self, shape: dict) -> str:
-        return cast(str, polygon_svg(shape))
+        return polygon_svg(shape)
 
     def _objective_point_svg(self, shape: dict) -> str:
-        return cast(str, objective_point_svg(shape))
+        return objective_point_svg(shape)
 
     def _shape_svg(self, shape: dict) -> str | None:
-        return cast(str | None, shape_svg(shape))
+        return shape_svg(shape)
 
     def _text_label_svg(
         self,
@@ -156,7 +145,7 @@ class SvgMapRenderer:
         fill: str = "#000",
         direction: str = "up",
     ) -> str:
-        return cast(str, text_label_svg(x, y, text, font_size, fill, direction))
+        return text_label_svg(x, y, text, font_size, fill, direction)
 
     # -- public API ------------------------------------------------------------
 
@@ -220,21 +209,15 @@ class SvgMapRenderer:
 
         if shape_type == "rect":
             cx, cy = calculate_rect_center(shape)
-            return cast(
-                str, text_label_svg(cx, cy, description, font_size=14, fill="#003")
-            )
+            return text_label_svg(cx, cy, description, font_size=14, fill="#003")
 
         elif shape_type == "circle":
             cx, cy = calculate_circle_center(shape)
-            return cast(
-                str, text_label_svg(cx, cy, description, font_size=14, fill="#333")
-            )
+            return text_label_svg(cx, cy, description, font_size=14, fill="#333")
 
         elif shape_type == "polygon":
             cx, cy = calculate_polygon_center(shape)
-            return cast(
-                str, text_label_svg(cx, cy, description, font_size=14, fill="#300")
-            )
+            return text_label_svg(cx, cy, description, font_size=14, fill="#300")
 
         elif shape_type == "objective_point":
             cx = int(shape.get("cx", 0))
@@ -246,16 +229,13 @@ class SvgMapRenderer:
                 self.table_width_mm,
                 self.table_height_mm,
             )
-            return cast(
-                str,
-                text_label_svg(
-                    text_x,
-                    text_y,
-                    description,
-                    font_size=14,
-                    fill="#000",
-                    direction=direction,
-                ),
+            return text_label_svg(
+                text_x,
+                text_y,
+                description,
+                font_size=14,
+                fill="#000",
+                direction=direction,
             )
 
         return None

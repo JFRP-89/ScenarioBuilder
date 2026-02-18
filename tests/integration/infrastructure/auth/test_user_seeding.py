@@ -2,9 +2,13 @@
 
 Tests the seed_demo_users_to_database() function that populates the users
 table with demo users after the application boots.
+
+Requires a running PostgreSQL instance (``RUN_DB_TESTS=1``).
 """
 
 import pytest
+
+pytestmark = pytest.mark.db
 
 
 @pytest.fixture

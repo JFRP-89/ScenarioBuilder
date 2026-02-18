@@ -9,10 +9,12 @@ Public API
 - ``get_profile(actor_id)`` → profile dict
 - ``update_profile(actor_id, name, email)`` → result dict
 - ``get_logged_in_label(actor_id)`` → display string
+- ``check_auth(request)`` → auth state tuple for Gradio page load
 """
 
 from __future__ import annotations
 
+from adapters.ui_gradio.auth._check_auth import check_auth
 from adapters.ui_gradio.auth._service import (
     authenticate,
     get_logged_in_label,
@@ -24,6 +26,7 @@ from adapters.ui_gradio.auth._service import (
 
 __all__ = [
     "authenticate",
+    "check_auth",
     "get_logged_in_label",
     "get_profile",
     "is_session_valid",

@@ -13,6 +13,7 @@ from adapters.ui_gradio.state_helpers import (
     remove_selected_deployment_zone,
     update_deployment_zone,
 )
+from adapters.ui_gradio.ui.wiring._deployment._context import DeploymentZonesCtx
 from adapters.ui_gradio.ui.wiring._deployment._form_state import (
     UNCHANGED,
     default_zone_form,
@@ -31,49 +32,47 @@ from adapters.ui_gradio.units import (
 )
 
 
-def wire_deployment_zones(  # noqa: C901
-    *,
-    deployment_zones_toggle: gr.Checkbox,
-    zones_group: gr.Group,
-    deployment_zones_state: gr.State,
-    zone_table_width_state: gr.State,
-    zone_table_height_state: gr.State,
-    zone_unit_state: gr.State,
-    zone_type_select: gr.Radio,
-    border_row: gr.Row,
-    zone_border_select: gr.Radio,
-    corner_row: gr.Row,
-    zone_corner_select: gr.Radio,
-    fill_side_row: gr.Row,
-    zone_fill_side_checkbox: gr.Checkbox,
-    perfect_triangle_row: gr.Row,
-    zone_perfect_triangle_checkbox: gr.Checkbox,
-    zone_unit: gr.Radio,
-    zone_description: gr.Textbox,
-    rect_dimensions_row: gr.Row,
-    zone_width: gr.Number,
-    zone_height: gr.Number,
-    triangle_dimensions_row: gr.Row,
-    zone_triangle_side1: gr.Number,
-    zone_triangle_side2: gr.Number,
-    circle_dimensions_row: gr.Row,
-    zone_circle_radius: gr.Number,
-    separation_row: gr.Row,
-    zone_sep_x: gr.Number,
-    zone_sep_y: gr.Number,
-    add_zone_btn: gr.Button,
-    remove_last_zone_btn: gr.Button,
-    deployment_zones_list: gr.Dropdown,
-    remove_selected_zone_btn: gr.Button,
-    table_preset: gr.Radio,
-    table_width: gr.Number,
-    table_height: gr.Number,
-    table_unit: gr.Radio,
-    zone_editing_state: gr.State,
-    cancel_edit_zone_btn: gr.Button,
-    output: gr.JSON,
-) -> None:
+def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
     """Wire deployment-zone add/remove/border-fill/edit events."""
+
+    # Unpack widget references for local access (preserves closure patterns)
+    deployment_zones_toggle = ctx.deployment_zones_toggle
+    zones_group = ctx.zones_group
+    deployment_zones_state = ctx.deployment_zones_state
+    zone_unit_state = ctx.zone_unit_state
+    zone_type_select = ctx.zone_type_select
+    border_row = ctx.border_row
+    zone_border_select = ctx.zone_border_select
+    corner_row = ctx.corner_row
+    zone_corner_select = ctx.zone_corner_select
+    fill_side_row = ctx.fill_side_row
+    zone_fill_side_checkbox = ctx.zone_fill_side_checkbox
+    perfect_triangle_row = ctx.perfect_triangle_row
+    zone_perfect_triangle_checkbox = ctx.zone_perfect_triangle_checkbox
+    zone_unit = ctx.zone_unit
+    zone_description = ctx.zone_description
+    rect_dimensions_row = ctx.rect_dimensions_row
+    zone_width = ctx.zone_width
+    zone_height = ctx.zone_height
+    triangle_dimensions_row = ctx.triangle_dimensions_row
+    zone_triangle_side1 = ctx.zone_triangle_side1
+    zone_triangle_side2 = ctx.zone_triangle_side2
+    circle_dimensions_row = ctx.circle_dimensions_row
+    zone_circle_radius = ctx.zone_circle_radius
+    separation_row = ctx.separation_row
+    zone_sep_x = ctx.zone_sep_x
+    zone_sep_y = ctx.zone_sep_y
+    add_zone_btn = ctx.add_zone_btn
+    remove_last_zone_btn = ctx.remove_last_zone_btn
+    deployment_zones_list = ctx.deployment_zones_list
+    remove_selected_zone_btn = ctx.remove_selected_zone_btn
+    table_preset = ctx.table_preset
+    table_width = ctx.table_width
+    table_height = ctx.table_height
+    table_unit = ctx.table_unit
+    zone_editing_state = ctx.zone_editing_state
+    cancel_edit_zone_btn = ctx.cancel_edit_zone_btn
+    output = ctx.output
 
     # -- closures ----------------------------------------------------------
 
@@ -201,6 +200,8 @@ def wire_deployment_zones(  # noqa: C901
         )
         if error_msg:
             return _build_error_result(current_state, error_msg, editing_id)
+
+        assert zone_data is not None  # guaranteed when error_msg is None
 
         if editing_id:
             new_state, state_err = update_deployment_zone(

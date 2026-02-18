@@ -60,7 +60,7 @@ def render_from_cache(
 ) -> tuple[str, str, int]:
     """Re-render from cached cards without hitting the API."""
     filtered = filter_by_mode_preset(cards_cache, mode_filter, preset_filter)
-    return render_filtered_page(  # type: ignore[no-any-return]
+    return render_filtered_page(
         filtered, fav_ids_cache, unit, page, search_raw, per_page_raw
     )
 

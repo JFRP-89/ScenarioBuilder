@@ -172,9 +172,11 @@ def _build_rectangle(
             h_mm = table_h_mm
             sy_mm = 0
 
-    sx_mm, sy_mm = validate_separation_coords(
+    _fx, _fy = validate_separation_coords(
         border, w_mm, h_mm, sx_mm, sy_mm, table_w_mm, table_h_mm
     )
+    sx_mm = int(_fx)
+    sy_mm = int(_fy)
 
     zone_data: dict[str, Any] = {
         "type": "rect",
