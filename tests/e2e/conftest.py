@@ -91,7 +91,7 @@ def e2e_services(
         # Fail early if a rogue Python process is competing on port 8000
         check_port_clean(8000)
 
-        print("\n🐳 Levantando docker-compose (app)...")
+        print("\n[docker] Levantando docker-compose (app)...")
         result = subprocess.run(
             ["docker", "compose", "up", "-d", "--build", "app"],
             capture_output=True,
@@ -102,27 +102,27 @@ def e2e_services(
         )
 
         if result.returncode != 0:
-            print("❌ Error al levantar docker-compose:")
+            print("[ERROR] Error al levantar docker-compose:")
             print(result.stdout)
             print(result.stderr)
             _dump_docker_debug()
             pytest.fail("No se pudo levantar docker-compose")
 
-        print("✅ docker-compose up completado")
+        print("[OK] docker-compose up completado")
         _dump_docker_debug()
 
         try:
             _wait_for_health(e2e_base_urls)
-            print("✅ Health checks OK")
+            print("[OK] Health checks OK")
         except (TimeoutError, requests.RequestException) as exc:
-            print(f"❌ Health checks fallaron: {exc}")
+            print(f"[ERROR] Health checks fallaron: {exc}")
             _dump_docker_debug()
             subprocess.run(["docker", "compose", "down", "-v"], check=False)
             pytest.fail(f"Health checks fallaron: {exc}")
 
         yield
 
-        print("\n🐳 Bajando docker-compose...")
+        print("\n[docker] Bajando docker-compose...")
         subprocess.run(
             ["docker", "compose", "down", "-v"],
             capture_output=True,
@@ -131,15 +131,15 @@ def e2e_services(
             errors="replace",
             check=False,
         )
-        print("✅ docker-compose down completado")
+        print("[OK] docker-compose down completado")
         return
 
     process = _start_local_api(e2e_base_urls["app"])
     try:
         _wait_for_health(e2e_base_urls)
-        print("✅ Health checks OK (local app)")
+        print("[OK] Health checks OK (local app)")
     except (TimeoutError, requests.RequestException) as exc:
-        print(f"❌ Health checks fallaron: {exc}")
+        print(f"[ERROR] Health checks fallaron: {exc}")
         _terminate_process(process)
         pytest.fail(f"Health checks fallaron: {exc}")
 
@@ -168,7 +168,7 @@ def _wait_for_health(
 
     start = time.time()
 
-    print(f"⏳ Esperando health check (timeout={timeout_s}s)...")
+    print(f"[WAIT] Esperando health check (timeout={timeout_s}s)...")
 
     while time.time() - start < timeout_s:
         if _check_endpoint(health_url, (200,), f"  ✓ App health OK ({health_url})"):
@@ -208,7 +208,7 @@ def _check_endpoint(
 
 def _dump_docker_debug() -> None:
     """Imprime docker compose ps y logs para debug."""
-    print("\n📊 docker compose ps:")
+    print("\n[INFO] docker compose ps:")
     result = subprocess.run(
         ["docker", "compose", "ps"],
         capture_output=True,
@@ -219,7 +219,7 @@ def _dump_docker_debug() -> None:
     )
     print(result.stdout)
 
-    print("\n📋 docker compose logs (últimas 200 líneas):")
+    print("\n[LOGS] docker compose logs (ultimas 200 lineas):")
     result = subprocess.run(
         ["docker", "compose", "logs", "--tail=200", "api", "ui"],
         capture_output=True,

@@ -115,7 +115,7 @@ def wire_favorites_page(  # noqa: C901
         search_raw: str = "",
         per_page_raw: str = "10",
     ) -> tuple[str, str, int]:
-        return render_filtered_page(  # type: ignore[no-any-return]
+        return render_filtered_page(
             cards_cache,
             fav_ids_cache,
             unit,

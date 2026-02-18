@@ -7,10 +7,13 @@ create a disposable test database and run Alembic migrations.
 
 from __future__ import annotations
 
+import pytest
 from domain.cards.card import Card, GameMode
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
+
+pytestmark = pytest.mark.db
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

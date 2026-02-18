@@ -10,23 +10,12 @@ Shows:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import gradio as gr
 
 
-def build_detail_page() -> tuple[
-    gr.Column,
-    gr.Markdown,
-    gr.HTML,
-    gr.HTML,
-    gr.Button,
-    gr.Button,
-    gr.Row,
-    gr.Markdown,
-    gr.Button,
-    gr.Button,
-    gr.Button,
-    gr.Button,
-]:
+def build_detail_page() -> SimpleNamespace:
     """Build the scenario-detail page layout.
 
     Returns:
@@ -106,17 +95,17 @@ def build_detail_page() -> tuple[
                 elem_id="delete-cancel-btn",
             )
 
-    return (
-        container,
-        card_title_md,
-        svg_preview,
-        detail_content_html,
-        edit_btn,
-        delete_btn,
-        delete_confirm_row,
-        delete_confirm_msg,
-        delete_confirm_btn,
-        delete_cancel_btn,
-        favorite_btn,
-        back_btn,
+    return SimpleNamespace(
+        container=container,
+        card_title_md=card_title_md,
+        svg_preview=svg_preview,
+        detail_content_html=detail_content_html,
+        edit_btn=edit_btn,
+        delete_btn=delete_btn,
+        delete_confirm_row=delete_confirm_row,
+        delete_confirm_msg=delete_confirm_msg,
+        delete_confirm_btn=delete_confirm_btn,
+        delete_cancel_btn=delete_cancel_btn,
+        favorite_btn=favorite_btn,
+        back_btn=back_btn,
     )

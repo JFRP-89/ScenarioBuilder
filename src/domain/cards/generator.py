@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import random
 from typing import List
 
 from domain.cards.models import CardItem, ScenarioCard
 from domain.seed import get_rng
 
 
-def _pick(rng, items: List[CardItem]) -> CardItem:
+def _pick(rng: random.Random, items: List[CardItem]) -> CardItem:
     if not items:
         raise ValueError("No items to pick from")
     return rng.choice(items)

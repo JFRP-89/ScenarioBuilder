@@ -47,10 +47,13 @@ def _load_env_file(path: str, override: bool = False) -> None:
             os.environ[key] = value
 
 
+# In CI (CI=true), never let .env overwrite env vars set by the runner.
+_dotenv_override = os.environ.get("CI", "").strip().lower() not in ("true", "1")
+
 if load_dotenv is not None:
-    load_dotenv(os.path.join(REPO_ROOT, ".env"), override=True)
+    load_dotenv(os.path.join(REPO_ROOT, ".env"), override=_dotenv_override)
 else:
-    _load_env_file(os.path.join(REPO_ROOT, ".env"), override=True)
+    _load_env_file(os.path.join(REPO_ROOT, ".env"), override=_dotenv_override)
 
 
 def _escape_password_in_url(url_str: str) -> str:
@@ -135,11 +138,20 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Set SQLAlchemy URL from env
-built_url = _build_postgres_url_from_env()
-DATABASE_URL = (
-    built_url or os.environ.get("DATABASE_URL") or "sqlite:///./scenario_dev.db"
-)
+# Priority: DATABASE_URL env var > POSTGRES_* composed URL > sqlite fallback
+_explicit_url = os.environ.get("DATABASE_URL")
+_built_url = _build_postgres_url_from_env()
+DATABASE_URL = _explicit_url or _built_url or "sqlite:///./scenario_dev.db"
 DATABASE_URL = _escape_password_in_url(DATABASE_URL)
+
+# Log which source was used (mask password for safety)
+_src = (
+    "DATABASE_URL env"
+    if _explicit_url
+    else ("POSTGRES_* env" if _built_url else "sqlite fallback")
+)
+_safe_url = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL
+print(f"  [alembic/env] URL source: {_src}  →  …@{_safe_url}")
 
 # Create the database if it doesn't exist yet
 _ensure_database_exists(DATABASE_URL)

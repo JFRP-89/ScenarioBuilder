@@ -81,6 +81,6 @@ class PostgresFavoritesRepository:
                 .order_by(FavoritesModel.card_id)
                 .all()
             )
-            return [m.card_id for m in models]
+            return [m.card_id for m in models]  # type: ignore[misc]
         finally:
             session.close()

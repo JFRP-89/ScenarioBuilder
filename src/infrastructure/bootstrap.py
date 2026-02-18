@@ -1,6 +1,13 @@
 """Infrastructure bootstrap / composition root.
 
 Wires up all use cases with their infrastructure dependencies.
+
+Environment modes
+-----------------
+``APP_ENV`` controls production vs development behaviour:
+
+* ``APP_ENV=prod``  — strict fail-fast, no fallbacks, no demo seeding.
+* Any other value   — development/test mode with graceful fallbacks.
 """
 
 from __future__ import annotations
@@ -52,6 +59,19 @@ logger = logging.getLogger(__name__)
 _services_instance: Services | None = None
 
 
+# =============================================================================
+# ENVIRONMENT HELPERS
+# =============================================================================
+def _get_env(name: str, default: str = "") -> str:
+    """Read an environment variable, stripped of whitespace."""
+    return os.environ.get(name, default).strip()
+
+
+def _is_prod() -> bool:
+    """Return ``True`` when ``APP_ENV`` equals ``prod``."""
+    return _get_env("APP_ENV") == "prod"
+
+
 def get_services() -> "Services":
     """Return the shared Services singleton.
 
@@ -66,42 +86,79 @@ def get_services() -> "Services":
 # SESSION STORE WIRING
 # =============================================================================
 def _build_session_store() -> None:
-    """Configure session store backend based on ``DATABASE_URL``.
+    """Configure session store backend based on ``DATABASE_URL`` and ``APP_ENV``.
 
-    When ``DATABASE_URL`` points to PostgreSQL, creates a
-    ``PostgresSessionStore`` and registers it via
-    ``session_store.configure_store()``, so all module-level functions
-    in ``session_store`` delegate to the DB-backed implementation.
+    Production (``APP_ENV=prod``)
+        Every step must succeed or a ``RuntimeError`` is raised so the
+        process exits immediately with a clear message.
 
-    If ``DATABASE_URL`` is not set, falls back to in-memory sessions
-    (suitable for local dev / test).
+    Development / test (any other ``APP_ENV``)
+        Failures are logged as warnings and the in-memory session store
+        is used as a fallback.
     """
-    database_url = os.environ.get("DATABASE_URL", "")
-    if not database_url.startswith("postgres"):
+    prod = _is_prod()
+    database_url = _get_env("DATABASE_URL")
+
+    # --- 1) DATABASE_URL must be present in prod --------------------------
+    if not database_url:
+        if prod:
+            raise RuntimeError(
+                "Production requires PostgresSessionStore. "
+                "Reason: DATABASE_URL is not set."
+            )
         logger.info("Using SessionStore backend: in_memory (no DATABASE_URL)")
         return
 
+    # --- 2) Must be a PostgreSQL URL --------------------------------------
+    if not database_url.startswith("postgres"):
+        if prod:
+            raise RuntimeError(
+                "Production requires PostgresSessionStore. "
+                "Reason: DATABASE_URL is not a PostgreSQL URL."
+            )
+        logger.warning(
+            "DATABASE_URL is not a PostgreSQL URL — "
+            "falling back to in-memory session store."
+        )
+        logger.info("Using SessionStore backend: in_memory")
+        return
+
+    # --- 3) SQLAlchemy / psycopg2 must be importable ---------------------
     try:
         from infrastructure.auth.postgres_session_store import PostgresSessionStore
         from infrastructure.auth.session_store import configure_store
         from infrastructure.db.session import SessionLocal
-    except ImportError:
+    except ImportError as exc:
+        if prod:
+            raise RuntimeError(
+                "Production requires PostgresSessionStore. "
+                f"Reason: required dependency not installed — {exc}"
+            ) from exc
         logger.warning(
-            "DATABASE_URL set to postgres but SQLAlchemy/psycopg2 is not installed. "
-            "Falling back to in-memory session store."
+            "DATABASE_URL set to postgres but SQLAlchemy/psycopg2 is not "
+            "installed. Falling back to in-memory session store."
         )
+        logger.info("Using SessionStore backend: in_memory")
         return
 
-    # Fail-fast: verify DB connectivity before proceeding
+    # --- 4) DB must be reachable ------------------------------------------
     try:
         db = SessionLocal()
         db.execute(__import__("sqlalchemy").text("SELECT 1"))
         db.close()
     except Exception as exc:
-        raise RuntimeError(
-            f"Session store: cannot connect to PostgreSQL — {exc}. "
-            "Ensure DATABASE_URL is correct and the database is running."
-        ) from exc
+        if prod:
+            raise RuntimeError(
+                "Production requires PostgresSessionStore. "
+                f"Reason: cannot connect to PostgreSQL — {exc}"
+            ) from exc
+        logger.warning(
+            "Session store: cannot connect to PostgreSQL — %s. "
+            "Falling back to in-memory session store.",
+            exc,
+        )
+        logger.info("Using SessionStore backend: in_memory")
+        return
 
     store = PostgresSessionStore(session_factory=SessionLocal)
     configure_store(store)
@@ -201,14 +258,18 @@ def build_services() -> Services:
     # 0) Configure session store backend (postgres or in-memory)
     _build_session_store()
 
-    # 0b) Seed demo users to database (if available, idempotent)
-    try:
-        from infrastructure.auth.user_store import seed_demo_users_to_database
+    # 0b) Seed demo users (dev only, opt-in via SEED_DEMO_USERS=1)
+    seed_requested = _get_env("SEED_DEMO_USERS") in ("1", "true", "yes")
+    if seed_requested and _is_prod():
+        logger.warning("SEED_DEMO_USERS ignored in production")
+    elif seed_requested:
+        try:
+            from infrastructure.auth.user_store import seed_demo_users_to_database
 
-        seed_demo_users_to_database()
-    except Exception:
-        # Failed to seed — app still boots, falls back to in-memory auth
-        pass
+            seed_demo_users_to_database()
+            logger.info("Demo users seeded successfully.")
+        except Exception:
+            logger.debug("Failed to seed demo users — skipping.", exc_info=True)
 
     # 1) Build infrastructure dependencies
     card_repo = _build_card_repository()

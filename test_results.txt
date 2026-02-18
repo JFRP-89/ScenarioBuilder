@@ -1,0 +1,683 @@
+﻿........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+.............................................................F.......... [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+...............EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE.. [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+....................................................FFF.FFFF............ [ 97%]
+.....................................................EEEE                [100%]
+=================================== ERRORS ====================================
+_______ ERROR at setup of TestCreateSession.test_returns_session_record _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestCreateSession.test_session_id_is_unique ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_________ ERROR at setup of TestCreateSession.test_timestamps_are_set _________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestCreateSession.test_active_count_increases _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestGetSession.test_returns_existing_session ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestGetSession.test_returns_none_for_unknown_id ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestGetSession.test_returns_none_for_empty_id _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestGetSession.test_expired_by_idle_timeout ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestGetSession.test_expired_by_max_lifetime ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestGetSession.test_not_expired_within_limits _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestInvalidateSession.test_revokes_session _________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___ ERROR at setup of TestInvalidateSession.test_returns_false_for_unknown ____
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestInvalidateSession.test_returns_false_for_already_revoked _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestRevokeAllSessions.test_revokes_all_for_user ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestRevokeAllSessions.test_returns_zero_if_none ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ ERROR at setup of TestMarkReauth.test_marks_reauth_at ____________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestMarkReauth.test_returns_false_for_unknown _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____ ERROR at setup of TestIsRecentlyReauthed.test_false_when_no_reauth ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestIsRecentlyReauthed.test_true_after_mark ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__ ERROR at setup of TestIsRecentlyReauthed.test_false_after_window_expires ___
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestIsRecentlyReauthed.test_false_for_unknown _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestRotateSessionId.test_new_id_preserves_actor ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ ERROR at setup of TestRotateSessionId.test_old_id_invalidated ________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________ ERROR at setup of TestRotateSessionId.test_new_id_valid ___________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of TestRotateSessionId.test_preserves_created_at _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__________ ERROR at setup of TestRotateSessionId.test_new_csrf_token __________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____ ERROR at setup of TestRotateSessionId.test_returns_none_for_unknown _____
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ ERROR at setup of TestGetCsrfToken.test_returns_token ____________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestGetCsrfToken.test_returns_none_for_missing _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestGetCsrfToken.test_returns_none_for_revoked _______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestCleanupExpiredSessions.test_removes_expired_sessions __
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestCleanupExpiredSessions.test_removes_old_revoked_sessions _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____________ ERROR at setup of TestResetSessions.test_clears_all _____________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestTouchThrottling.test_last_seen_not_updated_within_throttle _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestTouchThrottling.test_last_seen_updated_after_throttle _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__ ERROR at setup of TestUserSeeding.test_seed_demo_users_creates_five_users __
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+______ ERROR at setup of TestUserSeeding.test_seed_demo_users_idempotent ______
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____ ERROR at setup of TestUserSeeding.test_seed_demo_users_correct_data _____
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestUserSeeding.test_seed_demo_users_passwords_preserved __
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_________ ERROR at setup of test_alembic_upgrade_creates_cards_table __________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__ ERROR at setup of TestPostgresCardRepository.test_save_and_get_roundtrip ___
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresCardRepository.test_get_by_id_missing_returns_none _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresCardRepository.test_delete_existing_returns_true _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresCardRepository.test_delete_missing_returns_false _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_________ ERROR at setup of TestPostgresCardRepository.test_list_all __________
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__ ERROR at setup of TestPostgresCardRepository.test_save_upsert_overwrites ___
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___ ERROR at setup of TestPostgresCardRepository.test_shared_with_roundtrip ___
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresCardRepository.test_dict_objectives_roundtrip _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresFavoritesRepository.test_set_and_is_favorite __
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____ ERROR at setup of TestPostgresFavoritesRepository.test_unset_favorite ____
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresFavoritesRepository.test_list_favorites_sorted _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresFavoritesRepository.test_list_favorites_empty _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresFavoritesRepository.test_set_favorite_idempotent _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestPostgresFavoritesRepository.test_unset_favorite_idempotent _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___ ERROR at setup of TestPostgresFavoritesRepository.test_actor_isolation ____
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+During handling of the above exception, another exception occurred:
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of TestNoAutoScenography.test_create_without_shapes_saves_empty_scenography _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+The above exception was the direct cause of the following exception:
+E   RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8). Ensure DATABASE_URL is correct and the database is running.
+_ ERROR at setup of TestNoAutoScenography.test_edit_scenario_preserves_no_shapes _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+The above exception was the direct cause of the following exception:
+E   RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8). Ensure DATABASE_URL is correct and the database is running.
+_ ERROR at setup of TestNoAutoScenography.test_seed_consistent_preview_to_db __
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+The above exception was the direct cause of the following exception:
+E   RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8). Ensure DATABASE_URL is correct and the database is running.
+_ ERROR at setup of TestNoAutoScenography.test_manual_scenario_has_seed_zero_and_no_shapes _
+E   psycopg2.OperationalError: could not translate host name "db" to address: Host desconocido.
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+The above exception was the direct cause of the following exception:
+E   RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido. 
+    
+    (Background on this error at: https://sqlalche.me/e/20/e3q8). Ensure DATABASE_URL is correct and the database is running.
+================================== FAILURES ===================================
+C:\Users\Juan Francisco\ScenarioBuilder\src\application\use_cases\generate_scenario_card.py:661: AttributeError: 'FakeSeedGenerator' object has no attribute 'calculate_from_config'
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+C:\Users\Juan Francisco\ScenarioBuilder\src\infrastructure\bootstrap.py:101: RuntimeError: Session store: cannot connect to PostgreSQL ù (psycopg2.OperationalError) could not translate host name "db" to address: Host desconocido.
+============================== warnings summary ===============================
+tests/integration/adapters/test_combined_app.py::TestCombinedRouting::test_gradio_ui_accessible
+  C:\Users\Juan Francisco\ScenarioBuilder\venv311\Lib\site-packages\starlette\templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+  Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCreateSession::test_returns_session_record
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCreateSession::test_session_id_is_unique
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCreateSession::test_timestamps_are_set
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCreateSession::test_active_count_increases
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_returns_existing_session
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_returns_none_for_unknown_id
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_returns_none_for_empty_id
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_expired_by_idle_timeout
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_expired_by_max_lifetime
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetSession::test_not_expired_within_limits
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestInvalidateSession::test_revokes_session
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestInvalidateSession::test_returns_false_for_unknown
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestInvalidateSession::test_returns_false_for_already_revoked
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRevokeAllSessions::test_revokes_all_for_user
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRevokeAllSessions::test_returns_zero_if_none
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestMarkReauth::test_marks_reauth_at
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestMarkReauth::test_returns_false_for_unknown
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestIsRecentlyReauthed::test_false_when_no_reauth
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestIsRecentlyReauthed::test_true_after_mark
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestIsRecentlyReauthed::test_false_after_window_expires
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestIsRecentlyReauthed::test_false_for_unknown
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_new_id_preserves_actor
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_old_id_invalidated
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_new_id_valid
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_preserves_created_at
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_new_csrf_token
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestRotateSessionId::test_returns_none_for_unknown
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetCsrfToken::test_returns_token
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetCsrfToken::test_returns_none_for_missing
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestGetCsrfToken::test_returns_none_for_revoked
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCleanupExpiredSessions::test_removes_expired_sessions
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestCleanupExpiredSessions::test_removes_old_revoked_sessions
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestResetSessions::test_clears_all
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestTouchThrottling::test_last_seen_not_updated_within_throttle
+ERROR tests/integration/infrastructure/auth/test_postgres_session_store.py::TestTouchThrottling::test_last_seen_updated_after_throttle
+ERROR tests/integration/infrastructure/auth/test_user_seeding.py::TestUserSeeding::test_seed_demo_users_creates_five_users
+ERROR tests/integration/infrastructure/auth/test_user_seeding.py::TestUserSeeding::test_seed_demo_users_idempotent
+ERROR tests/integration/infrastructure/auth/test_user_seeding.py::TestUserSeeding::test_seed_demo_users_correct_data
+ERROR tests/integration/infrastructure/auth/test_user_seeding.py::TestUserSeeding::test_seed_demo_users_passwords_preserved
+ERROR tests/integration/infrastructure/db/test_alembic_migrations.py::test_alembic_upgrade_creates_cards_table
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_save_and_get_roundtrip
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_get_by_id_missing_returns_none
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_delete_existing_returns_true
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_delete_missing_returns_false
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_list_all
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_save_upsert_overwrites
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_shared_with_roundtrip
+ERROR tests/integration/infrastructure/repositories/test_postgres_card_repository.py::TestPostgresCardRepository::test_dict_objectives_roundtrip
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_set_and_is_favorite
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_unset_favorite
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_list_favorites_sorted
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_list_favorites_empty
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_set_favorite_idempotent
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_unset_favorite_idempotent
+ERROR tests/integration/infrastructure/repositories/test_postgres_favorites_repository.py::TestPostgresFavoritesRepository::test_actor_isolation
+ERROR tests/integration/test_no_auto_scenography.py::TestNoAutoScenography::test_create_without_shapes_saves_empty_scenography
+ERROR tests/integration/test_no_auto_scenography.py::TestNoAutoScenography::test_edit_scenario_preserves_no_shapes
+ERROR tests/integration/test_no_auto_scenography.py::TestNoAutoScenography::test_seed_consistent_preview_to_db
+ERROR tests/integration/test_no_auto_scenography.py::TestNoAutoScenography::test_manual_scenario_has_seed_zero_and_no_shapes
+FAILED tests/unit/application/test_card_schema_validation.py::TestMinimumJsonSchema::test_minimum_card_accepted
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesSmoke::test_build_services_constructs_services_object
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesIntegrationFlow::test_generate_save_get_flow
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesIntegrationFlow::test_services_share_repository_state
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesOptionalUseCases::test_services_has_list_cards_if_implemented
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesOptionalUseCases::test_services_has_favorites_use_cases_if_implemented
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesOptionalUseCases::test_services_has_create_variant_if_implemented
+FAILED tests/integration/infrastructure/test_bootstrap_services.py::TestBootstrapServicesOptionalUseCases::test_services_has_render_map_svg_if_implemented
+8 failed, 2510 passed, 1 warning, 59 errors in 319.72s (0:05:19)

@@ -60,9 +60,7 @@ def _render_from_cache(
 ) -> tuple[str, str, int]:
     """Render a page from the in-memory cache."""
     cards = cache.get(filter_value, []) if isinstance(cache, dict) else []
-    return render_filtered_page(  # type: ignore[no-any-return]
-        cards, fav_ids, unit, page, search_raw, per_page_raw
-    )
+    return render_filtered_page(cards, fav_ids, unit, page, search_raw, per_page_raw)
 
 
 def _cache_reset_page1(

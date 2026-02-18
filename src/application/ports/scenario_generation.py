@@ -7,7 +7,7 @@ depends on but doesn't implement.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from domain.cards.card import GameMode
 from domain.maps.table_size import TableSize
@@ -26,13 +26,29 @@ class IdGenerator(Protocol):
 
 
 class SeedGenerator(Protocol):
-    """Port for generating deterministic seeds."""
+    """Port for generating and calculating deterministic seeds."""
 
     def generate_seed(self) -> int:
         """Generate a seed for scenario generation.
 
         Returns:
             Integer seed >= 0.
+        """
+        ...
+
+    def calculate_from_config(self, config: dict[str, Any]) -> int:
+        """Calculate a deterministic seed from card configuration.
+
+        The seed is derived from the configuration content so that:
+        - Same config always produces the same seed (reproducible).
+        - Small config changes produce different seeds.
+        - Reverting config reverts the seed (idempotent).
+
+        Args:
+            config: Dictionary with card configuration fields.
+
+        Returns:
+            Integer seed in range ``[0, 2**31 - 1]``.
         """
         ...
 

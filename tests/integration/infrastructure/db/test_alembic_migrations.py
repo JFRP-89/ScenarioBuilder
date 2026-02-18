@@ -16,6 +16,8 @@ from urllib.parse import quote_plus
 import pytest
 from dotenv import load_dotenv
 
+pytestmark = pytest.mark.db
+
 
 def _load_db_env() -> None:
     """Load DATABASE_URL from .env for this test module.
@@ -123,9 +125,9 @@ def test_db_url() -> Generator[str, None, None]:
         with engine.connect() as conn:
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
         engine.dispose()
-        # Clean up DB env vars so they don't leak to subsequent tests
         os.environ.pop("DATABASE_URL", None)
-        os.environ.pop("DATABASE_URL_TEST", None)
+        # Keep DATABASE_URL_TEST — it must survive across fixtures in CI
+        # (where .env doesn't exist to reload it).
 
 
 def test_alembic_upgrade_creates_cards_table(test_db_url: str) -> None:

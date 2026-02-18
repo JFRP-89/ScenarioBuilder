@@ -6,16 +6,12 @@ Re-uses the detail page layout plus an informational banner.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import gradio as gr
 
 
-def build_edit_page() -> tuple[
-    gr.Column,
-    gr.Markdown,
-    gr.HTML,
-    gr.JSON,
-    gr.Button,
-]:
+def build_edit_page() -> SimpleNamespace:
     """Build the edit-scenario page layout.
 
     Returns:
@@ -55,4 +51,10 @@ def build_edit_page() -> tuple[
             elem_id="edit-card-json",
         )
 
-    return container, card_title_md, svg_preview, card_json, back_btn
+    return SimpleNamespace(
+        container=container,
+        card_title_md=card_title_md,
+        svg_preview=svg_preview,
+        card_json=card_json,
+        back_btn=back_btn,
+    )

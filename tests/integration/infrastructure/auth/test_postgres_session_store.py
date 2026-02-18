@@ -15,10 +15,11 @@ These tests exercise the full CRUD lifecycle of sessions, including:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
-
 import pytest
+
+from tests.helpers.fake_clock import FakeClock
+
+pytestmark = pytest.mark.db
 
 # ── Deferred imports (DB modules can't load at collection time) ─────────────
 
@@ -41,6 +42,24 @@ def _make_store():
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _deterministic_clock():
+    """Install a FakeClock for each test, restore SystemClock after."""
+    pss = _import_pss()
+    clock = FakeClock()
+    pss.set_clock(clock)
+    yield clock
+    from infrastructure.clock import SystemClock
+
+    pss.set_clock(SystemClock())
+
+
+@pytest.fixture()
+def fake_clock(_deterministic_clock) -> FakeClock:
+    """Expose the FakeClock for tests that need to manipulate time."""
+    return _deterministic_clock
+
+
 @pytest.fixture()
 def store():
     """Fresh PostgresSessionStore instance, cleaned before and after."""
@@ -48,12 +67,6 @@ def store():
     s.reset_sessions()
     yield s
     s.reset_sessions()
-
-
-@pytest.fixture()
-def pss():
-    """Return the postgres_session_store module for patching."""
-    return _import_pss()
 
 
 # ── create_session ──────────────────────────────────────────────────────────
@@ -103,24 +116,47 @@ class TestGetSession:
     def test_returns_none_for_empty_id(self, store):
         assert store.get_session("") is None
 
-    def test_expired_by_idle_timeout(self, store, pss):
+    def test_expired_by_idle_timeout(self, store, fake_clock):
         rec = store.create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(minutes=20)
-        with patch.object(pss, "_now", return_value=future):
-            assert store.get_session(rec["session_id"]) is None
+        fake_clock.advance(minutes=20)
+        assert store.get_session(rec["session_id"]) is None
 
-    def test_expired_by_max_lifetime(self, store, pss):
+    def test_expired_by_max_lifetime(self, store, fake_clock):
         rec = store.create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(hours=13)
-        with patch.object(pss, "_now", return_value=future):
-            assert store.get_session(rec["session_id"]) is None
+        fake_clock.advance(hours=13)
+        assert store.get_session(rec["session_id"]) is None
 
-    def test_not_expired_within_limits(self, store, pss):
+    def test_not_expired_within_limits(self, store, fake_clock):
         rec = store.create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(minutes=10)
-        with patch.object(pss, "_now", return_value=future):
-            result = store.get_session(rec["session_id"])
-            assert result is not None
+        fake_clock.advance(minutes=10)
+        result = store.get_session(rec["session_id"])
+        assert result is not None
+
+    # ── Boundary / edge-case tests ──────────────────────────────────────
+
+    def test_alive_at_exact_idle_boundary(self, store, fake_clock):
+        """At exactly idle=15m the comparison is strict (>), so still alive."""
+        rec = store.create_session("alice")
+        fake_clock.advance(minutes=15)
+        assert store.get_session(rec["session_id"]) is not None
+
+    def test_expired_one_second_past_idle(self, store, fake_clock):
+        """One second past the 15m idle limit -> expired."""
+        rec = store.create_session("alice")
+        fake_clock.advance(minutes=15, seconds=1)
+        assert store.get_session(rec["session_id"]) is None
+
+    def test_alive_at_exact_max_lifetime_boundary(self, store, fake_clock):
+        """At exactly 12h the comparison is strict (>), so still alive."""
+        rec = store.create_session("alice")
+        fake_clock.advance(hours=12)
+        assert store.get_session(rec["session_id"]) is not None
+
+    def test_expired_one_second_past_max_lifetime(self, store, fake_clock):
+        """One second past the 12h max lifetime -> expired."""
+        rec = store.create_session("alice")
+        fake_clock.advance(hours=12, seconds=1)
+        assert store.get_session(rec["session_id"]) is None
 
 
 # ── invalidate_session ──────────────────────────────────────────────────────
@@ -184,12 +220,25 @@ class TestIsRecentlyReauthed:
         store.mark_reauth(rec["session_id"])
         assert store.is_recently_reauthed(rec["session_id"]) is True
 
-    def test_false_after_window_expires(self, store, pss):
+    def test_false_after_window_expires(self, store, fake_clock):
         rec = store.create_session("alice")
         store.mark_reauth(rec["session_id"])
-        future = datetime.now(timezone.utc) + timedelta(minutes=15)
-        with patch.object(pss, "_now", return_value=future):
-            assert store.is_recently_reauthed(rec["session_id"]) is False
+        fake_clock.advance(minutes=15)
+        assert store.is_recently_reauthed(rec["session_id"]) is False
+
+    def test_true_at_exact_reauth_boundary(self, store, fake_clock):
+        """At exactly 10m the comparison is strict, so still valid."""
+        rec = store.create_session("alice")
+        store.mark_reauth(rec["session_id"])
+        fake_clock.advance(minutes=10)
+        assert store.is_recently_reauthed(rec["session_id"]) is True
+
+    def test_false_one_second_past_reauth_window(self, store, fake_clock):
+        """One second past the 10m reauth window -> expired."""
+        rec = store.create_session("alice")
+        store.mark_reauth(rec["session_id"])
+        fake_clock.advance(minutes=10, seconds=1)
+        assert store.is_recently_reauthed(rec["session_id"]) is False
 
     def test_false_for_unknown(self, store):
         assert store.is_recently_reauthed("nonexistent") is False
@@ -261,21 +310,19 @@ class TestGetCsrfToken:
 
 
 class TestCleanupExpiredSessions:
-    def test_removes_expired_sessions(self, store, pss):
+    def test_removes_expired_sessions(self, store, fake_clock):
         store.create_session("alice")
-        future = datetime.now(timezone.utc) + timedelta(hours=13)
-        with patch.object(pss, "_now", return_value=future):
-            removed = store.cleanup_expired_sessions()
-            assert removed >= 1
+        fake_clock.advance(hours=13)
+        removed = store.cleanup_expired_sessions()
+        assert removed >= 1
 
-    def test_removes_old_revoked_sessions(self, store, pss):
+    def test_removes_old_revoked_sessions(self, store, fake_clock):
         rec = store.create_session("alice")
         store.invalidate_session(rec["session_id"])
         # Skip 25 hours into the future
-        future = datetime.now(timezone.utc) + timedelta(hours=25)
-        with patch.object(pss, "_now", return_value=future):
-            removed = store.cleanup_expired_sessions()
-            assert removed >= 1
+        fake_clock.advance(hours=25)
+        removed = store.cleanup_expired_sessions()
+        assert removed >= 1
 
 
 # ── reset_sessions ──────────────────────────────────────────────────────────
@@ -293,26 +340,23 @@ class TestResetSessions:
 
 
 class TestTouchThrottling:
-    def test_last_seen_not_updated_within_throttle(self, store, pss):
+    def test_last_seen_not_updated_within_throttle(self, store, fake_clock):
         rec = store.create_session("alice")
         initial_last_seen = rec["last_seen_at"]
 
         # Get within throttle window (< 30s) — should NOT update last_seen
-        # Patch _now to be 10 seconds later
-        near_future = initial_last_seen + timedelta(seconds=10)
-        with patch.object(pss, "_now", return_value=near_future):
-            result = store.get_session(rec["session_id"])
-            assert result is not None
-            # last_seen should NOT have changed (still initial)
-            assert result["last_seen_at"] == initial_last_seen
+        fake_clock.advance(seconds=10)
+        result = store.get_session(rec["session_id"])
+        assert result is not None
+        # last_seen should NOT have changed (still initial)
+        assert result["last_seen_at"] == initial_last_seen
 
-    def test_last_seen_updated_after_throttle(self, store, pss):
+    def test_last_seen_updated_after_throttle(self, store, fake_clock):
         rec = store.create_session("alice")
         initial_last_seen = rec["last_seen_at"]
 
         # Get beyond throttle window (> 30s) — should update last_seen
-        far_future = initial_last_seen + timedelta(seconds=60)
-        with patch.object(pss, "_now", return_value=far_future):
-            result = store.get_session(rec["session_id"])
-            assert result is not None
-            assert result["last_seen_at"] == far_future
+        fake_clock.advance(seconds=60)
+        result = store.get_session(rec["session_id"])
+        assert result is not None
+        assert result["last_seen_at"] > initial_last_seen

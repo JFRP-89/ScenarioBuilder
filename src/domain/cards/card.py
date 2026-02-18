@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Collection, Optional, Union, cast
+from typing import Any, Collection, Optional, Union
 
 from domain.cards.card_validation import (
     validate_ids,
@@ -114,19 +114,13 @@ class Card:
 
     def can_user_read(self, user_id: str) -> bool:
         """Check if user can read this card."""
-        return cast(
-            bool,
-            can_read(
-                owner_id=self.owner_id,
-                visibility=self.visibility,
-                current_user_id=user_id,
-                shared_with=self.shared_with,
-            ),
+        return can_read(
+            owner_id=self.owner_id,
+            visibility=self.visibility,
+            current_user_id=user_id,
+            shared_with=self.shared_with,
         )
 
     def can_user_write(self, user_id: str) -> bool:
         """Check if user can write this card."""
-        return cast(
-            bool,
-            can_write(owner_id=self.owner_id, current_user_id=user_id),
-        )
+        return can_write(owner_id=self.owner_id, current_user_id=user_id)

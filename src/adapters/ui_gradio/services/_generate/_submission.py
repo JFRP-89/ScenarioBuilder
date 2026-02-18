@@ -72,7 +72,7 @@ def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
         response_json = _gen_response_to_dict(gen_resp)
         preset = preview_data.get("table_preset", "")
         custom_table = payload.get("table_cm")
-        return augment_generated_card(response_json, payload, preset, custom_table)  # type: ignore[no-any-return]
+        return augment_generated_card(response_json, payload, preset, custom_table)
 
     except Exception as exc:
         return {"status": "error", "message": f"Create failed: {exc}"}
@@ -135,7 +135,7 @@ def handle_update_scenario(
         response_json = _gen_response_to_dict(gen_resp)
         preset = preview_data.get("table_preset", "")
         custom_table = payload.get("table_cm")
-        return augment_generated_card(response_json, payload, preset, custom_table)  # type: ignore[no-any-return]
+        return augment_generated_card(response_json, payload, preset, custom_table)
 
     except Exception as exc:
         return {"status": "error", "message": f"Update failed: {exc}"}

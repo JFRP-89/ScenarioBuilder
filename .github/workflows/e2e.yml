@@ -33,6 +33,7 @@ env:
   PYTHON_VERSION: "3.11"
   API_URL: "http://localhost:8000"
   UI_URL: "http://localhost:7860"
+  PYTHONUNBUFFERED: "1"
 
 jobs:
   e2e:
@@ -51,48 +52,72 @@ jobs:
 
       - name: Install deps
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
       - name: Install Playwright browsers
         run: |
+          set -euo pipefail
           python -m playwright install --with-deps chromium
 
       - name: Build & run docker compose
         run: |
+          set -euo pipefail
           docker compose up -d --build
+          docker compose ps
 
       - name: Wait for API health
         run: |
-          for i in {1..60}; do
-            if curl -fsS "${API_URL}/health" >/dev/null; then
-              echo "API healthy"
+          set -euo pipefail
+          echo "Waiting for API at ${API_URL}/health (max 120s)..."
+          for i in $(seq 1 60); do
+            if curl -fsS "${API_URL}/health" >/dev/null 2>&1; then
+              echo "API healthy (attempt $i)"
               exit 0
             fi
             sleep 2
           done
-          echo "API not healthy in time"
+          echo "::error::API not healthy after 120s"
           docker compose ps
+          docker compose logs --no-color --tail=200
           exit 1
 
-      - name: Wait for UI
+      - name: Wait for UI (HTTP reachable + first byte)
         run: |
-          for i in {1..60}; do
-            if curl -fsS "${UI_URL}" >/dev/null; then
-              echo "UI reachable"
+          set -euo pipefail
+          echo "Waiting for UI at ${UI_URL} (max 120s)..."
+          for i in $(seq 1 60); do
+            # -I a veces engaña; hacemos GET y comprobamos que devuelve algo
+            if curl -fsS "${UI_URL}" >/dev/null 2>&1; then
+              echo "UI reachable (attempt $i)"
               exit 0
             fi
             sleep 2
           done
-          echo "UI not reachable in time"
+          echo "::error::UI not reachable after 120s"
           docker compose ps
+          docker compose logs --no-color --tail=200
           exit 1
 
       - name: Run E2E tests
         env:
-          E2E_HEADED: ${{ github.event.inputs.headed }}
-          E2E_SELECTION: ${{ github.event.inputs.e2e_selection }}
+          E2E_HEADED: ${{ inputs.headed }}
+          E2E_SELECTION: ${{ inputs.e2e_selection }}
         run: |
+          set -euo pipefail
+
+          # 1) Validar que hay tests
+          echo "Collecting E2E tests..."
+          COLLECT_OUT=$(python -m pytest tests/e2e --collect-only -q 2>&1 || true)
+          echo "$COLLECT_OUT"
+          if echo "$COLLECT_OUT" | grep -qiE "collected 0 items|no tests collected|no tests ran"; then
+            echo "::error::No E2E tests collected."
+            exit 1
+          fi
+
+          # 2) Ejecutar la selección
+          echo "Running selection: ${E2E_SELECTION}"
           if [ "${E2E_SELECTION}" = "all" ]; then
             python -m pytest -q tests/e2e
           elif [ "${E2E_SELECTION}" = "smoke" ]; then
@@ -102,13 +127,15 @@ jobs:
           elif [ "${E2E_SELECTION}" = "ui" ]; then
             python -m pytest -q tests/e2e -k "ui"
           else
-            echo "Unknown selection: ${E2E_SELECTION}"
+            echo "::error::Unknown selection: ${E2E_SELECTION}"
             exit 1
           fi
 
       - name: Collect docker logs
         if: always()
         run: |
+          set +e
+          docker compose ps
           docker compose logs --no-color > docker-logs.txt || true
 
       - name: Upload docker logs
@@ -122,4 +149,5 @@ jobs:
       - name: Teardown
         if: always()
         run: |
+          set +e
           docker compose down -v

@@ -28,17 +28,7 @@ RUN python -m pip install --upgrade pip && \
     python -m pip install --no-cache-dir -r requirements.txt
 
 # =============================================================================
-# Dependencies stage (development - includes quality tools)
-# Optional: Use for CI/CD quality checks
-# =============================================================================
-FROM base AS deps-dev
-
-COPY requirements.txt requirements-dev.txt ./
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements-dev.txt
-
-# =============================================================================
-# Final stage (production)
+# Final stage (production — cloud-ready)
 # =============================================================================
 FROM base AS final
 
@@ -59,30 +49,15 @@ RUN useradd -m -u 1000 -s /bin/bash appuser && \
 
 USER appuser
 
-EXPOSE 8000
+# PORT is configurable via env var (PaaS like Railway, Render, Fly.io set it)
+ENV HOST=0.0.0.0 \
+    PORT=8000
 
-# Default command: run migrations, then start Uvicorn ASGI server
-CMD ["sh", "-c", "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000"]
+EXPOSE ${PORT}
 
-# =============================================================================
-# Quality check stage (for CI/CD pipelines)
-# Usage: docker build --target quality-check -t scenariobuilder:quality .
-# =============================================================================
-FROM base AS quality-check
+# Healthcheck for orchestrators (Docker Swarm, K8s liveness, ECS, etc.)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Copy installed packages from deps-dev stage (includes quality tools)
-COPY --from=deps-dev /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=deps-dev /usr/local/bin /usr/local/bin
-
-# Copy application code
-COPY src/ /app/src/
-COPY scripts/ /app/scripts/
-COPY pytest.ini /app/
-
-# Run quality checks (for CI/CD)
-RUN useradd -m -u 1000 -s /bin/bash appuser && \
-    chown -R appuser:appuser /app
-USER appuser
-
-# Default: run quality gate
-CMD ["python", "scripts/quality/run_quality.py", "--layer", "all"]
+# Run migrations then start Uvicorn ASGI server on configurable host:port
+CMD sh -c "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host ${HOST} --port ${PORT}"

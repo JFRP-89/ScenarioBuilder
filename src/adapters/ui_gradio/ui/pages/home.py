@@ -8,28 +8,12 @@ Shows:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import gradio as gr
 
 
-def build_home_page() -> tuple[
-    gr.Column,
-    gr.Button,
-    gr.Button,
-    gr.Button,
-    gr.Radio,
-    gr.Radio,
-    gr.Radio,
-    gr.Textbox,
-    gr.Dropdown,
-    gr.Button,
-    gr.HTML,
-    gr.Button,
-    gr.HTML,
-    gr.Button,
-    gr.State,
-    gr.State,
-    gr.State,
-]:
+def build_home_page() -> SimpleNamespace:
     """Build the home page layout.
 
     Returns:
@@ -139,22 +123,22 @@ def build_home_page() -> tuple[
         cards_cache_state = gr.State(value=[])
         fav_ids_cache_state = gr.State(value=[])
 
-    return (
-        container,
-        create_btn,
-        browse_btn,
-        favorites_btn,
-        mode_filter,
-        preset_filter,
-        unit_selector,
-        search_box,
-        per_page_dropdown,
-        reload_btn,
-        recent_cards_html,
-        prev_btn,
-        page_info,
-        next_btn,
-        page_state,
-        cards_cache_state,
-        fav_ids_cache_state,
+    return SimpleNamespace(
+        container=container,
+        create_btn=create_btn,
+        browse_btn=browse_btn,
+        favorites_btn=favorites_btn,
+        mode_filter=mode_filter,
+        preset_filter=preset_filter,
+        unit_selector=unit_selector,
+        search_box=search_box,
+        per_page_dropdown=per_page_dropdown,
+        reload_btn=reload_btn,
+        recent_cards_html=recent_cards_html,
+        prev_btn=prev_btn,
+        page_info=page_info,
+        next_btn=next_btn,
+        page_state=page_state,
+        cards_cache_state=cards_cache_state,
+        fav_ids_cache_state=fav_ids_cache_state,
     )

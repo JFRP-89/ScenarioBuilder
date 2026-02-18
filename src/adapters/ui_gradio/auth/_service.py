@@ -7,6 +7,8 @@ primary handle, so this module maps between the two worlds.
 
 from __future__ import annotations
 
+from typing import Any
+
 from infrastructure.auth import auth_service as _infra_svc
 from infrastructure.auth.user_store import get_user_profile
 from infrastructure.auth.validators import (
@@ -39,7 +41,7 @@ def logout(actor_id: str, session_id: str = "") -> dict[str, object]:
     return {"ok": True, "actor_id": "", "message": "Logged out."}
 
 
-def get_profile(actor_id: str) -> dict[str, object]:
+def get_profile(actor_id: str) -> dict[str, Any]:
     """Fetch profile data for *actor_id* from user store.
 
     Returns:
@@ -55,7 +57,7 @@ def update_profile(
     actor_id: str,
     name: str,
     email: str,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Update profile fields for *actor_id*.
 
     Validates name and email before persisting.

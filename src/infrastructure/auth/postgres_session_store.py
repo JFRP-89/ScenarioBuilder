@@ -20,9 +20,11 @@ from __future__ import annotations
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Callable, TypedDict
 
+from application.ports.clock import Clock
+from infrastructure.clock import SystemClock
 from infrastructure.db.models import SessionModel
 from sqlalchemy.orm import Session
 
@@ -60,20 +62,30 @@ def _generate_csrf_token() -> str:
     return secrets.token_hex(32)
 
 
+# ── Clock (injectable for testing) ───────────────────────────────────────────
+_clock: Clock = SystemClock()
+
+
+def set_clock(clock: Clock) -> None:
+    """Replace the module clock — **for testing only**."""
+    global _clock
+    _clock = clock
+
+
 def _now() -> datetime:
-    """Return current UTC time."""
-    return datetime.now(timezone.utc)
+    """Return current UTC time via the configured clock."""
+    return _clock.now_utc()
 
 
 def _model_to_record(model: SessionModel) -> SessionRecord:
     """Convert ORM model to the dict contract used by auth_service."""
     return SessionRecord(
-        session_id=model.session_id,
-        actor_id=model.username,
-        created_at=model.created_at,
-        last_seen_at=model.last_seen_at,
-        reauth_at=model.reauth_at,
-        csrf_token=model.csrf_token,
+        session_id=model.session_id,  # type: ignore[typeddict-item]
+        actor_id=model.username,  # type: ignore[typeddict-item]
+        created_at=model.created_at,  # type: ignore[typeddict-item]
+        last_seen_at=model.last_seen_at,  # type: ignore[typeddict-item]
+        reauth_at=model.reauth_at,  # type: ignore[typeddict-item]
+        csrf_token=model.csrf_token,  # type: ignore[typeddict-item]
     )
 
 
@@ -157,7 +169,7 @@ class PostgresSessionStore:
             # Touch with throttling
             delta = (now - model.last_seen_at).total_seconds()
             if delta >= TOUCH_THROTTLE_SECONDS:
-                model.last_seen_at = now
+                model.last_seen_at = now  # type: ignore[assignment]
                 db.commit()
 
             record = _model_to_record(model)
@@ -200,7 +212,7 @@ class PostgresSessionStore:
             )
             count = 0
             for m in models:
-                m.revoked_at = now
+                m.revoked_at = now  # type: ignore[assignment]
                 count += 1
             db.commit()
             if count:

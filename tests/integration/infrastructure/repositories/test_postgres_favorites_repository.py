@@ -7,6 +7,10 @@ create a disposable test database and run Alembic migrations.
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.db
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
