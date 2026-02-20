@@ -7,10 +7,14 @@ the correct page and auth state are shown immediately.
 from __future__ import annotations
 
 import gradio as gr
+from adapters.ui_gradio.auth._check_logic import (
+    parse_referer_routing,
+    validate_session_cookie,
+)
 from adapters.ui_gradio.auth._service import get_logged_in_label
 
 
-def check_auth(request: gr.Request):  # noqa: C901
+def check_auth(request: gr.Request):
     """Validate the ``sb_session`` HttpOnly cookie on page load.
 
     If the cookie carries a valid session, populate actor/session state
@@ -40,85 +44,55 @@ def check_auth(request: gr.Request):  # noqa: C901
 
     def _page_visibility(target: str) -> list:
         """Return visibility updates for all page containers."""
-        # Edit mode reuses the create form container
         effective = PAGE_CREATE if target == PAGE_EDIT else target
         return [gr.update(visible=(p == effective)) for p in ALL_PAGES]
 
     session_id = request.cookies.get("sb_session", "")
-    if session_id:
-        from infrastructure.auth.session_store import get_session
+    session_data = validate_session_cookie(session_id)
 
-        session = get_session(session_id)
-        if session is not None:
-            actor_id = session["actor_id"]
+    if session_data is not None:
+        actor_id = session_data["actor_id"]
+        referer = request.headers.get("referer", "")
 
-            # ── Determine initial page + card_id from Referer URL ─
-            initial_page = PAGE_HOME
-            card_id_from_url = ""
-            editing_id_from_url = ""
-            referer = request.headers.get("referer", "")
-            if referer:
-                from urllib.parse import parse_qs, urlparse
+        initial_page, card_id_from_url, editing_id_from_url = parse_referer_routing(
+            referer,
+            ALL_PAGES,
+            URL_TO_PAGE,
+            PAGE_HOME,
+            PAGE_DETAIL,
+            PAGE_EDIT,
+        )
 
-                parsed = urlparse(referer)
-                qs = parse_qs(parsed.query)
+        reload_trigger = 1 if card_id_from_url else gr.update()
+        edit_reload = 1 if editing_id_from_url else gr.update()
 
-                # 1) Check ?page= query param  (redirect from /sb/create/)
-                qp = qs.get("page", [None])[0]
-                if qp and qp in ALL_PAGES:
-                    initial_page = qp
-                # 2) Check path directly  (e.g. /sb/myfavorites/)
-                elif parsed.path:
-                    path_norm = parsed.path.rstrip("/") + "/"
-                    matched = URL_TO_PAGE.get(path_norm)
-                    if matched and matched in ALL_PAGES:
-                        initial_page = matched
-
-                # 3) Extract card_id for detail page
-                if initial_page == PAGE_DETAIL:
-                    cid = qs.get("id", [None])[0]
-                    if cid and cid.strip():
-                        card_id_from_url = cid.strip()
-
-                # 4) Extract card_id for edit page
-                if initial_page == PAGE_EDIT:
-                    cid = qs.get("id", [None])[0]
-                    if cid and cid.strip():
-                        editing_id_from_url = cid.strip()
-
-            # detail_reload_trigger: bump to 1 so the .change handler fires
-            reload_trigger = 1 if card_id_from_url else gr.update()
-
-            # editing_reload_trigger: bump to 1 so the edit form repopulates
-            edit_reload = 1 if editing_id_from_url else gr.update()
-
-            return (
-                initial_page,  # page_state
-                card_id_from_url or gr.update(),  # detail_card_id_state
-                reload_trigger,  # detail_reload_trigger
-                editing_id_from_url or gr.update(),  # editing_card_id
-                edit_reload,  # editing_reload_trigger
-                actor_id,  # actor_id_state
-                session_id,  # session_id_state
-                gr.update(value=actor_id),  # actor_id textbox
-                gr.update(value=get_logged_in_label(actor_id)),  # user_label
-                gr.update(visible=False),  # auth_gate → hide
-                gr.update(visible=True),  # top_bar_row → show
-                *_page_visibility(initial_page),  # page containers
-            )
+        return (
+            initial_page,
+            card_id_from_url or gr.update(),
+            reload_trigger,
+            editing_id_from_url or gr.update(),
+            edit_reload,
+            actor_id,
+            session_id,
+            gr.update(value=actor_id),
+            gr.update(value=get_logged_in_label(actor_id)),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            *_page_visibility(initial_page),
+        )
 
     # Not authenticated — show the auth gate, hide everything else
     return (
-        gr.update(),  # page_state (unchanged)
-        gr.update(),  # detail_card_id_state (unchanged)
-        gr.update(),  # detail_reload_trigger (unchanged)
-        gr.update(),  # editing_card_id (unchanged)
-        gr.update(),  # editing_reload_trigger (unchanged)
-        "",  # actor_id_state
-        "",  # session_id_state
-        gr.update(),  # actor_id textbox
-        gr.update(),  # user_label
-        gr.update(visible=True),  # auth_gate → show
-        gr.update(visible=False),  # top_bar_row → hide
-        *_page_visibility("__none__"),  # hide all page containers
+        gr.update(),
+        gr.update(),
+        gr.update(),
+        gr.update(),
+        gr.update(),
+        "",
+        "",
+        gr.update(),
+        gr.update(),
+        gr.update(visible=True),
+        gr.update(visible=False),
+        *_page_visibility("__none__"),
     )

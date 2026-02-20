@@ -63,14 +63,17 @@ class ListFavorites:
         favorite_ids = self._favorites_repository.list_favorites(actor_id)
 
         # 3) Filter: only existing cards that actor can read
+        #    Prune stale entries (deleted / no longer accessible) to keep DB clean.
         visible_ids = []
         for card_id in favorite_ids:
             card = self._card_repository.get_by_id(card_id)
-            # Skip if card doesn't exist
+            # Card deleted → remove stale favorite
             if card is None:
+                self._favorites_repository.set_favorite(actor_id, card_id, False)
                 continue
-            # Skip if actor can't read it (security filter)
+            # Card no longer readable → remove stale favorite
             if not card.can_user_read(actor_id):
+                self._favorites_repository.set_favorite(actor_id, card_id, False)
                 continue
             visible_ids.append(card_id)
 

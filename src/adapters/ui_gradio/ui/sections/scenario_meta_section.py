@@ -5,12 +5,12 @@ from typing import Any
 import gradio as gr
 
 
-def build_scenario_meta_section() -> tuple[Any, Any, Any, Any, Any, Any]:
+def build_scenario_meta_section() -> tuple[Any, ...]:
     """Build scenario metadata UI components.
 
     Returns:
         Tuple of (scenario_name, mode, is_replicable, generate_from_seed,
-                  apply_seed_btn, armies)
+                  apply_seed_btn, refill_scenario_btn, armies)
     """
     # Scenario Name
     with gr.Row():
@@ -53,6 +53,14 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any, Any, Any]:
             interactive=True,
             elem_id="apply-seed-btn",
         )
+    with gr.Row():
+        refill_scenario_btn = gr.Button(
+            "\U0001f3b2 Refill Scenario",
+            variant="primary",
+            size="sm",
+            interactive=True,
+            elem_id="refill-scenario-btn",
+        )
 
     # Armies
     with gr.Row():
@@ -69,5 +77,6 @@ def build_scenario_meta_section() -> tuple[Any, Any, Any, Any, Any, Any]:
         is_replicable,
         generate_from_seed,
         apply_seed_btn,
+        refill_scenario_btn,
         armies,
     )

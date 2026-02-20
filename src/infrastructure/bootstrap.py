@@ -56,7 +56,9 @@ from infrastructure.scenario_generation.basic_scenario_generator import (
 logger = logging.getLogger(__name__)
 
 # Module-level singleton: shared by Flask and Gradio in the combined app.
-_services_instance: Services | None = None
+_services_holder: list["Services | None"] = [None]
+
+_LOG_BACKEND_IN_MEMORY = "Using SessionStore backend: in_memory"
 
 
 # =============================================================================
@@ -77,9 +79,9 @@ def get_services() -> "Services":
 
     Raises ``RuntimeError`` if ``build_services()`` has not been called yet.
     """
-    if _services_instance is None:
+    if _services_holder[0] is None:
         raise RuntimeError("Services not initialised — call build_services() first.")
-    return _services_instance
+    return _services_holder[0]
 
 
 # =============================================================================
@@ -106,7 +108,7 @@ def _build_session_store() -> None:
                 "Production requires PostgresSessionStore. "
                 "Reason: DATABASE_URL is not set."
             )
-        logger.info("Using SessionStore backend: in_memory (no DATABASE_URL)")
+        logger.info("%s (no DATABASE_URL)", _LOG_BACKEND_IN_MEMORY)
         return
 
     # --- 2) Must be a PostgreSQL URL --------------------------------------
@@ -120,7 +122,7 @@ def _build_session_store() -> None:
             "DATABASE_URL is not a PostgreSQL URL — "
             "falling back to in-memory session store."
         )
-        logger.info("Using SessionStore backend: in_memory")
+        logger.info(_LOG_BACKEND_IN_MEMORY)
         return
 
     # --- 3) SQLAlchemy / psycopg2 must be importable ---------------------
@@ -138,7 +140,7 @@ def _build_session_store() -> None:
             "DATABASE_URL set to postgres but SQLAlchemy/psycopg2 is not "
             "installed. Falling back to in-memory session store."
         )
-        logger.info("Using SessionStore backend: in_memory")
+        logger.info(_LOG_BACKEND_IN_MEMORY)
         return
 
     # --- 4) DB must be reachable ------------------------------------------
@@ -146,7 +148,7 @@ def _build_session_store() -> None:
         db = SessionLocal()
         db.execute(__import__("sqlalchemy").text("SELECT 1"))
         db.close()
-    except Exception as exc:
+    except (OSError, RuntimeError) as exc:
         if prod:
             raise RuntimeError(
                 "Production requires PostgresSessionStore. "
@@ -157,7 +159,7 @@ def _build_session_store() -> None:
             "Falling back to in-memory session store.",
             exc,
         )
-        logger.info("Using SessionStore backend: in_memory")
+        logger.info(_LOG_BACKEND_IN_MEMORY)
         return
 
     store = PostgresSessionStore(session_factory=SessionLocal)
@@ -268,7 +270,7 @@ def build_services() -> Services:
 
             seed_demo_users_to_database()
             logger.info("Demo users seeded successfully.")
-        except Exception:
+        except (ImportError, OSError, RuntimeError):
             logger.debug("Failed to seed demo users — skipping.", exc_info=True)
 
     # 1) Build infrastructure dependencies
@@ -315,11 +317,13 @@ def build_services() -> Services:
         renderer=renderer,
     )
 
-    delete_card = DeleteCard(repository=card_repo)
+    delete_card = DeleteCard(
+        repository=card_repo,
+        favorites_repository=favorites_repo,
+    )
 
     # 3) Build services container and cache as singleton
-    global _services_instance
-    _services_instance = Services(
+    svc = Services(
         generate_scenario_card=generate_scenario_card,
         save_card=save_card,
         get_card=get_card,
@@ -330,4 +334,5 @@ def build_services() -> Services:
         render_map_svg=render_map_svg,
         delete_card=delete_card,
     )
-    return _services_instance
+    _services_holder[0] = svc
+    return svc

@@ -10,12 +10,69 @@ from application.use_cases._generate._text_utils import _is_blank_text
 from application.use_cases._generate._themes import _CONTENT_THEMES
 from domain.cards.card import Card
 
+_ContentDict = dict[str, Optional[Union[str, dict]]]
+
+_FIELDS = ("armies", "deployment", "layout", "objectives", "initial_priority")
+
+
+def _pick(request_val: Optional[str], fallback: Optional[str]) -> Optional[str]:
+    """Return *fallback* when the user left the field blank, else the user value."""
+    return fallback if _is_blank_text(request_val) else request_val
+
+
+def _pick_objectives(
+    request_val: Optional[Union[str, dict]],
+    fallback: Optional[Union[str, dict]],
+) -> Optional[Union[str, dict]]:
+    """Objectives can be str or dict, so blank-check is slightly different."""
+    if request_val is None:
+        return fallback
+    if isinstance(request_val, str) and not request_val.strip():
+        return fallback
+    return request_val
+
+
+def _resolve_from_existing(
+    request: GenerateScenarioCardRequest,
+    card: Card,
+) -> _ContentDict:
+    """Resolve fields from an existing card, deferring to user values."""
+    return {
+        "armies": _pick(request.armies, card.armies),
+        "deployment": _pick(request.deployment, card.deployment),
+        "layout": _pick(request.layout, card.layout),
+        "objectives": _pick_objectives(request.objectives, card.objectives),
+        "initial_priority": _pick(request.initial_priority, card.initial_priority),
+    }
+
+
+def _resolve_from_theme(
+    seed: int,
+    request: GenerateScenarioCardRequest,
+) -> _ContentDict:
+    """Resolve fields from the theme catalog using deterministic RNG."""
+    rng = random.Random(seed)  # nosec B311
+    theme = rng.choice(list(_CONTENT_THEMES.keys()))
+    tv = _CONTENT_THEMES[theme]
+
+    return {
+        "armies": _pick(request.armies, rng.choice(tv["armies"])),
+        "deployment": _pick(request.deployment, rng.choice(tv["deployment"])),
+        "layout": _pick(request.layout, rng.choice(tv["layout"])),
+        "objectives": _pick_objectives(
+            request.objectives, rng.choice(tv["objectives"])
+        ),
+        "initial_priority": _pick(
+            request.initial_priority, rng.choice(tv["initial_priority"])
+        ),
+    }
+
 
 def _resolve_seeded_content(
     seed: int,
     request: GenerateScenarioCardRequest,
     existing_card: Optional[Card] = None,
-) -> dict[str, Optional[Union[str, dict]]]:
+) -> _ContentDict:
     """Resolve text content fields from seed, existing card, or themes.
 
     Returns dict with keys: armies, deployment, layout, objectives,
@@ -23,80 +80,9 @@ def _resolve_seeded_content(
     priority over seed/card/theme defaults.
     """
     if seed <= 0:
-        return {
-            "armies": request.armies,
-            "deployment": request.deployment,
-            "layout": request.layout,
-            "objectives": request.objectives,
-            "initial_priority": request.initial_priority,
-        }
+        return {f: getattr(request, f) for f in _FIELDS}
 
-    # If an existing card with this seed exists, use its data as defaults.
     if existing_card is not None:
-        armies = (
-            existing_card.armies if _is_blank_text(request.armies) else request.armies
-        )
-        deployment = (
-            existing_card.deployment
-            if _is_blank_text(request.deployment)
-            else request.deployment
-        )
-        layout = (
-            existing_card.layout if _is_blank_text(request.layout) else request.layout
-        )
-        objectives: Optional[Union[str, dict]] = request.objectives
-        if objectives is None or (
-            isinstance(objectives, str) and not objectives.strip()
-        ):
-            objectives = existing_card.objectives
-        initial_priority = (
-            existing_card.initial_priority
-            if _is_blank_text(request.initial_priority)
-            else request.initial_priority
-        )
-        return {
-            "armies": armies,
-            "deployment": deployment,
-            "layout": layout,
-            "objectives": objectives,
-            "initial_priority": initial_priority,
-        }
+        return _resolve_from_existing(request, existing_card)
 
-    # Fall back to theme-based generation.
-    rng = random.Random(seed)  # nosec B311
-    theme = rng.choice(list(_CONTENT_THEMES.keys()))
-    theme_values = _CONTENT_THEMES[theme]
-
-    armies = (
-        rng.choice(theme_values["armies"])
-        if _is_blank_text(request.armies)
-        else request.armies
-    )
-    deployment = (
-        rng.choice(theme_values["deployment"])
-        if _is_blank_text(request.deployment)
-        else request.deployment
-    )
-    layout = (
-        rng.choice(theme_values["layout"])
-        if _is_blank_text(request.layout)
-        else request.layout
-    )
-
-    objectives = request.objectives
-    if objectives is None or (isinstance(objectives, str) and not objectives.strip()):
-        objectives = rng.choice(theme_values["objectives"])
-
-    initial_priority = (
-        rng.choice(theme_values["initial_priority"])
-        if _is_blank_text(request.initial_priority)
-        else request.initial_priority
-    )
-
-    return {
-        "armies": armies,
-        "deployment": deployment,
-        "layout": layout,
-        "objectives": objectives,
-        "initial_priority": initial_priority,
-    }
+    return _resolve_from_theme(seed, request)

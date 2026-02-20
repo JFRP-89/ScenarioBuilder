@@ -17,7 +17,7 @@ from typing import Optional
 
 import pytest
 from domain.cards.card import Card, GameMode, Visibility
-from domain.errors import ValidationError
+from domain.errors import ForbiddenError, ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 
@@ -72,10 +72,22 @@ class FakeCardRepository:
         """Get card by id."""
         return self._cards.get(card_id)
 
-    def delete(self, card_id: str) -> None:
+    def delete(self, card_id: str) -> bool:
         """Delete card from repository."""
         self.delete_calls.append(card_id)
-        self._cards.pop(card_id, None)
+        return self._cards.pop(card_id, None) is not None
+
+    def save(self, card: Card) -> None:
+        self._cards[card.card_id] = card
+
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        return next((c for c in self._cards.values() if c.seed == seed), None)
+
+    def list_all(self) -> list[Card]:
+        return list(self._cards.values())
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        return [c for c in self._cards.values() if c.owner_id == owner_id]
 
 
 # =============================================================================
@@ -239,8 +251,115 @@ class TestDeleteCardForbidden:
 
 
 # =============================================================================
-# NOT FOUND TESTS
+# FAKE FAVORITES REPOSITORY
 # =============================================================================
+class FakeFavoritesRepository:
+    """In-memory fake favorites repository for testing."""
+
+    def __init__(self) -> None:
+        self._favorites: set[tuple[str, str]] = set()
+        self.remove_all_calls: list[str] = []
+
+    def is_favorite(self, actor_id: str, card_id: str) -> bool:
+        return (actor_id, card_id) in self._favorites
+
+    def set_favorite(self, actor_id: str, card_id: str, value: bool) -> None:
+        key = (actor_id, card_id)
+        if value:
+            self._favorites.add(key)
+        else:
+            self._favorites.discard(key)
+
+    def list_favorites(self, actor_id: str) -> list[str]:
+        return [c for a, c in self._favorites if a == actor_id]
+
+    def remove_all_for_card(self, card_id: str) -> None:
+        self.remove_all_calls.append(card_id)
+        self._favorites = {(a, c) for a, c in self._favorites if c != card_id}
+
+
+# =============================================================================
+# FAVORITES CLEANUP ON DELETE TESTS
+# =============================================================================
+class TestDeleteCardCleansFavorites:
+    """DeleteCard cleans up all favorites referencing the deleted card."""
+
+    def test_delete_removes_favorites_for_card(self, repo: FakeCardRepository) -> None:
+        """Deleting a card removes all favorites referencing it."""
+        from application.use_cases.delete_card import DeleteCard, DeleteCardRequest
+
+        card = make_valid_card(card_id="c1", owner_id="u1")
+        repo.add(card)
+
+        fav_repo = FakeFavoritesRepository()
+        fav_repo.set_favorite("u2", "c1", True)
+        fav_repo.set_favorite("u3", "c1", True)
+
+        use_case = DeleteCard(repository=repo, favorites_repository=fav_repo)
+        use_case.execute(DeleteCardRequest(actor_id="u1", card_id="c1"))
+
+        # Assert: remove_all_for_card was called
+        assert fav_repo.remove_all_calls == ["c1"]
+        # Assert: favorites are gone
+        assert not fav_repo.is_favorite("u2", "c1")
+        assert not fav_repo.is_favorite("u3", "c1")
+
+    def test_delete_without_favorites_repo_still_works(
+        self, repo: FakeCardRepository
+    ) -> None:
+        """DeleteCard works without favorites_repository (backward compat)."""
+        from application.use_cases.delete_card import DeleteCard, DeleteCardRequest
+
+        card = make_valid_card(card_id="c1", owner_id="u1")
+        repo.add(card)
+
+        use_case = DeleteCard(repository=repo)
+        response = use_case.execute(DeleteCardRequest(actor_id="u1", card_id="c1"))
+
+        assert response.deleted is True
+
+    def test_delete_preserves_other_cards_favorites(
+        self, repo: FakeCardRepository
+    ) -> None:
+        """Deleting c1 does not remove favorites for c2."""
+        from application.use_cases.delete_card import DeleteCard, DeleteCardRequest
+
+        card1 = make_valid_card(card_id="c1", owner_id="u1")
+        repo.add(card1)
+
+        fav_repo = FakeFavoritesRepository()
+        fav_repo.set_favorite("u2", "c1", True)
+        fav_repo.set_favorite("u2", "c2", True)
+
+        use_case = DeleteCard(repository=repo, favorites_repository=fav_repo)
+        use_case.execute(DeleteCardRequest(actor_id="u1", card_id="c1"))
+
+        # c2 favorite untouched
+        assert fav_repo.is_favorite("u2", "c2")
+        assert not fav_repo.is_favorite("u2", "c1")
+
+    def test_forbidden_delete_does_not_clean_favorites(
+        self, repo: FakeCardRepository
+    ) -> None:
+        """If delete is forbidden, favorites must NOT be cleaned."""
+        from application.use_cases.delete_card import DeleteCard, DeleteCardRequest
+
+        card = make_valid_card(card_id="c1", owner_id="u1")
+        repo.add(card)
+
+        fav_repo = FakeFavoritesRepository()
+        fav_repo.set_favorite("u2", "c1", True)
+
+        use_case = DeleteCard(repository=repo, favorites_repository=fav_repo)
+
+        with pytest.raises(ForbiddenError):
+            use_case.execute(DeleteCardRequest(actor_id="u2", card_id="c1"))
+
+        # Favorites still intact
+        assert fav_repo.is_favorite("u2", "c1")
+        assert fav_repo.remove_all_calls == []
+
+
 class TestDeleteCardNotFound:
     """Tests for card not found."""
 

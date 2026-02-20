@@ -14,11 +14,13 @@ from domain.maps.map_spec_shape_validation import (
     _validate_rect,
     validate_deployment_shapes,
     validate_objective_shapes,
+    validate_scenography_shapes,
 )
 
 __all__ = [
     "validate_deployment_shapes",
     "validate_objective_shapes",
+    "validate_scenography_shapes",
     "_validate_shape",
     "_validate_shapes_count",
     "_validate_shapes_not_none",
@@ -52,4 +54,3 @@ def _validate_shape(shape: dict, width_mm: int, height_mm: int) -> None:
         return
     if shape_type == "polygon":
         _validate_polygon(shape, width_mm, height_mm)
-        return

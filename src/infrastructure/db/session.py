@@ -14,10 +14,10 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Callable, Iterator
 from urllib.parse import quote_plus
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def _escape_password_in_url(url_str: str) -> str:
     return f"{scheme_part}://{user}:{escaped_password}@{host_part}"
 
 
-def _build_engine():
+def _build_engine() -> Engine | None:
     """Build SQLAlchemy engine from DATABASE_URL.
 
     Returns ``None`` when DATABASE_URL is empty/unset so that importing
@@ -63,30 +63,39 @@ def _build_engine():
 # ---------------------------------------------------------------------------
 # Lazy engine / session factory
 # ---------------------------------------------------------------------------
-_engine = None
-_session_local = None
 
 
-def _get_engine():
+class _LazyState:
+    """Mutable namespace for lazily-initialised singletons.
+
+    Using a class avoids the ``global`` keyword (SonarQube S2392) while
+    keeping type narrowing visible to Pylance/mypy.
+    """
+
+    engine: Engine | None = None
+    session_local: sessionmaker[Session] | None = None
+
+
+def _get_engine() -> Engine | None:
     """Return the module-level engine, creating it on first call."""
-    global _engine
-    if _engine is None:
-        _engine = _build_engine()
-    return _engine
+    if _LazyState.engine is None:
+        _LazyState.engine = _build_engine()
+    return _LazyState.engine
 
 
-def _get_session_local():
+def _get_session_local() -> Callable[..., Session]:
     """Return the module-level sessionmaker, creating it on first call."""
-    global _session_local
-    if _session_local is None:
+    result = _LazyState.session_local
+    if result is None:
         eng = _get_engine()
         if eng is None:
             raise RuntimeError(
                 "DATABASE_URL is not set — cannot create a database session. "
                 "Set DATABASE_URL to a valid PostgreSQL connection string."
             )
-        _session_local = sessionmaker(autocommit=False, autoflush=False, bind=eng)
-    return _session_local
+        result = sessionmaker(autocommit=False, autoflush=False, bind=eng)
+        _LazyState.session_local = result
+    return result
 
 
 # Public aliases — kept as module-level *properties* via a tiny wrapper so
@@ -136,8 +145,7 @@ def get_session() -> Iterator[Session]:
             card = repo.get_by_id("card-123")
             # session is auto-committed on exit if no exception
     """
-    factory = _get_session_local()
-    session = factory()
+    session: Session = _get_session_local()()
     try:
         yield session
         session.commit()

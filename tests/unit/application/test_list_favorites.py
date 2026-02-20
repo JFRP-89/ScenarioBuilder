@@ -80,6 +80,21 @@ class FakeCardRepository:
     def get_by_id(self, card_id: str) -> Optional[Card]:
         return self.cards.get(card_id)
 
+    def save(self, card: Card) -> None:
+        self.cards[card.card_id] = card
+
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        return next((c for c in self.cards.values() if c.seed == seed), None)
+
+    def delete(self, card_id: str) -> bool:
+        return self.cards.pop(card_id, None) is not None
+
+    def list_all(self) -> list[Card]:
+        return list(self.cards.values())
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        return [c for c in self.cards.values() if c.owner_id == owner_id]
+
 
 class FakeFavoritesRepository:
     """In-memory fake favorites repository for testing."""
@@ -99,6 +114,9 @@ class FakeFavoritesRepository:
 
     def list_favorites(self, actor_id: str) -> list[str]:
         return [card_id for (uid, card_id) in self._favorites if uid == actor_id]
+
+    def remove_all_for_card(self, card_id: str) -> None:
+        self._favorites = {(a, c) for a, c in self._favorites if c != card_id}
 
 
 # =============================================================================
@@ -224,6 +242,114 @@ class TestListFavoritesSecurityFilter:
 
         # Assert: only c1 returned (c2 is PRIVATE, not readable)
         assert response.card_ids == ["c1"]
+
+
+# =============================================================================
+# 3b) STALE FAVORITES PRUNING: deleted cards cleaned from DB
+# =============================================================================
+class TestListFavoritesPrunesDeletedCards:
+    """Stale favorites for deleted cards are removed from the DB."""
+
+    def test_deleted_card_favorite_is_removed_from_repo(
+        self,
+        table: TableSize,
+        map_spec: MapSpec,
+        favorites_repo: FakeFavoritesRepository,
+    ):
+        from application.use_cases.list_favorites import (
+            ListFavorites,
+            ListFavoritesRequest,
+        )
+
+        # Arrange: c1 exists, c2 was deleted
+        card1 = make_card("c1", "u1", Visibility.PUBLIC, table, map_spec)
+        card_repo = FakeCardRepository({"c1": card1})
+
+        favorites_repo.set_favorite("u2", "c1", True)
+        favorites_repo.set_favorite("u2", "c2", True)  # stale
+
+        use_case = ListFavorites(
+            card_repository=card_repo,
+            favorites_repository=favorites_repo,
+        )
+
+        # Act
+        use_case.execute(ListFavoritesRequest(actor_id="u2"))
+
+        # Assert: stale entry removed from underlying repo
+        assert not favorites_repo.is_favorite("u2", "c2")
+        assert favorites_repo.is_favorite("u2", "c1")
+
+
+# =============================================================================
+# 3c) STALE FAVORITES PRUNING: unreadable cards cleaned from DB
+# =============================================================================
+class TestListFavoritesPrunesUnreadableCards:
+    """Stale favorites for cards no longer readable are removed from the DB."""
+
+    def test_private_card_favorite_is_removed_from_repo(
+        self,
+        table: TableSize,
+        map_spec: MapSpec,
+        favorites_repo: FakeFavoritesRepository,
+    ):
+        from application.use_cases.list_favorites import (
+            ListFavorites,
+            ListFavoritesRequest,
+        )
+
+        # Arrange: c2 became PRIVATE — u2 can no longer read it
+        card1 = make_card("c1", "u1", Visibility.PUBLIC, table, map_spec)
+        card2 = make_card("c2", "u1", Visibility.PRIVATE, table, map_spec)
+        card_repo = FakeCardRepository({"c1": card1, "c2": card2})
+
+        favorites_repo.set_favorite("u2", "c1", True)
+        favorites_repo.set_favorite("u2", "c2", True)  # stale
+
+        use_case = ListFavorites(
+            card_repository=card_repo,
+            favorites_repository=favorites_repo,
+        )
+
+        # Act
+        use_case.execute(ListFavoritesRequest(actor_id="u2"))
+
+        # Assert: stale entry pruned
+        assert not favorites_repo.is_favorite("u2", "c2")
+        assert favorites_repo.is_favorite("u2", "c1")
+
+    def test_shared_card_no_longer_shared_is_pruned(
+        self,
+        table: TableSize,
+        map_spec: MapSpec,
+        favorites_repo: FakeFavoritesRepository,
+    ):
+        from application.use_cases.list_favorites import (
+            ListFavorites,
+            ListFavoritesRequest,
+        )
+
+        # Arrange: c2 is SHARED with u3 only — u2 was removed from share list
+        card1 = make_card("c1", "u1", Visibility.PUBLIC, table, map_spec)
+        card2 = make_card(
+            "c2", "u1", Visibility.SHARED, table, map_spec, shared_with=["u3"]
+        )
+        card_repo = FakeCardRepository({"c1": card1, "c2": card2})
+
+        favorites_repo.set_favorite("u2", "c1", True)
+        favorites_repo.set_favorite("u2", "c2", True)  # stale
+
+        use_case = ListFavorites(
+            card_repository=card_repo,
+            favorites_repository=favorites_repo,
+        )
+
+        # Act
+        use_case.execute(ListFavoritesRequest(actor_id="u2"))
+
+        # Assert: stale entry for c2 removed
+        assert not favorites_repo.is_favorite("u2", "c2")
+        assert favorites_repo.is_favorite("u2", "c1")
 
 
 # =============================================================================

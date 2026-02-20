@@ -63,13 +63,17 @@ def build_page_state() -> gr.State:
     return gr.State(DEFAULT_PAGE)
 
 
-def build_detail_card_id_state() -> gr.State:
-    """Create a State to hold the card_id being viewed/edited.
+def build_detail_card_id_state() -> gr.Textbox:
+    """Create a hidden Textbox to hold the card_id being viewed/edited.
+
+    Uses ``gr.Textbox(visible=False)`` instead of ``gr.State`` so that
+    ``.change()`` is statically recognised by type-checkers and the
+    value is available in the DOM for JS URL-sync.
 
     Returns:
-        gr.State initialized to empty string.
+        gr.Textbox initialized to empty string.
     """
-    return gr.State("")
+    return gr.Textbox(value="", visible=False, elem_id="detail-card-id-mirror")
 
 
 def build_detail_reload_trigger() -> gr.State:

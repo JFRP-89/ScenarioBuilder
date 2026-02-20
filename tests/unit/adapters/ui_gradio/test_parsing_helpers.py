@@ -36,7 +36,7 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": False,
             }
         ]
-        result = build_map_specs_from_state(state)
+        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
 
         assert len(result) == 1
         assert result[0]["type"] == "rect"
@@ -57,7 +57,7 @@ class TestBuildMapSpecsFromState:
             }
             for i in range(50)
         ]
-        result = build_map_specs_from_state(state)
+        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
 
         assert len(result) == 50
 
@@ -74,7 +74,7 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": False,
             }
         ]
-        result = build_map_specs_from_state(state)
+        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
         assert result[0]["type"] == "circle"
 
     def test_overlap_elements_sorted_first(self):
@@ -97,7 +97,7 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": True,
             },
         ]
-        result = build_map_specs_from_state(state)
+        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
 
         assert result[0]["allow_overlap"] is True
         assert result[1]["allow_overlap"] is False
@@ -155,7 +155,7 @@ class TestBuildDeploymentShapesFromState:
                 },
             },
         ]
-        result = build_deployment_shapes_from_state(state)
+        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
 
         assert len(result) == 2
         assert result[0]["type"] == "deployment_zone"
@@ -184,7 +184,7 @@ class TestBuildDeploymentShapesFromState:
                 },
             }
         ]
-        result = build_deployment_shapes_from_state(state)
+        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
 
         assert "depth" not in result[0]
         assert "separation" not in result[0]
@@ -209,7 +209,7 @@ class TestBuildDeploymentShapesFromState:
                 },
             }
         ]
-        result = build_deployment_shapes_from_state(state)
+        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
 
         assert result[0]["type"] == "deployment_zone"
 

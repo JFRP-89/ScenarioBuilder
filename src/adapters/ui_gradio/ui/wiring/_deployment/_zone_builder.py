@@ -12,6 +12,7 @@ Dependencies
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from adapters.ui_gradio.state_helpers import validate_separation_coords
@@ -19,7 +20,7 @@ from adapters.ui_gradio.ui.wiring._deployment._geometry import (
     _calculate_circle_vertices,
     _calculate_triangle_vertices,
 )
-from adapters.ui_gradio.units import convert_to_cm
+from adapters.ui_gradio.units import to_mm
 
 # ── public result type aliases ──────────────────────────────────────────────
 # build_zone_data returns (zone_data, form_params, error_msg)
@@ -31,10 +32,29 @@ ZoneBuildResult = tuple[
 ]
 
 
+@dataclass(frozen=True)
+class ZoneFormInput:
+    """Immutable bundle of form values for zone creation/editing."""
+
+    zone_type: str
+    description: str
+    border: str
+    corner: str
+    fill_side: bool
+    width: float
+    height: float
+    tri_side1: float
+    tri_side2: float
+    circle_radius: float
+    sep_x: float
+    sep_y: float
+    zone_unit: str
+
+
 # ── helpers ─────────────────────────────────────────────────────────────────
 def _to_mm(value: float, unit: str) -> int:
     """Convert a user-unit value to integer millimetres."""
-    return int(convert_to_cm(value, unit) * 10)
+    return to_mm(value, unit)
 
 
 def _validate_vertices_in_bounds(
@@ -191,68 +211,48 @@ def _build_rectangle(
 
 
 # ── form_params builder ────────────────────────────────────────────────────
-def _build_form_params(
-    *,
-    zone_type: str,
-    description: str,
-    zone_unit: str,
-    border: str,
-    corner: str,
-    fill_side: bool,
-    width: float,
-    height: float,
-    tri_side1: float,
-    tri_side2: float,
-    circle_radius: float,
-    sep_x: float,
-    sep_y: float,
-) -> dict[str, Any]:
+def _build_form_params(form: ZoneFormInput) -> dict[str, Any]:
     """Build the ``form_params`` dict stored alongside zone_data."""
     params: dict[str, Any] = {
-        "description": description,
-        "unit": zone_unit,
+        "description": form.description,
+        "unit": form.zone_unit,
     }
-    if zone_type == "triangle":
+    if form.zone_type == "triangle":
         params.update(
-            corner=corner,
-            side1=tri_side1,
-            side2=tri_side2,
-            perfect_triangle=(tri_side1 == tri_side2),
+            corner=form.corner,
+            side1=form.tri_side1,
+            side2=form.tri_side2,
+            perfect_triangle=(form.tri_side1 == form.tri_side2),
         )
-    elif zone_type == "circle":
-        params.update(corner=corner, radius=circle_radius)
+    elif form.zone_type == "circle":
+        params.update(corner=form.corner, radius=form.circle_radius)
     else:  # rectangle
         params.update(
-            border=border,
-            fill_side=fill_side,
-            width=width,
-            height=height,
-            sep_x=sep_x,
-            sep_y=sep_y,
+            border=form.border,
+            fill_side=form.fill_side,
+            width=form.width,
+            height=form.height,
+            sep_x=form.sep_x,
+            sep_y=form.sep_y,
         )
     return params
 
 
 # ── main public API ─────────────────────────────────────────────────────────
 def build_zone_data(
+    form: ZoneFormInput,
     *,
-    zone_type: str,
-    description: str,
-    border: str,
-    corner: str,
-    fill_side: bool,
-    width: float,
-    height: float,
-    tri_side1: float,
-    tri_side2: float,
-    circle_radius: float,
-    sep_x: float,
-    sep_y: float,
-    zone_unit: str,
     table_w_mm: int,
     table_h_mm: int,
 ) -> ZoneBuildResult:
     """Validate inputs and build ``zone_data`` + ``form_params``.
+
+    Parameters
+    ----------
+    form : ZoneFormInput
+        Immutable bundle of zone form field values.
+    table_w_mm, table_h_mm : int
+        Table dimensions in millimetres.
 
     Returns
     -------
@@ -261,38 +261,38 @@ def build_zone_data(
         ``(None, None, error_msg)`` on validation failure.
         Never raises — all errors are returned as strings.
     """
-    desc = (description or "").strip()
+    desc = (form.description or "").strip()
     if not desc:
         return None, None, "Deployment Zone requires Description to be filled."
 
-    if zone_type == "triangle":
+    if form.zone_type == "triangle":
         zone_data, err = _build_triangle(
-            corner=corner,
-            tri_side1=tri_side1,
-            tri_side2=tri_side2,
-            zone_unit=zone_unit,
+            corner=form.corner,
+            tri_side1=form.tri_side1,
+            tri_side2=form.tri_side2,
+            zone_unit=form.zone_unit,
             table_w_mm=table_w_mm,
             table_h_mm=table_h_mm,
             description=desc,
         )
-    elif zone_type == "circle":
+    elif form.zone_type == "circle":
         zone_data, err = _build_circle(
-            corner=corner,
-            circle_radius=circle_radius,
-            zone_unit=zone_unit,
+            corner=form.corner,
+            circle_radius=form.circle_radius,
+            zone_unit=form.zone_unit,
             table_w_mm=table_w_mm,
             table_h_mm=table_h_mm,
             description=desc,
         )
     else:  # rectangle
         zone_data, err = _build_rectangle(
-            border=border,
-            fill_side=fill_side,
-            width=width,
-            height=height,
-            sep_x=sep_x,
-            sep_y=sep_y,
-            zone_unit=zone_unit,
+            border=form.border,
+            fill_side=form.fill_side,
+            width=form.width,
+            height=form.height,
+            sep_x=form.sep_x,
+            sep_y=form.sep_y,
+            zone_unit=form.zone_unit,
             table_w_mm=table_w_mm,
             table_h_mm=table_h_mm,
             description=desc,
@@ -301,19 +301,5 @@ def build_zone_data(
     if err:
         return None, None, err
 
-    form_params = _build_form_params(
-        zone_type=zone_type,
-        description=desc,
-        zone_unit=zone_unit,
-        border=border,
-        corner=corner,
-        fill_side=fill_side,
-        width=width,
-        height=height,
-        tri_side1=tri_side1,
-        tri_side2=tri_side2,
-        circle_radius=circle_radius,
-        sep_x=sep_x,
-        sep_y=sep_y,
-    )
+    form_params = _build_form_params(form)
     return zone_data, form_params, None

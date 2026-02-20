@@ -136,7 +136,7 @@ class TestSvgMapRendererMixedShapes:
         ]
 
         # Act
-        svg = renderer.render(table_mm=table_mm, shapes=shapes)
+        svg = renderer.render(table_mm=table_mm, shapes=shapes)  # type: ignore[arg-type]
 
         # Assert - all shape types present
         assert "<rect" in svg

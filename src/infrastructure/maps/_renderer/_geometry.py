@@ -121,7 +121,74 @@ def text_fits_in_bounds(
 
 
 # ---------------------------------------------------------------------------
-# Label positioning
+# Label positioning — helpers
+# ---------------------------------------------------------------------------
+
+_OFFSET_DISTANCE = 50
+_EXTRA_HORIZONTAL_OFFSET = 50
+_NEAR_THRESHOLD = _OFFSET_DISTANCE + 30
+
+_PRIORITY_ORDER: dict[str, tuple[str, ...]] = {
+    "top-left": ("down", "right", "up", "left"),
+    "top-right": ("down", "left", "up", "right"),
+    "bottom-left": ("up", "right", "down", "left"),
+    "bottom-right": ("up", "left", "down", "right"),
+    "left": ("right", "up", "down", "left"),
+    "right": ("left", "up", "down", "right"),
+    "top": ("down", "right", "left", "up"),
+    "bottom": ("up", "right", "left", "down"),
+    "center": ("up", "down", "right", "left"),
+}
+
+
+def _classify_edge_proximity(
+    near_top: bool,
+    near_bottom: bool,
+    near_left: bool,
+    near_right: bool,
+) -> str:
+    """Return a key describing which edges are nearby."""
+    if near_top and near_left:
+        return "top-left"
+    if near_top and near_right:
+        return "top-right"
+    if near_bottom and near_left:
+        return "bottom-left"
+    if near_bottom and near_right:
+        return "bottom-right"
+    if near_left:
+        return "left"
+    if near_right:
+        return "right"
+    if near_top:
+        return "top"
+    if near_bottom:
+        return "bottom"
+    return "center"
+
+
+def _clamp(value: int, lo: int, hi: int) -> int:
+    """Clamp *value* between *lo* and *hi*."""
+    return max(lo, min(value, hi))
+
+
+def _select_best_candidate(
+    candidates: list[tuple[int, int, int, str]],
+    min_edge_dist: int,
+) -> tuple[int, int, str]:
+    """Pick the best label candidate, preferring default order far from edges."""
+    candidates.sort(key=lambda c: c[0], reverse=True)
+    if min_edge_dist >= 200:
+        for preferred in ("up", "down", "right", "left"):
+            for _space, x, y, direction in candidates:
+                if direction == preferred:
+                    return x, y, direction
+    _, best_x, best_y, best_dir = candidates[0]
+    return best_x, best_y, best_dir
+
+
+# ---------------------------------------------------------------------------
+# Label positioning — public API
 # ---------------------------------------------------------------------------
 
 
@@ -137,108 +204,28 @@ def get_position_preference_order(
     For corners, combines both axis logic to find best readable position.
     Adds extra offset for horizontal positions to account for objective radius.
     """
-    offset_distance = 50
-    extra_horizontal_offset = 50
     space_up = cy
     space_down = table_height_mm - cy
     space_left = cx
     space_right = table_width_mm - cx
 
-    near_threshold = offset_distance + 30
+    near_top = space_up < _NEAR_THRESHOLD
+    near_bottom = space_down < _NEAR_THRESHOLD
+    near_left = space_left < _NEAR_THRESHOLD
+    near_right = space_right < _NEAR_THRESHOLD
 
-    near_left = space_left < near_threshold
-    near_right = space_right < near_threshold
-    near_top = space_up < near_threshold
-    near_bottom = space_down < near_threshold
+    all_positions: dict[str, tuple[int, int, str]] = {
+        "up": (cx, cy - _OFFSET_DISTANCE, "up"),
+        "down": (cx, cy + _OFFSET_DISTANCE, "down"),
+        "right": (cx + _OFFSET_DISTANCE + _EXTRA_HORIZONTAL_OFFSET, cy, "right"),
+        "left": (cx - _OFFSET_DISTANCE - _EXTRA_HORIZONTAL_OFFSET, cy, "left"),
+    }
 
-    positions: list[tuple[int, int, str]] = []
-
-    if near_top and near_left:
-        positions.extend(
-            [
-                (cx, cy + offset_distance, "down"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx, cy - offset_distance, "up"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-            ]
-        )
-    elif near_top and near_right:
-        positions.extend(
-            [
-                (cx, cy + offset_distance, "down"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-                (cx, cy - offset_distance, "up"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-            ]
-        )
-    elif near_bottom and near_left:
-        positions.extend(
-            [
-                (cx, cy - offset_distance, "up"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx, cy + offset_distance, "down"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-            ]
-        )
-    elif near_bottom and near_right:
-        positions.extend(
-            [
-                (cx, cy - offset_distance, "up"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-                (cx, cy + offset_distance, "down"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-            ]
-        )
-    elif near_left and not near_right:
-        positions.extend(
-            [
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx, cy - offset_distance, "up"),
-                (cx, cy + offset_distance, "down"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-            ]
-        )
-    elif near_right and not near_left:
-        positions.extend(
-            [
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-                (cx, cy - offset_distance, "up"),
-                (cx, cy + offset_distance, "down"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-            ]
-        )
-    elif near_top and not near_bottom:
-        positions.extend(
-            [
-                (cx, cy + offset_distance, "down"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-                (cx, cy - offset_distance, "up"),
-            ]
-        )
-    elif near_bottom and not near_top:
-        positions.extend(
-            [
-                (cx, cy - offset_distance, "up"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-                (cx, cy + offset_distance, "down"),
-            ]
-        )
-    else:
-        positions.extend(
-            [
-                (cx, cy - offset_distance, "up"),
-                (cx, cy + offset_distance, "down"),
-                (cx + offset_distance + extra_horizontal_offset, cy, "right"),
-                (cx - offset_distance - extra_horizontal_offset, cy, "left"),
-            ]
-        )
-
-    return positions
+    key = _classify_edge_proximity(near_top, near_bottom, near_left, near_right)
+    return [all_positions[d] for d in _PRIORITY_ORDER[key]]
 
 
-def find_best_objective_position(  # noqa: C901
+def find_best_objective_position(
     cx: int,
     cy: int,
     text: str,
@@ -255,6 +242,8 @@ def find_best_objective_position(  # noqa: C901
     objective_radius = 25
     margin = 25
     offset = objective_radius + margin
+    half_w = text_width // 2
+    half_h = text_height // 2
 
     space_up = cy
     space_down = table_height_mm - cy
@@ -264,57 +253,32 @@ def find_best_objective_position(  # noqa: C901
     candidates: list[tuple[int, int, int, str]] = []
 
     # UP
-    text_x_up = cx
-    text_y_up = cy - offset
-    if text_x_up - text_width // 2 < 0:
-        text_x_up = text_width // 2
-    elif text_x_up + text_width // 2 > table_width_mm:
-        text_x_up = table_width_mm - text_width // 2
-    if text_y_up - text_height // 2 >= 0:
-        candidates.append((space_up, text_x_up, text_y_up, "up"))
+    up_x = _clamp(cx, half_w, table_width_mm - half_w)
+    up_y = cy - offset
+    if up_y - half_h >= 0:
+        candidates.append((space_up, up_x, up_y, "up"))
 
     # DOWN
-    text_x_down = cx
-    text_y_down = cy + offset
-    if text_x_down - text_width // 2 < 0:
-        text_x_down = text_width // 2
-    elif text_x_down + text_width // 2 > table_width_mm:
-        text_x_down = table_width_mm - text_width // 2
-    if text_y_down + text_height // 2 <= table_height_mm:
-        candidates.append((space_down, text_x_down, text_y_down, "down"))
+    dn_x = _clamp(cx, half_w, table_width_mm - half_w)
+    dn_y = cy + offset
+    if dn_y + half_h <= table_height_mm:
+        candidates.append((space_down, dn_x, dn_y, "down"))
 
     # RIGHT
-    text_x_right = cx + offset
-    text_y_right = cy
-    if text_y_right - text_width // 2 < 0:
-        text_y_right = text_width // 2
-    elif text_y_right + text_width // 2 > table_height_mm:
-        text_y_right = table_height_mm - text_width // 2
-    if text_x_right + text_height // 2 <= table_width_mm:
-        candidates.append((space_right, text_x_right, text_y_right, "right"))
+    rt_x = cx + offset
+    rt_y = _clamp(cy, half_w, table_height_mm - half_w)
+    if rt_x + half_h <= table_width_mm:
+        candidates.append((space_right, rt_x, rt_y, "right"))
 
     # LEFT
-    text_x_left = cx - offset
-    text_y_left = cy
-    if text_y_left - text_width // 2 < 0:
-        text_y_left = text_width // 2
-    elif text_y_left + text_width // 2 > table_height_mm:
-        text_y_left = table_height_mm - text_width // 2
-    if text_x_left - text_height // 2 >= 0:
-        candidates.append((space_left, text_x_left, text_y_left, "left"))
+    lt_x = cx - offset
+    lt_y = _clamp(cy, half_w, table_height_mm - half_w)
+    if lt_x - half_h >= 0:
+        candidates.append((space_left, lt_x, lt_y, "left"))
 
     if candidates:
-        candidates.sort(key=lambda x: x[0], reverse=True)
-
-        min_edge_dist = min(space_up, space_down, space_left, space_right)
-        if min_edge_dist >= 200:
-            preference_order = ["up", "down", "right", "left"]
-            for preferred_dir in preference_order:
-                for _space, x, y, direction in candidates:
-                    if direction == preferred_dir:
-                        return x, y, direction
-
-        _, best_x, best_y, best_dir = candidates[0]
-        return best_x, best_y, best_dir
+        return _select_best_candidate(
+            candidates, min(space_up, space_down, space_left, space_right)
+        )
 
     return cx, cy, "up"

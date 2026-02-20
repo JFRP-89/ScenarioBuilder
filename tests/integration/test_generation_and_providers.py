@@ -37,8 +37,6 @@ from application.use_cases._shape_normalization import (
     flatten_map_shapes,
     normalize_shapes_for_map_spec,
 )
-from application.use_cases.generate_card import execute as legacy_generate_card
-from application.use_cases.manage_favorites import add_favorite, remove_favorite
 from domain.cards.card import Card, GameMode
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
@@ -167,20 +165,20 @@ class TestGenerateRandomScenography:
 
     def test_circle_shape(self) -> None:
         rng = random.Random(10)
-        shape = _generate_random_scenography(rng, 1200, 1200, False, 0)
+        shape = _generate_random_scenography(rng, 1200, 1200, False)
         assert shape["type"] in {"circle", "rect", "polygon"}
 
     def test_overlap_flag_respected(self) -> None:
         for seed in range(50):
             rng = random.Random(seed)
-            shape = _generate_random_scenography(rng, 1200, 1200, True, 0)
+            shape = _generate_random_scenography(rng, 1200, 1200, True)
             assert shape["allow_overlap"] is True
 
     def test_all_shape_types_possible(self) -> None:
         types_seen: set[str] = set()
         for seed in range(200):
             rng = random.Random(seed)
-            shape = _generate_random_scenography(rng, 1200, 1200, False, 0)
+            shape = _generate_random_scenography(rng, 1200, 1200, False)
             types_seen.add(shape["type"])
             if types_seen >= {"circle", "rect", "polygon"}:
                 break
@@ -376,7 +374,7 @@ class TestResolveSeededContent:
             "shared_with": None,
         }
         defaults.update(overrides)
-        return GenerateScenarioCardRequest(**defaults)
+        return GenerateScenarioCardRequest(**defaults)  # type: ignore[arg-type]
 
     def test_zero_seed_returns_request_values(self) -> None:
         req = self._make_request(armies="My Army", deployment="My Deploy")
@@ -520,31 +518,6 @@ class TestFileContentProvider:
         provider = FileContentProvider()
         constraints = list(provider.get_constraints())
         assert len(constraints) > 0
-
-
-# =============================================================================
-# Legacy generate_card
-# =============================================================================
-class TestLegacyGenerateCard:
-    """Integration: legacy generate_card with real FileContentProvider."""
-
-    def test_execute_returns_card_dict(self) -> None:
-        provider = FileContentProvider()
-        result = legacy_generate_card("matched", 42, provider)
-        assert result is not None
-
-
-# =============================================================================
-# manage_favorites stubs
-# =============================================================================
-class TestManageFavoritesStubs:
-    """Integration: manage_favorites legacy stubs."""
-
-    def test_add_favorite_returns_none(self) -> None:
-        assert add_favorite("c1", "u1") is None
-
-    def test_remove_favorite_returns_none(self) -> None:
-        assert remove_favorite("c1", "u1") is None
 
 
 # =============================================================================

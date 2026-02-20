@@ -12,7 +12,6 @@ from application.use_cases.create_variant import (
     CreateVariantRequest,
     CreateVariantResponse,
 )
-from application.use_cases.create_variant import execute as legacy_variant_execute
 from application.use_cases.delete_card import (
     DeleteCard,
     DeleteCardRequest,
@@ -23,7 +22,6 @@ from application.use_cases.render_map_svg import (
     RenderMapSvgRequest,
     RenderMapSvgResponse,
 )
-from application.use_cases.render_map_svg import execute as legacy_render_execute
 from domain.cards.card import Card, GameMode
 from domain.errors import ForbiddenError, NotFoundError, ValidationError
 from domain.maps.map_spec import MapSpec
@@ -32,7 +30,6 @@ from domain.security.authz import Visibility
 from infrastructure.generators.secure_seed_generator import SecureSeedGenerator
 from infrastructure.generators.uuid_id_generator import UuidIdGenerator
 from infrastructure.maps.svg_map_renderer import SvgMapRenderer
-from infrastructure.maps.svg_renderer import SvgRenderer
 from infrastructure.repositories.in_memory_card_repository import (
     InMemoryCardRepository,
 )
@@ -150,11 +147,6 @@ class TestCreateVariantUseCase:
         )
         with pytest.raises(ValidationError):
             uc.execute(CreateVariantRequest(actor_id="", base_card_id="base-1", seed=1))
-
-    def test_legacy_execute_returns_card_unchanged(self) -> None:
-        card = _make_card("c1")
-        result = legacy_variant_execute(card, 999)
-        assert result is card
 
 
 # =============================================================================
@@ -277,28 +269,3 @@ class TestRenderMapSvgUseCase:
         uc = RenderMapSvg(repository=repo, renderer=SvgMapRenderer())
         with pytest.raises(NotFoundError):
             uc.execute(RenderMapSvgRequest(actor_id="u1", card_id="nonexist"))
-
-
-# =============================================================================
-# SvgRenderer (legacy)
-# =============================================================================
-class TestSvgRendererLegacy:
-    """Integration: Legacy SvgRenderer."""
-
-    def test_render_svg_returns_valid_svg(self) -> None:
-        renderer = SvgRenderer()
-        svg = renderer.render_svg({"width": 200, "height": 300})
-        assert "200" in svg
-        assert "300" in svg
-        assert "<svg" in svg
-
-    def test_render_svg_defaults(self) -> None:
-        renderer = SvgRenderer()
-        svg = renderer.render_svg({})
-        assert "120" in svg
-
-    def test_legacy_render_execute(self) -> None:
-        renderer = SvgRenderer()
-        svg = legacy_render_execute(renderer, {"width": 150, "height": 250})
-        assert isinstance(svg, str)
-        assert "<svg" in svg

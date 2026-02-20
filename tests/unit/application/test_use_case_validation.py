@@ -43,6 +43,23 @@ class _FakeRepo:
     def get_by_id(self, card_id: str) -> _FakeCard | None:
         return self._store.get(card_id)
 
+    def save(self, card: _FakeCard) -> None:
+        self._store[card.card_id] = card
+
+    def find_by_seed(self, seed: int) -> _FakeCard | None:
+        return next(
+            (c for c in self._store.values() if getattr(c, "seed", None) == seed), None
+        )
+
+    def delete(self, card_id: str) -> bool:
+        return self._store.pop(card_id, None) is not None
+
+    def list_all(self) -> list[_FakeCard]:
+        return list(self._store.values())
+
+    def list_for_owner(self, owner_id: str) -> list[_FakeCard]:
+        return [c for c in self._store.values() if c.owner_id == owner_id]
+
 
 # ── validate_actor_id / validate_card_id ──────────────────────────
 
@@ -87,23 +104,23 @@ class TestLoadCardForRead:
     def test_owner_can_read(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
         repo = _FakeRepo({"c1": card})
-        assert load_card_for_read(repo, "c1", "user-a") is card
+        assert load_card_for_read(repo, "c1", "user-a") is card  # type: ignore[arg-type]
 
     def test_shared_user_can_read(self):
         card = _FakeCard(card_id="c1", owner_id="user-a", readable_by={"user-b"})
         repo = _FakeRepo({"c1": card})
-        assert load_card_for_read(repo, "c1", "user-b") is card
+        assert load_card_for_read(repo, "c1", "user-b") is card  # type: ignore[arg-type]
 
     def test_not_found_raises(self):
         repo = _FakeRepo()
         with pytest.raises(Exception, match="(?i)not found"):
-            load_card_for_read(repo, "missing", "user-a")
+            load_card_for_read(repo, "missing", "user-a")  # type: ignore[arg-type]
 
     def test_forbidden_raises(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
         repo = _FakeRepo({"c1": card})
         with pytest.raises(Exception, match="(?i)forbidden"):
-            load_card_for_read(repo, "c1", "stranger")
+            load_card_for_read(repo, "c1", "stranger")  # type: ignore[arg-type]
 
 
 # ── load_card_for_write ───────────────────────────────────────────
@@ -115,15 +132,15 @@ class TestLoadCardForWrite:
     def test_owner_can_write(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
         repo = _FakeRepo({"c1": card})
-        assert load_card_for_write(repo, "c1", "user-a") is card
+        assert load_card_for_write(repo, "c1", "user-a") is card  # type: ignore[arg-type]
 
     def test_non_owner_forbidden(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
         repo = _FakeRepo({"c1": card})
         with pytest.raises(Exception, match="(?i)forbidden"):
-            load_card_for_write(repo, "c1", "user-b")
+            load_card_for_write(repo, "c1", "user-b")  # type: ignore[arg-type]
 
     def test_not_found_raises(self):
         repo = _FakeRepo()
         with pytest.raises(Exception, match="(?i)not found"):
-            load_card_for_write(repo, "missing", "user-a")
+            load_card_for_write(repo, "missing", "user-a")  # type: ignore[arg-type]

@@ -11,6 +11,41 @@ from adapters.ui_gradio.constants import (
     TABLE_STANDARD_CM,
 )
 
+# ── Constants ──────────────────────────────────────────────────────────
+
+_PAYLOAD_FILL_KEYS = (
+    FIELD_MODE,
+    FIELD_SEED,
+    "armies",
+    "deployment",
+    "layout",
+    "objectives",
+    "special_rules",
+    "visibility",
+    "shared_with",
+)
+
+_CARD_KEYS_ORDER = [
+    "card_id",
+    "seed",
+    "owner_id",
+    "name",
+    "mode",
+    "armies",
+    "table_preset",
+    "table_mm",
+    "layout",
+    "deployment",
+    "initial_priority",
+    "objectives",
+    "special_rules",
+    "visibility",
+    "shared_with",
+    "shapes",
+]
+
+_EXCLUDED_KEYS = frozenset(("map_specs", "deployment_shapes"))
+
 
 def table_cm_from_preset(preset: str) -> dict[str, float]:
     """Return table dimensions in cm for a known preset."""
@@ -42,7 +77,26 @@ def reorder_table_dimensions(table: Any, width_key: str, height_key: str) -> Any
     return ordered or table
 
 
-def augment_generated_card(  # noqa: C901
+def _fill_from_payload(result: dict[str, Any], payload: dict[str, Any]) -> None:
+    """Copy keys from *payload* to *result* if missing."""
+    for key in _PAYLOAD_FILL_KEYS:
+        if key in payload and key not in result:
+            result[key] = payload[key]
+
+
+def _order_card_keys(result: dict[str, Any]) -> dict[str, Any]:
+    """Order card dictionary keys according to standard display order."""
+    ordered: dict[str, Any] = {}
+    for key in _CARD_KEYS_ORDER:
+        if key in result:
+            ordered[key] = result[key]
+    for key in result:
+        if key not in ordered and key not in _EXCLUDED_KEYS:
+            ordered[key] = result[key]
+    return ordered
+
+
+def augment_generated_card(
     response_json: dict[str, Any],
     payload: dict[str, Any],
     preset: str,
@@ -56,22 +110,9 @@ def augment_generated_card(  # noqa: C901
 
     if custom_table:
         result["table_mm"] = build_table_mm_from_cm(custom_table)
-        if "table_cm" in result:
-            result.pop("table_cm")
+        result.pop("table_cm", None)
 
-    for key in (
-        FIELD_MODE,
-        FIELD_SEED,
-        "armies",
-        "deployment",
-        "layout",
-        "objectives",
-        "special_rules",
-        "visibility",
-        "shared_with",
-    ):
-        if key in payload and key not in result:
-            result[key] = payload[key]
+    _fill_from_payload(result, payload)
 
     if "table_mm" in result:
         result["table_mm"] = reorder_table_dimensions(
@@ -85,32 +126,4 @@ def augment_generated_card(  # noqa: C901
     result.pop("map_specs", None)
     result.pop("deployment_shapes", None)
 
-    ordered: dict[str, Any] = {}
-    keys_order = [
-        "card_id",
-        "seed",
-        "owner_id",
-        "name",
-        "mode",
-        "armies",
-        "table_preset",
-        "table_mm",
-        "layout",
-        "deployment",
-        "initial_priority",
-        "objectives",
-        "special_rules",
-        "visibility",
-        "shared_with",
-        "shapes",
-    ]
-
-    for key in keys_order:
-        if key in result:
-            ordered[key] = result[key]
-
-    for key in result:
-        if key not in ordered and key not in ("map_specs", "deployment_shapes"):
-            ordered[key] = result[key]
-
-    return ordered
+    return _order_card_keys(result)

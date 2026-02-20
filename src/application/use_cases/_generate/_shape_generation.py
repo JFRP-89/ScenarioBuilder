@@ -24,7 +24,6 @@ def _generate_random_scenography(
     width: int,
     height: int,
     allow_overlap: bool,
-    index: int,
 ) -> dict[str, Any]:
     """Generate a single random scenography shape within table bounds."""
     descriptions = (
@@ -213,16 +212,22 @@ def _generate_seeded_shapes(
     n_solid = rng.randint(0, 3)
     n_passable = rng.randint(0, 3)
     scenography_specs: list[dict[str, Any]] = []
-    for i in range(n_solid):
+    for _ in range(n_solid):
         scenography_specs.append(
             _generate_random_scenography(
-                rng, table_width, table_height, allow_overlap=False, index=i
+                rng,
+                table_width,
+                table_height,
+                allow_overlap=False,
             )
         )
-    for i in range(n_passable):
+    for _ in range(n_passable):
         scenography_specs.append(
             _generate_random_scenography(
-                rng, table_width, table_height, allow_overlap=True, index=i
+                rng,
+                table_width,
+                table_height,
+                allow_overlap=True,
             )
         )
 

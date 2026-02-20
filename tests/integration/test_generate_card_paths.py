@@ -158,7 +158,7 @@ class TestGenerateScenarioCardExecute:
         assert resp.card.owner_id == "player1"
 
     def test_replicable_with_seed(self) -> None:
-        """Replicable card with explicit seed."""
+        """Replicable card: seed is always hash of content, not request.seed."""
         uc = _make_uc()
         req = GenerateScenarioCardRequest(
             actor_id="player1",
@@ -170,7 +170,8 @@ class TestGenerateScenarioCardExecute:
             is_replicable=True,
         )
         resp = uc.execute(req)
-        assert resp.seed == 12345
+        # Seed is hash(content), not the explicitly provided seed=12345
+        assert resp.seed > 0
         assert resp.is_replicable is True
 
     def test_replicable_without_seed_calculates(self) -> None:

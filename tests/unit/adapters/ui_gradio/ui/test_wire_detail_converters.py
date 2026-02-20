@@ -100,7 +100,7 @@ class TestApiSpecialRulesToState:
             _api_special_rules_to_state,
         )
 
-        result = _api_special_rules_to_state(["not a dict", 42])
+        result = _api_special_rules_to_state(["not a dict", 42])  # type: ignore[list-item]
         assert result == []
 
 

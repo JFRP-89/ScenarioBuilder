@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import secrets
 import threading
 from datetime import datetime, timedelta
@@ -44,10 +45,37 @@ REAUTH_WINDOW_MINUTES = int(os.environ.get("REAUTH_WINDOW_MINUTES", "10"))
 
 _SESSION_ID_BYTES = 32  # 256-bit random
 
-_DEFAULT_STORE_PATH = str(
-    pathlib.Path(__file__).resolve().parent.parent.parent.parent / ".sessions.json"
-)
-_STORE_PATH = os.environ.get("SESSION_STORE_PATH", _DEFAULT_STORE_PATH)
+_PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
+_DEFAULT_STORE_FILE = ".sessions.json"
+
+# Allowlist: alphanumeric, dots, hyphens, underscores — no slashes/backslashes
+_SAFE_FILENAME_RE = re.compile(r"^[\w.\-]+$")
+
+
+def _safe_store_path() -> pathlib.Path:
+    """Build a safe, resolved store path from the environment.
+
+    Only the **basename** from ``SESSION_STORE_PATH`` is used, and it must
+    pass an allowlist regex (``[\\w.\\-]+``).  This prevents any
+    directory-traversal attack — the file is always placed directly under
+    ``_PROJECT_ROOT``.
+    """
+    env_value = os.environ.get("SESSION_STORE_PATH", "")
+    if env_value:
+        candidate = os.path.basename(env_value)
+        match = _SAFE_FILENAME_RE.fullmatch(candidate)
+        if match:
+            return _PROJECT_ROOT / match.group(0)
+        logger.warning(
+            "SESSION_STORE_PATH rejected (invalid filename '%s') "
+            "— using default '%s'",
+            candidate,
+            _DEFAULT_STORE_FILE,
+        )
+    return _PROJECT_ROOT / _DEFAULT_STORE_FILE
+
+
+_STORE_PATH: pathlib.Path = _safe_store_path()
 
 
 # ── Types ────────────────────────────────────────────────────────────────────
@@ -77,7 +105,8 @@ class SessionStoreBackend(Protocol):
     def active_session_count(self) -> int: ...
 
 
-_store: SessionStoreBackend | None = None
+# Mutable containers — avoids ``global`` keyword
+_store_holder: list[SessionStoreBackend | None] = [None]
 
 
 def configure_store(store: SessionStoreBackend) -> None:
@@ -86,14 +115,13 @@ def configure_store(store: SessionStoreBackend) -> None:
     Must be called once at application startup (from ``build_services()``).
     After this call every module-level function delegates to *store*.
     """
-    global _store
-    _store = store
+    _store_holder[0] = store
     logger.info("session_store: backend configured → %s", type(store).__name__)
 
 
 def get_store() -> SessionStoreBackend | None:
     """Return the currently configured store (or None for in-memory)."""
-    return _store
+    return _store_holder[0]
 
 
 # ── In-memory store (fallback for dev/test) ──────────────────────────────────
@@ -119,9 +147,7 @@ def _save_to_disk() -> None:
                 ),
                 "csrf_token": rec["csrf_token"],
             }
-        pathlib.Path(_STORE_PATH).write_text(
-            json.dumps(data, indent=2), encoding="utf-8"
-        )
+        _STORE_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except OSError:
         pass  # best-effort — in-memory store still works
 
@@ -129,10 +155,9 @@ def _save_to_disk() -> None:
 def _load_from_disk() -> None:
     """Load ``_SESSIONS`` from a JSON file.  **Must be called with _lock held.**"""
     try:
-        path = pathlib.Path(_STORE_PATH)
-        if not path.exists():
+        if not _STORE_PATH.exists():
             return
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(_STORE_PATH.read_text(encoding="utf-8"))
         for sid, rd in raw.items():
             _SESSIONS[sid] = SessionRecord(
                 session_id=rd["session_id"],
@@ -146,7 +171,7 @@ def _load_from_disk() -> None:
                 ),
                 csrf_token=rd["csrf_token"],
             )
-    except (OSError, json.JSONDecodeError, KeyError, ValueError):
+    except (OSError, KeyError, ValueError):
         pass  # best-effort — start with empty store
 
 
@@ -166,29 +191,29 @@ def _generate_csrf_token() -> str:
 
 
 # ── Clock (injectable for testing) ───────────────────────────────────────────
-_clock: Clock = SystemClock()
+_clock_holder: list[Clock] = [SystemClock()]
 
 
 def set_clock(clock: Clock) -> None:
     """Replace the module clock — **for testing only**."""
-    global _clock
-    _clock = clock
+    _clock_holder[0] = clock
 
 
 def _now() -> datetime:
     """Return current UTC time via the configured clock."""
-    return _clock.now_utc()
+    return _clock_holder[0].now_utc()
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
-# Each function delegates to ``_store`` if configured, otherwise uses
+# Each function delegates to ``get_store()`` if configured, otherwise uses
 # the in-memory fallback.  This keeps all existing import sites working.
 
 
 def create_session(actor_id: str) -> SessionRecord:
     """Create a new session for *actor_id* and return the record."""
-    if _store is not None:
-        return _store.create_session(actor_id)
+    store = get_store()
+    if store is not None:
+        return store.create_session(actor_id)
 
     now = _now()
     session_id = _generate_session_id()
@@ -208,8 +233,9 @@ def create_session(actor_id: str) -> SessionRecord:
 
 def get_session(session_id: str) -> SessionRecord | None:
     """Retrieve a session if it exists and is not expired."""
-    if _store is not None:
-        return _store.get_session(session_id)
+    store = get_store()
+    if store is not None:
+        return store.get_session(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -240,8 +266,9 @@ def get_session(session_id: str) -> SessionRecord | None:
 
 def invalidate_session(session_id: str) -> bool:
     """Invalidate a session. Return True if it existed and was active."""
-    if _store is not None:
-        return _store.invalidate_session(session_id)
+    store = get_store()
+    if store is not None:
+        return store.invalidate_session(session_id)
 
     with _lock:
         removed = _SESSIONS.pop(session_id, None) is not None
@@ -252,8 +279,9 @@ def invalidate_session(session_id: str) -> bool:
 
 def mark_reauth(session_id: str) -> bool:
     """Mark a session as recently re-authenticated."""
-    if _store is not None:
-        return _store.mark_reauth(session_id)
+    store = get_store()
+    if store is not None:
+        return store.mark_reauth(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -266,8 +294,9 @@ def mark_reauth(session_id: str) -> bool:
 
 def rotate_session_id(old_session_id: str) -> SessionRecord | None:
     """Rotate the session ID (session fixation prevention)."""
-    if _store is not None:
-        return _store.rotate_session_id(old_session_id)
+    store = get_store()
+    if store is not None:
+        return store.rotate_session_id(old_session_id)
 
     with _lock:
         old_record = _SESSIONS.pop(old_session_id, None)
@@ -291,8 +320,9 @@ def rotate_session_id(old_session_id: str) -> SessionRecord | None:
 
 def is_recently_reauthed(session_id: str) -> bool:
     """Return True if the session was re-authenticated within the reauth window."""
-    if _store is not None:
-        return _store.is_recently_reauthed(session_id)
+    store = get_store()
+    if store is not None:
+        return store.is_recently_reauthed(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -307,8 +337,9 @@ def is_recently_reauthed(session_id: str) -> bool:
 
 def get_csrf_token(session_id: str) -> str | None:
     """Return the CSRF token for a session, or None."""
-    if _store is not None:
-        return _store.get_csrf_token(session_id)
+    store = get_store()
+    if store is not None:
+        return store.get_csrf_token(session_id)
 
     with _lock:
         record = _SESSIONS.get(session_id)
@@ -319,8 +350,9 @@ def get_csrf_token(session_id: str) -> str | None:
 
 def reset_sessions() -> None:
     """Clear all sessions — **for testing only**."""
-    if _store is not None:
-        _store.reset_sessions()
+    store = get_store()
+    if store is not None:
+        store.reset_sessions()
         return
 
     with _lock:
@@ -330,8 +362,9 @@ def reset_sessions() -> None:
 
 def active_session_count() -> int:
     """Return the number of active sessions — **for testing/monitoring**."""
-    if _store is not None:
-        return _store.active_session_count()
+    store = get_store()
+    if store is not None:
+        return store.active_session_count()
 
     with _lock:
         return len(_SESSIONS)

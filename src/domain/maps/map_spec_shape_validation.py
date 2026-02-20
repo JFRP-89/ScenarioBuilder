@@ -9,6 +9,9 @@ from domain.errors import ValidationError
 _MAX_POLYGON_POINTS = 200
 _MAX_OBJECTIVE_POINTS = 10
 _MAX_DEPLOYMENT_SHAPES = 4
+_MAX_SCENOGRAPHY_SHAPES = 6
+_MAX_SCENOGRAPHY_SOLID = 3
+_MAX_SCENOGRAPHY_PASSABLE = 3
 _OBJECTIVE_POINT_RADIUS = 25
 _ALLOWED_TYPES = {"circle", "rect", "polygon"}
 _OBJECTIVE_POINT_TYPE = "objective_point"
@@ -235,3 +238,34 @@ def validate_deployment_shapes(
 
     for shape in shapes:
         _validate_deployment_shape(shape, width_mm, height_mm)
+
+
+def validate_scenography_shapes(shapes: list[dict]) -> None:
+    """Validate scenography shape count and allow_overlap balance.
+
+    Rules:
+      - Maximum 6 scenography shapes total.
+      - Maximum 3 with ``allow_overlap=False`` (solid terrain).
+      - Maximum 3 with ``allow_overlap=True`` (passable terrain).
+
+    Raises:
+        ValidationError: If any limit is exceeded.
+    """
+    if len(shapes) > _MAX_SCENOGRAPHY_SHAPES:
+        raise ValidationError(
+            f"too many scenography shapes (max {_MAX_SCENOGRAPHY_SHAPES})"
+        )
+
+    n_solid = sum(1 for s in shapes if not s.get("allow_overlap", False))
+    n_passable = sum(1 for s in shapes if s.get("allow_overlap", False))
+
+    if n_solid > _MAX_SCENOGRAPHY_SOLID:
+        raise ValidationError(
+            f"too many solid scenography shapes "
+            f"(max {_MAX_SCENOGRAPHY_SOLID} with allow_overlap=false)"
+        )
+    if n_passable > _MAX_SCENOGRAPHY_PASSABLE:
+        raise ValidationError(
+            f"too many passable scenography shapes "
+            f"(max {_MAX_SCENOGRAPHY_PASSABLE} with allow_overlap=true)"
+        )

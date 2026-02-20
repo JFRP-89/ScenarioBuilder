@@ -15,6 +15,7 @@ from adapters.ui_gradio.state_helpers import (
 )
 from adapters.ui_gradio.ui.wiring._deployment._context import DeploymentZonesCtx
 from adapters.ui_gradio.ui.wiring._deployment._form_state import (
+    BTN_ADD_ZONE,
     UNCHANGED,
     default_zone_form,
     selected_zone_form,
@@ -24,12 +25,123 @@ from adapters.ui_gradio.ui.wiring._deployment._ui_updates import (
     perfect_triangle_side2,
     zone_type_visibility,
 )
-from adapters.ui_gradio.ui.wiring._deployment._zone_builder import build_zone_data
+from adapters.ui_gradio.ui.wiring._deployment._zone_builder import (
+    ZoneFormInput,
+    build_zone_data,
+)
 from adapters.ui_gradio.units import (
     convert_from_cm,
     convert_to_cm,
     convert_unit_to_unit,
+    to_mm,
 )
+
+_BTN_ADD_ZONE = BTN_ADD_ZONE
+
+
+# ── Module-level helpers (reduce CC of the main wire function) ─────────
+
+
+def _apply_zone_mutation(
+    zone_data: dict[str, Any] | None,
+    form_params: dict[str, Any] | None,
+    error_msg: str | None,
+    current_state: list[dict[str, Any]],
+    editing_id: str | None,
+    zone_type: str,
+    table_w_mm: int,
+    table_h_mm: int,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """Apply the validated build result to state.
+
+    Returns ``(new_state, error_msg)`` — *new_state* is ``None`` on error.
+    """
+    if error_msg:
+        return None, error_msg
+    if zone_data is None:  # pragma: no cover
+        return None, "Unexpected zone validation error"
+
+    if editing_id:
+        new_state, state_err = update_deployment_zone(
+            current_state,
+            editing_id,
+            zone_data,
+            table_w_mm,
+            table_h_mm,
+        )
+    else:
+        new_state, state_err = add_deployment_zone(
+            current_state,
+            zone_data,
+            table_w_mm,
+            table_h_mm,
+        )
+    if state_err:
+        return None, state_err
+
+    # Attach UI form metadata
+    target = (
+        next((z for z in new_state if z["id"] == editing_id), None)
+        if editing_id
+        else None
+    )
+    entry = target if target else new_state[-1]
+    entry["form_type"] = zone_type
+    entry["form_params"] = form_params
+    return new_state, None
+
+
+def _convert_zone_units(
+    prev_unit: str,
+    new_unit: str,
+    w: float,
+    h: float,
+    sx: float,
+    sy: float,
+    tri_side1: float,
+    tri_side2: float,
+    circle_radius: float,
+) -> tuple[float, float, float, float, float, float, float]:
+    """Convert all zone dimension values between units."""
+
+    def _cv(val: float) -> float:
+        return convert_unit_to_unit(val, prev_unit, new_unit) if val else 0
+
+    return (
+        _cv(w),
+        _cv(h),
+        _cv(sx),
+        _cv(sy),
+        _cv(tri_side1),
+        _cv(tri_side2),
+        _cv(circle_radius),
+    )
+
+
+def _form_to_updates(
+    form: dict[str, Any],
+    value_widgets: dict[str, Any],
+    vis_widgets: dict[str, Any],
+    editing_state_w: Any,
+    add_btn_w: Any,
+    cancel_btn_w: Any,
+) -> dict[Any, Any]:
+    """Map a plain form-state dict to ``{widget: gr.update(...)}``.
+
+    Extracted to module level so its loops don't add CC to the wire function.
+    """
+    result: dict[Any, Any] = {}
+    for key, widget in value_widgets.items():
+        v = form.get(key, UNCHANGED)
+        result[widget] = gr.update() if v is UNCHANGED else gr.update(value=v)
+    for key, widget in vis_widgets.items():
+        v = form.get(key)
+        if v is not None:
+            result[widget] = gr.update(visible=v)
+    result[editing_state_w] = form.get("editing_id")
+    result[add_btn_w] = gr.update(value=form.get("add_btn_text", _BTN_ADD_ZONE))
+    result[cancel_btn_w] = gr.update(visible=form.get("cancel_btn_visible", False))
+    return result
 
 
 def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
@@ -119,22 +231,15 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
         "separation_row_visible": separation_row,
     }
 
-    def _form_to_updates(form: dict[str, Any]) -> dict[Any, Any]:
-        """Map a plain form-state dict to ``{widget: gr.update(...)}``."""
-        result: dict[Any, Any] = {}
-        for key, widget in _VALUE_WIDGETS.items():
-            v = form.get(key, UNCHANGED)
-            result[widget] = gr.update() if v is UNCHANGED else gr.update(value=v)
-        for key, widget in _VIS_WIDGETS.items():
-            v = form.get(key)
-            if v is not None:
-                result[widget] = gr.update(visible=v)
-        result[zone_editing_state] = form.get("editing_id")
-        result[add_zone_btn] = gr.update(value=form.get("add_btn_text", "+ Add Zone"))
-        result[cancel_edit_zone_btn] = gr.update(
-            visible=form.get("cancel_btn_visible", False)
+    def _form_upd(form: dict[str, Any]) -> dict[Any, Any]:
+        return _form_to_updates(
+            form,
+            _VALUE_WIDGETS,
+            _VIS_WIDGETS,
+            zone_editing_state,
+            add_zone_btn,
+            cancel_edit_zone_btn,
         )
-        return result
 
     # -- closures ----------------------------------------------------------
 
@@ -145,43 +250,45 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
     ) -> dict[Any, Any]:
         """Populate form when a zone is selected from dropdown."""
         if not selected_id:
-            return _form_to_updates(default_zone_form())
+            return _form_upd(default_zone_form())
         zone = next((z for z in current_state if z["id"] == selected_id), None)
         if not zone:
-            return _form_to_updates(default_zone_form())
-        return _form_to_updates(selected_zone_form(zone, zone_unit=zone_unit_val))
+            return _form_upd(default_zone_form())
+        return _form_upd(selected_zone_form(zone, zone_unit=zone_unit_val))
 
     def _cancel_edit_zone() -> dict[Any, Any]:
         """Cancel editing and return to add mode."""
-        result = _form_to_updates(default_zone_form())
+        result = _form_upd(default_zone_form())
         result[deployment_zones_list] = gr.update(value=None)
         return result
 
-    def _add_or_update_deployment_zone_wrapper(
-        zone_type: str,
-        border: str,
-        corner: str,
-        fill_side: bool,
-        desc: str,
-        w: float,
-        h: float,
-        tri_side1: float,
-        tri_side2: float,
-        circle_radius: float,
-        sx: float,
-        sy: float,
-        current_state: list[dict[str, Any]],
-        tw: float,
-        th: float,
-        tu: str,
-        zone_unit_val: str,
-        editing_id: str | None = None,
-    ) -> dict[Any, Any]:
+    def _add_or_update_deployment_zone_wrapper(*args: Any) -> dict[Any, Any]:
         """Add or update deployment zone (rectangle, triangle, or circle)."""
-        table_w_mm = int(convert_to_cm(tw, tu) * 10)
-        table_h_mm = int(convert_to_cm(th, tu) * 10)
+        # Positional args mirror the Gradio inputs list order
+        (
+            zone_type,
+            border,
+            corner,
+            fill_side,
+            desc,
+            w,
+            h,
+            tri_side1,
+            tri_side2,
+            circle_radius,
+            sx,
+            sy,
+            current_state,
+            tw,
+            th,
+            tu,
+            zone_unit_val,
+            editing_id,
+        ) = args
+        table_w_mm = to_mm(tw, tu)
+        table_h_mm = to_mm(th, tu)
 
-        zone_data, form_params, error_msg = build_zone_data(
+        form = ZoneFormInput(
             zone_type=zone_type,
             description=desc,
             border=border,
@@ -195,43 +302,32 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
             sep_x=sx,
             sep_y=sy,
             zone_unit=zone_unit_val,
+        )
+        zone_data, form_params, build_err = build_zone_data(
+            form,
             table_w_mm=table_w_mm,
             table_h_mm=table_h_mm,
         )
-        if error_msg:
-            return _build_error_result(current_state, error_msg, editing_id)
 
-        assert zone_data is not None  # guaranteed when error_msg is None
+        new_state, err = _apply_zone_mutation(
+            zone_data,
+            form_params,
+            build_err,
+            current_state,
+            editing_id,
+            zone_type,
+            table_w_mm,
+            table_h_mm,
+        )
+        if err:
+            return _build_error_result(current_state, err, editing_id)
 
-        if editing_id:
-            new_state, state_err = update_deployment_zone(
-                current_state, editing_id, zone_data, table_w_mm, table_h_mm
-            )
-        else:
-            new_state, state_err = add_deployment_zone(
-                current_state, zone_data, table_w_mm, table_h_mm
-            )
-
-        if state_err:
-            return _build_error_result(current_state, state_err, editing_id)
-
-        # Store form_type and form_params in the state entry
-        if editing_id:
-            for z in new_state:
-                if z["id"] == editing_id:
-                    z["form_type"] = zone_type
-                    z["form_params"] = form_params
-                    break
-        else:
-            new_state[-1]["form_type"] = zone_type
-            new_state[-1]["form_params"] = form_params
-
-        choices = get_deployment_zones_choices(new_state)
+        choices = get_deployment_zones_choices(new_state)  # type: ignore[arg-type]
         return {
             deployment_zones_state: new_state,
             deployment_zones_list: gr.update(choices=choices, value=None),
             zone_editing_state: None,
-            add_zone_btn: gr.update(value="+ Add Zone"),
+            add_zone_btn: gr.update(value=_BTN_ADD_ZONE),
             cancel_edit_zone_btn: gr.update(visible=False),
             output: {"status": "success"},
         }
@@ -245,7 +341,7 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
             deployment_zones_state: new_state,
             deployment_zones_list: gr.update(choices=choices, value=None),
             zone_editing_state: None,
-            add_zone_btn: gr.update(value="+ Add Zone"),
+            add_zone_btn: gr.update(value=_BTN_ADD_ZONE),
             cancel_edit_zone_btn: gr.update(visible=False),
         }
 
@@ -257,7 +353,7 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
                 deployment_zones_state: current_state,
                 deployment_zones_list: gr.update(),
                 zone_editing_state: None,
-                add_zone_btn: gr.update(value="+ Add Zone"),
+                add_zone_btn: gr.update(value=_BTN_ADD_ZONE),
                 cancel_edit_zone_btn: gr.update(visible=False),
             }
         new_state = remove_selected_deployment_zone(current_state, selected_id)
@@ -266,7 +362,7 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
             deployment_zones_state: new_state,
             deployment_zones_list: gr.update(choices=choices, value=None),
             zone_editing_state: None,
-            add_zone_btn: gr.update(value="+ Add Zone"),
+            add_zone_btn: gr.update(value=_BTN_ADD_ZONE),
             cancel_edit_zone_btn: gr.update(visible=False),
         }
 
@@ -489,31 +585,18 @@ def wire_deployment_zones(ctx: DeploymentZonesCtx) -> None:  # noqa: C901
         """Convert zone dimensions when unit changes."""
         if prev_unit == new_unit:
             return w, h, sx, sy, tri_side1, tri_side2, circle_radius, new_unit
-        w_converted = convert_unit_to_unit(w, prev_unit, new_unit)
-        h_converted = convert_unit_to_unit(h, prev_unit, new_unit)
-        sx_converted = convert_unit_to_unit(sx, prev_unit, new_unit) if sx else 0
-        sy_converted = convert_unit_to_unit(sy, prev_unit, new_unit) if sy else 0
-        tri_side1_converted = (
-            convert_unit_to_unit(tri_side1, prev_unit, new_unit) if tri_side1 else 0
-        )
-        tri_side2_converted = (
-            convert_unit_to_unit(tri_side2, prev_unit, new_unit) if tri_side2 else 0
-        )
-        circle_radius_converted = (
-            convert_unit_to_unit(circle_radius, prev_unit, new_unit)
-            if circle_radius
-            else 0
-        )
-        return (
-            w_converted,
-            h_converted,
-            sx_converted,
-            sy_converted,
-            tri_side1_converted,
-            tri_side2_converted,
-            circle_radius_converted,
+        converted = _convert_zone_units(
+            prev_unit,
             new_unit,
+            w,
+            h,
+            sx,
+            sy,
+            tri_side1,
+            tri_side2,
+            circle_radius,
         )
+        return (*converted, new_unit)
 
     zone_unit.change(
         fn=_on_zone_unit_change,

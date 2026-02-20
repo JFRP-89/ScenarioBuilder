@@ -46,6 +46,7 @@ class TestParsePolygonPointsValid:
 class TestParsePolygonPointsErrors:
     def test_none_input(self):
         pts, err = parse_polygon_points(None, "cm")
+        assert err is not None
         assert "No polygon points provided" in err
         assert pts == []
 

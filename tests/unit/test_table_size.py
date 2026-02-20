@@ -393,11 +393,11 @@ class TestInvalidInputs:
 
     def test_rejects_none_in_from_in(self):
         with pytest.raises(ValidationError):
-            TableSize.from_in(None, "48")
+            TableSize.from_in(None, "48")  # type: ignore[arg-type]
 
     def test_rejects_none_in_from_ft(self):
         with pytest.raises(ValidationError):
-            TableSize.from_ft(None, "4")
+            TableSize.from_ft(None, "4")  # type: ignore[arg-type]
 
     def test_rejects_negative_in_from_in(self):
         with pytest.raises(ValidationError):
@@ -430,9 +430,9 @@ class TestInvalidInputs:
     def test_rejects_float_type(self):
         """Float type should be rejected for precision reasons."""
         with pytest.raises(ValidationError):
-            TableSize.from_cm(100.5, "100")
+            TableSize.from_cm(100.5, "100")  # type: ignore[arg-type]
         with pytest.raises(ValidationError):
-            TableSize.from_cm("100", 100.5)
+            TableSize.from_cm("100", 100.5)  # type: ignore[arg-type]
 
     def test_accepts_decimal_type_directly(self):
         """Decimal type should be accepted directly."""
@@ -451,7 +451,7 @@ class TestInvalidInputs:
     def test_rejects_list_type(self):
         """List type should be rejected."""
         with pytest.raises(ValidationError):
-            TableSize.from_cm([100], "100")
+            TableSize.from_cm([100], "100")  # type: ignore[arg-type]
 
     def test_accepts_scientific_notation_lowercase_e(self):
         """Scientific notation with lowercase 'e' should work."""

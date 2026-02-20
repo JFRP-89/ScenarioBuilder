@@ -839,7 +839,7 @@ class TestInvalidInputsParametrized:
         with pytest.raises(ValidationError):
             can_read(
                 owner_id="user_a",
-                visibility="public",
+                visibility="public",  # type: ignore[arg-type]
                 current_user_id="user_b",
                 shared_with=None,
             )

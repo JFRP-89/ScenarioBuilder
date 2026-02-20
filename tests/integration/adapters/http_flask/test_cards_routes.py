@@ -258,7 +258,7 @@ def client(fake_services, monkeypatch, session_factory):
     app.config["services"] = fake_services
     c = app.test_client()
     auth = session_factory(c, "u1")
-    c._test_csrf = auth["csrf_token"]
+    c._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
     return c
 
 

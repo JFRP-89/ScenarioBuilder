@@ -199,3 +199,61 @@ def update_profile_route():
     for k, v in _NO_CACHE_HEADERS.items():
         resp.headers[k] = v
     return resp
+
+
+# ── POST /auth/register ─────────────────────────────────────────────────────
+
+
+@auth_bp.route("/register", methods=["POST"])
+def register_route():
+    """Register a new user and set session cookie (auto-login)."""
+    data = request.get_json(silent=True) or {}
+    username = str(data.get("username", ""))
+    password = str(data.get("password", ""))
+    confirm_password = str(data.get("confirm_password", ""))
+    name = str(data.get("name", ""))
+    email = str(data.get("email", ""))
+
+    result = auth_service.register(username, password, confirm_password, name, email)
+
+    if not result["ok"]:
+        body: dict[str, object] = {
+            "ok": False,
+            "message": result["message"],
+        }
+        if "errors" in result:
+            body["errors"] = result["errors"]
+        resp = make_response(jsonify(body), 400)
+        for k, v in _NO_CACHE_HEADERS.items():
+            resp.headers[k] = v
+        return resp
+
+    session_id = str(result["session_id"])
+    csrf_token = str(result["csrf_token"])
+    actor_id = str(result["actor_id"])
+
+    body = {
+        "ok": True,
+        "actor_id": actor_id,
+        "message": result["message"],
+    }
+    resp = make_response(jsonify(body), 201)
+    _set_session_cookie(resp, session_id, csrf_token)
+    for k, v in _NO_CACHE_HEADERS.items():
+        resp.headers[k] = v
+    return resp
+
+
+# ── GET /auth/check-username ─────────────────────────────────────────────────
+
+
+@auth_bp.route("/check-username", methods=["GET"])
+def check_username_route():
+    """Check if a username is available for registration."""
+    username = request.args.get("username", "").strip()
+    result = auth_service.check_username_available(username)
+
+    resp = make_response(jsonify(result), 200)
+    for k, v in _NO_CACHE_HEADERS.items():
+        resp.headers[k] = v
+    return resp

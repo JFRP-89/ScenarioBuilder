@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import random
 import struct
 
@@ -25,7 +26,7 @@ def _normalize_int(raw: int) -> int:
 
 
 def _normalize_float(raw: float) -> int:
-    if raw != raw:  # NaN check
+    if math.isnan(raw):
         raise ValidationError("seed cannot be NaN")
     if raw < 0:
         raise ValidationError(f"seed must be >= 0, got {raw}")

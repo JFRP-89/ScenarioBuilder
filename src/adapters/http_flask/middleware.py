@@ -22,7 +22,12 @@ _COOKIE_NAME = "sb_session"
 _CSRF_HEADER = "X-CSRF-Token"
 
 # Routes exempt from CSRF (login itself, health, read-only auth endpoints)
-_CSRF_EXEMPT_PREFIXES = ("/auth/login", "/health")
+_CSRF_EXEMPT_PREFIXES = (
+    "/auth/login",
+    "/auth/register",
+    "/auth/check-username",
+    "/health",
+)
 
 # Methods that require CSRF verification
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}

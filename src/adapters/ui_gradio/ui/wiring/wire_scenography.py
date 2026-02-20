@@ -16,7 +16,7 @@ from adapters.ui_gradio.state_helpers import (
     update_scenography_element,
 )
 
-from ._scenography._builder import build_scenography_data
+from ._scenography._builder import ScenographyFormInput, build_scenography_data
 from ._scenography._context import ScenographyCtx
 from ._scenography._form_state import (
     UNCHANGED,
@@ -27,6 +27,59 @@ from ._scenography._ui_updates import (
     convert_scenography_coordinates,
     scenography_type_visibility,
 )
+
+_BTN_ADD_ELEMENT = "+ Add Element"
+
+
+# ── Module-level helpers (outside wire function to reduce nesting CC) ──
+
+
+def _form_upd(form: dict[str, Any], key: str) -> Any:
+    """Return ``gr.update()`` (unchanged) or ``gr.update(value=v)``."""
+    v = form[key]
+    return gr.update() if v is UNCHANGED else gr.update(value=v)
+
+
+def _apply_scenography_mutation(
+    built: dict[str, Any],
+    current_state: list[dict[str, Any]],
+    editing_id: str | None,
+) -> tuple[list[dict[str, Any]] | None, str | None, str]:
+    """Apply a validated scenography build result.
+
+    Returns ``(new_state | None, error_msg | None, action_label)``.
+    """
+    if not built["ok"]:
+        return None, built["message"], ""
+
+    if editing_id:
+        new_state, error_msg = update_scenography_element(
+            current_state,
+            editing_id,
+            built["elem_type"],
+            built["data"],
+            built["allow_overlap"],
+            built["table_w_mm"],
+            built["table_h_mm"],
+            built["description"],
+        )
+        action = "Updated"
+    else:
+        new_state, error_msg = add_scenography_element(
+            current_state,
+            built["elem_type"],
+            built["data"],
+            built["allow_overlap"],
+            built["table_w_mm"],
+            built["table_h_mm"],
+            built["description"],
+        )
+        action = "Added"
+
+    if error_msg:
+        return None, error_msg, ""
+
+    return new_state, None, f"{action} {built['elem_type']}"
 
 
 def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
@@ -72,29 +125,24 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
         """Map flat form dict to ``{widget: gr.update(...)}``."""
         vis = scenography_type_visibility(form["type"])
         editing = form["editing_id"] is not None
-
-        def _val(key: str) -> Any:
-            v = form[key]
-            return gr.update() if v is UNCHANGED else gr.update(value=v)
-
         return {
-            scenography_description: _val("description"),
-            scenography_type: _val("type"),
+            scenography_description: _form_upd(form, "description"),
+            scenography_type: _form_upd(form, "type"),
             circle_form_row: gr.update(visible=vis["circle"]),
             rect_form_row: gr.update(visible=vis["rect"]),
             polygon_form_col: gr.update(visible=vis["polygon"]),
-            circle_cx: _val("cx"),
-            circle_cy: _val("cy"),
-            circle_r: _val("r"),
-            rect_x: _val("x"),
-            rect_y: _val("y"),
-            rect_width: _val("width"),
-            rect_height: _val("height"),
-            polygon_points: _val("polygon_points"),
-            allow_overlap_checkbox: _val("allow_overlap"),
+            circle_cx: _form_upd(form, "cx"),
+            circle_cy: _form_upd(form, "cy"),
+            circle_r: _form_upd(form, "r"),
+            rect_x: _form_upd(form, "x"),
+            rect_y: _form_upd(form, "y"),
+            rect_width: _form_upd(form, "width"),
+            rect_height: _form_upd(form, "height"),
+            polygon_points: _form_upd(form, "polygon_points"),
+            allow_overlap_checkbox: _form_upd(form, "allow_overlap"),
             scenography_editing_state: form["editing_id"],
             add_scenography_btn: gr.update(
-                value="\u270f\ufe0f Update Element" if editing else "+ Add Element"
+                value="\u270f\ufe0f Update Element" if editing else _BTN_ADD_ELEMENT
             ),
             cancel_edit_scenography_btn: gr.update(visible=editing),
         }
@@ -159,7 +207,7 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
         if not elem:
             result: dict[Any, Any] = {w: gr.update() for w in _unchanged_widgets}
             result[scenography_editing_state] = None
-            result[add_scenography_btn] = gr.update(value="+ Add Element")
+            result[add_scenography_btn] = gr.update(value=_BTN_ADD_ELEMENT)
             result[cancel_edit_scenography_btn] = gr.update(visible=False)
             return result
 
@@ -171,26 +219,9 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
         result[scenography_list] = gr.update(value=None)
         return result
 
-    def _add_or_update_scenography_wrapper(
-        description: str,
-        elem_type: str,
-        cx: float,
-        cy: float,
-        r: float,
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-        points_data: list[list[Any]],
-        allow_overlap: bool,
-        current_state: list[dict[str, Any]],
-        table_width_val: float,
-        table_height_val: float,
-        table_unit_val: str,
-        scenography_unit_val: str,
-        editing_id: str | None,
-    ) -> dict[Any, Any]:
-        built = build_scenography_data(
+    def _add_or_update_scenography_wrapper(*args: Any) -> dict[Any, Any]:
+        # Positional args mirror the Gradio inputs list order
+        (
             description,
             elem_type,
             cx,
@@ -202,50 +233,47 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
             height,
             points_data,
             allow_overlap,
+            current_state,
             table_width_val,
             table_height_val,
             table_unit_val,
             scenography_unit_val,
+            editing_id,
+        ) = args
+        form = ScenographyFormInput(
+            description=description,
+            elem_type=elem_type,
+            cx=cx,
+            cy=cy,
+            r=r,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            points_data=points_data,
+            allow_overlap=allow_overlap,
+            table_width_val=table_width_val,
+            table_height_val=table_height_val,
+            table_unit_val=table_unit_val,
+            scenography_unit_val=scenography_unit_val,
         )
-        if not built["ok"]:
-            return _build_error_result(current_state, editing_id, built["message"])
-
-        if editing_id:
-            new_state, error_msg = update_scenography_element(
-                current_state,
-                editing_id,
-                built["elem_type"],
-                built["data"],
-                built["allow_overlap"],
-                built["table_w_mm"],
-                built["table_h_mm"],
-                built["description"],
-            )
-        else:
-            new_state, error_msg = add_scenography_element(
-                current_state,
-                built["elem_type"],
-                built["data"],
-                built["allow_overlap"],
-                built["table_w_mm"],
-                built["table_h_mm"],
-                built["description"],
-            )
-
+        built = build_scenography_data(form)
+        new_state, error_msg, action = _apply_scenography_mutation(
+            built,
+            current_state,
+            editing_id,
+        )
         if error_msg:
             return _build_error_result(current_state, editing_id, error_msg)
 
-        choices = get_scenography_choices(new_state)
+        choices = get_scenography_choices(new_state)  # type: ignore[arg-type]
         return {
             scenography_state: new_state,
             scenography_list: gr.update(choices=choices, value=None),
             scenography_editing_state: None,
-            add_scenography_btn: gr.update(value="+ Add Element"),
+            add_scenography_btn: gr.update(value=_BTN_ADD_ELEMENT),
             cancel_edit_scenography_btn: gr.update(visible=False),
-            output: {
-                "status": "ok",
-                "message": (f"{'Updated' if editing_id else 'Added'} {elem_type}"),
-            },
+            output: {"status": "ok", "message": action},
         }
 
     def _remove_last_scenography_wrapper(
@@ -257,7 +285,7 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
             scenography_state: new_state,
             scenography_list: gr.update(choices=choices, value=None),
             scenography_editing_state: None,
-            add_scenography_btn: gr.update(value="+ Add Element"),
+            add_scenography_btn: gr.update(value=_BTN_ADD_ELEMENT),
             cancel_edit_scenography_btn: gr.update(visible=False),
         }
 
@@ -269,7 +297,7 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
                 scenography_state: current_state,
                 scenography_list: gr.update(),
                 scenography_editing_state: None,
-                add_scenography_btn: gr.update(value="+ Add Element"),
+                add_scenography_btn: gr.update(value=_BTN_ADD_ELEMENT),
                 cancel_edit_scenography_btn: gr.update(visible=False),
             }
         new_state = remove_selected_scenography_element(current_state, selected_id)
@@ -278,7 +306,7 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
             scenography_state: new_state,
             scenography_list: gr.update(choices=choices, value=None),
             scenography_editing_state: None,
-            add_scenography_btn: gr.update(value="+ Add Element"),
+            add_scenography_btn: gr.update(value=_BTN_ADD_ELEMENT),
             cancel_edit_scenography_btn: gr.update(visible=False),
         }
 
@@ -286,10 +314,11 @@ def wire_scenography(ctx: ScenographyCtx) -> None:  # noqa: C901
         current_polygon_rows: list[list[float]],
     ) -> dict[Any, Any]:
         updated_rows, error_msg = delete_polygon_row(current_polygon_rows)
-        msg = error_msg if error_msg else "Row deleted successfully"
         return {
             polygon_points: updated_rows,
-            polygon_delete_msg: gr.update(value=msg),
+            polygon_delete_msg: gr.update(
+                value=error_msg or "Row deleted successfully"
+            ),
         }
 
     # -- bindings ----------------------------------------------------------

@@ -111,7 +111,7 @@ class TestGetCard:
     @patch("adapters.ui_gradio.services.navigation.get_services")
     def test_not_found(self, mock_get):
         uc = MagicMock()
-        uc.execute.side_effect = Exception("Card not found")
+        uc.execute.side_effect = RuntimeError("Card not found")
         mock_get.return_value = MagicMock(get_card=uc)
 
         result = get_card("actor1", "nonexistent")
@@ -136,7 +136,7 @@ class TestToggleFavorite:
     @patch("adapters.ui_gradio.services.navigation.get_services")
     def test_error(self, mock_get):
         uc = MagicMock()
-        uc.execute.side_effect = Exception("fail")
+        uc.execute.side_effect = RuntimeError("fail")
         mock_get.return_value = MagicMock(toggle_favorite=uc)
 
         result = toggle_favorite("actor1", "c1")
@@ -191,7 +191,7 @@ class TestGetCardSvg:
     @patch("adapters.ui_gradio.services.navigation.get_services")
     def test_error_returns_placeholder(self, mock_get):
         uc = MagicMock()
-        uc.execute.side_effect = Exception("render failed")
+        uc.execute.side_effect = RuntimeError("render failed")
         mock_get.return_value = MagicMock(render_map_svg=uc)
 
         result = get_card_svg("actor1", "c1")

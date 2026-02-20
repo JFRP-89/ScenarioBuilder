@@ -120,7 +120,7 @@ def client(fake_toggle, fake_list, session_factory):
 
     with app.test_client() as test_client:
         auth = session_factory(test_client, "u1")
-        test_client._test_csrf = auth["csrf_token"]
+        test_client._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
         yield test_client
 
 
@@ -206,7 +206,7 @@ class TestToggleFavoriteForbidden:
 
         with app.test_client() as test_client:
             auth = session_factory(test_client, "u1")
-            test_client._test_csrf = auth["csrf_token"]
+            test_client._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
             yield test_client
 
     def test_post_toggle_forbidden_returns_403(self, client_forbidden):

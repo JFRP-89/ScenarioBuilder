@@ -65,6 +65,10 @@ def _db_is_reachable() -> bool:
 
     DATABASE_URL_TEST is still in os.environ (not stripped by load_env),
     so we read it directly.  Fallback: re-read from .env for local dev.
+
+    The probe connects to the ``postgres`` admin database (always exists)
+    rather than the test database itself, which may be dropped/recreated
+    by per-test fixtures.
     """
     url = os.environ.get("DATABASE_URL_TEST", "")
     if not url:
@@ -73,13 +77,22 @@ def _db_is_reachable() -> bool:
             from dotenv import dotenv_values
 
             vals = dotenv_values(env_file)
-            url = vals.get("DATABASE_URL_TEST", "")
+            url = vals.get("DATABASE_URL_TEST") or ""
     if not url:
         return False
     try:
+        from urllib.parse import urlparse, urlunparse
+
         from sqlalchemy import create_engine, text
 
-        eng = create_engine(url, connect_args={"connect_timeout": 3})
+        # Connect to the 'postgres' admin DB instead of the test DB,
+        # which may not exist yet (the repo conftest creates it per-test).
+        parsed = urlparse(url)
+        admin_url = urlunparse(
+            (parsed.scheme, parsed.netloc, "/postgres", "", parsed.query, "")
+        )
+
+        eng = create_engine(admin_url, connect_args={"connect_timeout": 3})
         with eng.connect() as conn:
             conn.execute(text("SELECT 1"))
         eng.dispose()

@@ -10,14 +10,12 @@ ENDPOINT_GENERATE_CARD = "/cards"
 # ============================================================================
 FIELD_MODE = "mode"
 FIELD_SEED = "seed"
-FIELD_TABLE_PRESET = "table_preset"
 
 # ============================================================================
 # Defaults
 # ============================================================================
 DEFAULT_TABLE_PRESET = "standard"
 REQUEST_TIMEOUT_SECONDS = 30
-SUCCESS_STATUS_CODES = {200, 201}
 
 # ============================================================================
 # Error messages
@@ -58,6 +56,5 @@ POLYGON_PRESETS: dict[str, int] = {
 # Deployment Zones
 # ============================================================================
 DEPLOYMENT_MAX_ZONES = 4
-DEPLOYMENT_BORDERS = ["north", "south", "east", "west"]
 DEPLOYMENT_ZONE_MIN_SIZE = 100  # mm
 DEPLOYMENT_ZONE_MAX_SIZE = 2000  # mm

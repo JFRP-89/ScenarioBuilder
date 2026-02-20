@@ -6,6 +6,35 @@ import uuid
 from typing import Any
 
 
+def _validate_point_bounds(
+    cx: float,
+    cy: float,
+    table_width_mm: int,
+    table_height_mm: int,
+) -> str | None:
+    """Return an error message if (cx, cy) is outside the table, else None."""
+    if cx < 0 or cx > table_width_mm:
+        return f"Objective point X coordinate {cx} out of bounds (0-{table_width_mm})"
+    if cy < 0 or cy > table_height_mm:
+        return f"Objective point Y coordinate {cy} out of bounds (0-{table_height_mm})"
+    return None
+
+
+def _find_duplicate_coords(
+    state: list[dict[str, Any]],
+    cx: float,
+    cy: float,
+    exclude_id: str | None = None,
+) -> str | None:
+    """Return an error message if another point already occupies (cx, cy)."""
+    for point in state:
+        if exclude_id and point.get("id") == exclude_id:
+            continue
+        if point["cx"] == cx and point["cy"] == cy:
+            return f"Objective point already exists at coordinates ({cx:.0f}, {cy:.0f})"
+    return None
+
+
 def add_objective_point(
     current_state: list[dict[str, Any]],
     cx: float,
@@ -19,29 +48,16 @@ def add_objective_point(
     Returns:
         Tuple of (updated_state, error_message).
     """
-    # Check max 10 limit
     if len(current_state) >= 10:
         return current_state, "Maximum 10 objective points allowed per board"
 
-    # Validate bounds
-    if cx < 0 or cx > table_width_mm:
-        return (
-            current_state,
-            f"Objective point X coordinate {cx} out of bounds (0-{table_width_mm})",
-        )
-    if cy < 0 or cy > table_height_mm:
-        return (
-            current_state,
-            f"Objective point Y coordinate {cy} out of bounds (0-{table_height_mm})",
-        )
+    bounds_err = _validate_point_bounds(cx, cy, table_width_mm, table_height_mm)
+    if bounds_err:
+        return current_state, bounds_err
 
-    # Check for duplicate coordinates
-    for existing_point in current_state:
-        if existing_point["cx"] == cx and existing_point["cy"] == cy:
-            return (
-                current_state,
-                f"Objective point already exists at coordinates ({cx:.0f}, {cy:.0f})",
-            )
+    dup_err = _find_duplicate_coords(current_state, cx, cy)
+    if dup_err:
+        return current_state, dup_err
 
     description = description.strip() if description else ""
     new_point: dict[str, Any] = {
@@ -103,25 +119,13 @@ def update_objective_point(
 
     Validates bounds and duplicate coords, excluding the point being edited.
     """
-    if cx < 0 or cx > table_width_mm:
-        return (
-            current_state,
-            f"Objective point X coordinate {cx} out of bounds (0-{table_width_mm})",
-        )
-    if cy < 0 or cy > table_height_mm:
-        return (
-            current_state,
-            f"Objective point Y coordinate {cy} out of bounds (0-{table_height_mm})",
-        )
+    bounds_err = _validate_point_bounds(cx, cy, table_width_mm, table_height_mm)
+    if bounds_err:
+        return current_state, bounds_err
 
-    for existing_point in current_state:
-        if existing_point["id"] == point_id:
-            continue
-        if existing_point["cx"] == cx and existing_point["cy"] == cy:
-            return (
-                current_state,
-                f"Objective point already exists at coordinates ({cx:.0f}, {cy:.0f})",
-            )
+    dup_err = _find_duplicate_coords(current_state, cx, cy, exclude_id=point_id)
+    if dup_err:
+        return current_state, dup_err
 
     description = description.strip() if description else ""
     updated: list[dict[str, Any]] = []

@@ -44,7 +44,7 @@ def _strip_svg_namespaces_inplace(element: DET.Element) -> None:
     if "}" in element.tag:
         element.tag = element.tag.split("}", 1)[1]
 
-    for attr_name in list(element.attrib.keys()):
+    for attr_name in dict(element.attrib):
         if "}" in attr_name:
             clean_name = attr_name.split("}", 1)[1]
             element.attrib[clean_name] = element.attrib.pop(attr_name)
@@ -90,7 +90,7 @@ def _enforce_svg_tag_allowed(tag: str) -> None:
         raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
 
 
-def _validate_svg_numeric_attr(tag: str, attr_name: str, attr_value: str) -> None:
+def _validate_svg_numeric_attr(_tag: str, attr_name: str, attr_value: str) -> None:
     """Validate numeric SVG attribute values for specific tags."""
     _NUMERIC_ATTRS = {"x", "y", "width", "height", "cx", "cy", "r"}
     if attr_name not in _NUMERIC_ATTRS:
@@ -173,7 +173,7 @@ def _validate_svg_allowlist(element: DET.Element) -> None:
     for attr_name, attr_value in element.attrib.items():
         _validate_svg_attribute(tag, attr_name, attr_value, allowed_for_tag)
 
-    for child in list(element):
+    for child in element:
         _validate_svg_allowlist(child)
 
 

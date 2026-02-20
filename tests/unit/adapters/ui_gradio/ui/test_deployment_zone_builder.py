@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 from adapters.ui_gradio.ui.wiring._deployment._zone_builder import (
+    ZoneFormInput,
     build_zone_data,
 )
 
@@ -30,15 +31,19 @@ _COMMON = {
     "sep_x": 0,
     "sep_y": 0,
     "zone_unit": "cm",
-    "table_w_mm": 1200,
-    "table_h_mm": 800,
 }
+
+_TABLE_W = 1200
+_TABLE_H = 800
 
 
 def _build(**overrides):
     """Call build_zone_data with defaults + overrides."""
     kw = {**_COMMON, **overrides}
-    return build_zone_data(**kw)
+    table_w = kw.pop("table_w_mm", _TABLE_W)
+    table_h = kw.pop("table_h_mm", _TABLE_H)
+    form = ZoneFormInput(**kw)
+    return build_zone_data(form, table_w_mm=table_w, table_h_mm=table_h)
 
 
 # ---------------------------------------------------------------------------

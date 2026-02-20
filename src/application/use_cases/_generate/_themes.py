@@ -7,6 +7,40 @@ resolution helpers used by ``generate_scenario_card``.
 from __future__ import annotations
 
 import random
+from typing import Any
+
+# =============================================================================
+# Shared theme strings (extracted to satisfy DRY / no-duplicate-literals)
+# =============================================================================
+_HOLD_THE_PASS = "Hold the pass"
+_BREAK_THE_LINE = "Break the line"
+_HOLD_THE_GATE = "Hold the gate"
+_SECURE_THE_RIDGE = "Secure the ridge"
+_CAPTURE_THE_BANNER = "Capture the banner"
+_FLANK_ASSAULT = "Flank assault"
+_HOLD_THE_FORD = "Hold the ford"
+_SKIRMISH_LINE = "Skirmish line"
+_BROKEN_BRIDGE = "Broken Bridge"
+_DELAY_THE_ENEMY = "Delay the enemy"
+_HOLD_THE_BRIDGE = "Hold the bridge"
+_RESCUE_THE_SCOUTS = "Rescue the scouts"
+_SECURE_THE_RUINS = "Secure the ruins"
+_SHIELDWALL = "Shieldwall"
+_DELAY_THE_ASSAULT = "Delay the assault"
+_DEFENSIVE_LINE = "Defensive line"
+_ENCIRCLEMENT = "Encirclement"
+_HIDDEN_RESERVE = "Hidden reserve"
+_HOLD_THE_CLEARING = "Hold the clearing"
+_HOLD_THE_GLADE = "Hold the glade"
+_HOLD_THE_HARBOR = "Hold the harbor"
+_HOLD_THE_HILL = "Hold the hill"
+_HOLD_THE_OASIS = "Hold the oasis"
+_PROTECT_THE_BANNER = "Protect the banner"
+_PROTECT_THE_GATE = "Protect the gate"
+_PROTECT_THE_GROVE = "Protect the grove"
+_RAID_THE_CARAVAN = "Raid the caravan"
+_SECURE_THE_BRIDGE = "Secure the bridge"
+_SECURE_THE_FORGE = "Secure the forge"
 
 # =============================================================================
 # CONTENT THEMES (Middle-earth themed data catalogs)
@@ -62,7 +96,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Cavalry sweep",
             "Hold the ridgeline",
             "Flank charge",
-            "Shieldwall",
+            _SHIELDWALL,
             "Rearguard stand",
         ],
         "layout": [
@@ -73,8 +107,8 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Eastfold Track",
         ],
         "objectives": [
-            "Break the line",
-            "Hold the ford",
+            _BREAK_THE_LINE,
+            _HOLD_THE_FORD,
             "Secure the hill",
             "Rescue the standard",
             "Drive back the raiders",
@@ -82,8 +116,8 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         "initial_priority": [
             "Control the ridgeline",
             "Protect the cavalry",
-            "Hold the ford",
-            "Delay the enemy",
+            _HOLD_THE_FORD,
+            _DELAY_THE_ENEMY,
             "Secure the camp",
         ],
     },
@@ -97,10 +131,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Hold the ruins",
-            "Shieldwall",
+            _SHIELDWALL,
             "Guard the bridge",
             "Counterattack",
-            "Defensive line",
+            _DEFENSIVE_LINE,
         ],
         "layout": [
             "Ruins of Osgiliath",
@@ -110,16 +144,16 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "White City Outskirts",
         ],
         "objectives": [
-            "Hold the bridge",
+            _HOLD_THE_BRIDGE,
             "Secure the causeway",
             "Protect the standard",
             "Relieve the garrison",
             "Push the line forward",
         ],
         "initial_priority": [
-            "Hold the bridge",
+            _HOLD_THE_BRIDGE,
             "Protect the garrison",
-            "Secure the ruins",
+            _SECURE_THE_RUINS,
             "Control the riverbank",
             "Retake the plaza",
         ],
@@ -133,7 +167,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Fountain Court",
         ],
         "deployment": [
-            "Hold the gate",
+            _HOLD_THE_GATE,
             "Inner wall defense",
             "Countercharge",
             "Hold the courtyard",
@@ -154,10 +188,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Secure the courtyard",
         ],
         "initial_priority": [
-            "Hold the gate",
-            "Protect the banner",
+            _HOLD_THE_GATE,
+            _PROTECT_THE_BANNER,
             "Secure the tower",
-            "Delay the assault",
+            _DELAY_THE_ASSAULT,
             "Hold the upper circle",
         ],
     },
@@ -172,27 +206,27 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         "deployment": [
             "Ruin to ruin",
             "River crossing",
-            "Hold the bridge",
-            "Skirmish line",
-            "Flank assault",
+            _HOLD_THE_BRIDGE,
+            _SKIRMISH_LINE,
+            _FLANK_ASSAULT,
         ],
         "layout": [
             "Eastern Ruins",
-            "Broken Bridge",
+            _BROKEN_BRIDGE,
             "Sunken Plaza",
             "Fallen Tower",
             "Riverbank",
         ],
         "objectives": [
             "Hold the crossing",
-            "Secure the ruins",
+            _SECURE_THE_RUINS,
             "Rescue the wounded",
             "Control the plaza",
             "Push across the river",
         ],
         "initial_priority": [
             "Hold the crossing",
-            "Secure the ruins",
+            _SECURE_THE_RUINS,
             "Control the riverbank",
             "Retake the bridge",
             "Break the enemy line",
@@ -222,16 +256,16 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "objectives": [
             "Defend the wall",
-            "Hold the gate",
+            _HOLD_THE_GATE,
             "Break the siege",
             "Rescue the defenders",
             "Secure the courtyard",
         ],
         "initial_priority": [
             "Hold the wall",
-            "Protect the gate",
+            _PROTECT_THE_GATE,
             "Secure the culvert",
-            "Delay the assault",
+            _DELAY_THE_ASSAULT,
             "Hold the courtyard",
         ],
     },
@@ -246,7 +280,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         "deployment": [
             "Pike advance",
             "Siege line",
-            "Flank assault",
+            _FLANK_ASSAULT,
             "Night raid",
             "Drive the breach",
         ],
@@ -260,8 +294,8 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         "objectives": [
             "Break the gate",
             "Hold the yard",
-            "Secure the forge",
-            "Capture the banner",
+            _SECURE_THE_FORGE,
+            _CAPTURE_THE_BANNER,
             "Drive the defenders",
         ],
         "initial_priority": [
@@ -282,9 +316,9 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Dark assault",
-            "Encirclement",
+            _ENCIRCLEMENT,
             "Wave attack",
-            "Hold the pass",
+            _HOLD_THE_PASS,
             "Breach the line",
         ],
         "layout": [
@@ -296,15 +330,15 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "objectives": [
             "Crush the enemy",
-            "Hold the pass",
+            _HOLD_THE_PASS,
             "Seize the banner",
             "Burn the outpost",
-            "Secure the ridge",
+            _SECURE_THE_RIDGE,
         ],
         "initial_priority": [
-            "Hold the pass",
-            "Break the line",
-            "Secure the ridge",
+            _HOLD_THE_PASS,
+            _BREAK_THE_LINE,
+            _SECURE_THE_RIDGE,
             "Drive the assault",
             "Capture the outpost",
         ],
@@ -322,25 +356,25 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Hall skirmish",
             "Ambush in the dark",
             "Hold the chamber",
-            "Break the line",
+            _BREAK_THE_LINE,
         ],
         "layout": [
             "Pillared Hall",
-            "Broken Bridge",
+            _BROKEN_BRIDGE,
             "Deep Tunnel",
             "Collapsed Stair",
             "Dwarven Hall",
         ],
         "objectives": [
             "Secure the chamber",
-            "Hold the bridge",
-            "Rescue the scouts",
+            _HOLD_THE_BRIDGE,
+            _RESCUE_THE_SCOUTS,
             "Claim the relic",
             "Drive out the foe",
         ],
         "initial_priority": [
             "Hold the hall",
-            "Secure the bridge",
+            _SECURE_THE_BRIDGE,
             "Control the tunnel",
             "Protect the expedition",
             "Claim the relic",
@@ -355,31 +389,31 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Imladris Patrol",
         ],
         "deployment": [
-            "Defensive line",
+            _DEFENSIVE_LINE,
             "Flank strike",
-            "Hold the ford",
+            _HOLD_THE_FORD,
             "Swift response",
-            "Hidden reserve",
+            _HIDDEN_RESERVE,
         ],
         "layout": [
             "Hidden Valley",
             "River Crossing",
             "Elven Terrace",
             "Shaded Glade",
-            "Broken Bridge",
+            _BROKEN_BRIDGE,
         ],
         "objectives": [
             "Protect the sanctuary",
-            "Hold the ford",
+            _HOLD_THE_FORD,
             "Secure the glade",
             "Rescue the envoy",
             "Drive the invaders",
         ],
         "initial_priority": [
-            "Hold the ford",
+            _HOLD_THE_FORD,
             "Protect the sanctuary",
             "Secure the glade",
-            "Delay the enemy",
+            _DELAY_THE_ENEMY,
             "Retake the crossing",
         ],
     },
@@ -393,10 +427,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Forest ambush",
-            "Hold the glade",
+            _HOLD_THE_GLADE,
             "Flank in the trees",
             "Silent advance",
-            "Hidden reserve",
+            _HIDDEN_RESERVE,
         ],
         "layout": [
             "Mallorn Grove",
@@ -407,16 +441,16 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "objectives": [
             "Defend the grove",
-            "Hold the glade",
+            _HOLD_THE_GLADE,
             "Secure the riverbank",
-            "Rescue the scouts",
+            _RESCUE_THE_SCOUTS,
             "Drive out the intruders",
         ],
         "initial_priority": [
-            "Hold the glade",
-            "Protect the grove",
+            _HOLD_THE_GLADE,
+            _PROTECT_THE_GROVE,
             "Secure the path",
-            "Delay the enemy",
+            _DELAY_THE_ENEMY,
             "Cut off the advance",
         ],
     },
@@ -430,7 +464,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Ambush in the dark",
-            "Hold the clearing",
+            _HOLD_THE_CLEARING,
             "Stalk the enemy",
             "Silent strike",
             "Shadow line",
@@ -447,12 +481,12 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Rescue the captives",
             "Secure the trail",
             "Destroy the nests",
-            "Hold the clearing",
+            _HOLD_THE_CLEARING,
         ],
         "initial_priority": [
             "Secure the trail",
             "Clear the glade",
-            "Hold the clearing",
+            _HOLD_THE_CLEARING,
             "Protect the patrol",
             "Drive out the spiders",
         ],
@@ -469,7 +503,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Ambush among trees",
             "Hold the forest",
             "Slow advance",
-            "Hidden reserve",
+            _HIDDEN_RESERVE,
             "Guard the path",
         ],
         "layout": [
@@ -480,17 +514,17 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Deep Wood",
         ],
         "objectives": [
-            "Protect the grove",
+            _PROTECT_THE_GROVE,
             "Hold the trail",
-            "Rescue the scouts",
+            _RESCUE_THE_SCOUTS,
             "Secure the clearing",
             "Drive out the intruders",
         ],
         "initial_priority": [
             "Hold the trail",
-            "Protect the grove",
+            _PROTECT_THE_GROVE,
             "Secure the clearing",
-            "Delay the enemy",
+            _DELAY_THE_ENEMY,
             "Protect the guardians",
         ],
     },
@@ -503,31 +537,31 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Eagle Watch",
         ],
         "deployment": [
-            "Hold the pass",
+            _HOLD_THE_PASS,
             "Ambush from above",
-            "Skirmish line",
+            _SKIRMISH_LINE,
             "Mountain defense",
             "Flank the ridge",
         ],
         "layout": [
             "High Pass",
             "Stone Ridge",
-            "Broken Bridge",
+            _BROKEN_BRIDGE,
             "Mountain Lake",
             "Cliffside Trail",
         ],
         "objectives": [
-            "Hold the pass",
-            "Secure the ridge",
-            "Rescue the scouts",
+            _HOLD_THE_PASS,
+            _SECURE_THE_RIDGE,
+            _RESCUE_THE_SCOUTS,
             "Claim the bridge",
             "Drive back the raiders",
         ],
         "initial_priority": [
-            "Hold the pass",
-            "Secure the ridge",
+            _HOLD_THE_PASS,
+            _SECURE_THE_RIDGE,
             "Protect the scouts",
-            "Delay the assault",
+            _DELAY_THE_ASSAULT,
             "Control the bridge",
         ],
     },
@@ -540,9 +574,9 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Erebor Reserve",
         ],
         "deployment": [
-            "Hold the gate",
+            _HOLD_THE_GATE,
             "Forge defense",
-            "Shieldwall",
+            _SHIELDWALL,
             "Countercharge",
             "Stand fast",
         ],
@@ -554,16 +588,16 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Treasure Vault",
         ],
         "objectives": [
-            "Hold the gate",
-            "Secure the forge",
+            _HOLD_THE_GATE,
+            _SECURE_THE_FORGE,
             "Protect the vault",
             "Rescue the miners",
             "Drive out the foe",
         ],
         "initial_priority": [
-            "Hold the gate",
+            _HOLD_THE_GATE,
             "Protect the vault",
-            "Secure the forge",
+            _SECURE_THE_FORGE,
             "Hold the passage",
             "Break the assault",
         ],
@@ -579,9 +613,9 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         "deployment": [
             "Hold the square",
             "Bridge defense",
-            "Flank assault",
+            _FLANK_ASSAULT,
             "Guard the market",
-            "Skirmish line",
+            _SKIRMISH_LINE,
         ],
         "layout": [
             "Market Square",
@@ -592,15 +626,15 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "objectives": [
             "Hold the market",
-            "Secure the bridge",
+            _SECURE_THE_BRIDGE,
             "Rescue the traders",
-            "Protect the gate",
+            _PROTECT_THE_GATE,
             "Drive off the raiders",
         ],
         "initial_priority": [
             "Hold the square",
-            "Protect the gate",
-            "Secure the bridge",
+            _PROTECT_THE_GATE,
+            _SECURE_THE_BRIDGE,
             "Defend the market",
             "Delay the raiders",
         ],
@@ -615,10 +649,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Desert ambush",
-            "Flank assault",
-            "Hold the oasis",
-            "Skirmish line",
-            "Raid the caravan",
+            _FLANK_ASSAULT,
+            _HOLD_THE_OASIS,
+            _SKIRMISH_LINE,
+            _RAID_THE_CARAVAN,
         ],
         "layout": [
             "Oasis Ridge",
@@ -628,17 +662,17 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Broken Outpost",
         ],
         "objectives": [
-            "Hold the oasis",
-            "Raid the caravan",
-            "Secure the ridge",
-            "Capture the banner",
+            _HOLD_THE_OASIS,
+            _RAID_THE_CARAVAN,
+            _SECURE_THE_RIDGE,
+            _CAPTURE_THE_BANNER,
             "Drive off the patrol",
         ],
         "initial_priority": [
-            "Hold the oasis",
-            "Secure the ridge",
-            "Raid the caravan",
-            "Break the line",
+            _HOLD_THE_OASIS,
+            _SECURE_THE_RIDGE,
+            _RAID_THE_CARAVAN,
+            _BREAK_THE_LINE,
             "Control the trail",
         ],
     },
@@ -652,10 +686,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Spear wall",
-            "Flank assault",
-            "Hold the hill",
-            "Skirmish line",
-            "Encirclement",
+            _FLANK_ASSAULT,
+            _HOLD_THE_HILL,
+            _SKIRMISH_LINE,
+            _ENCIRCLEMENT,
         ],
         "layout": [
             "Red Plain",
@@ -665,14 +699,14 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Warded Camp",
         ],
         "objectives": [
-            "Hold the hill",
+            _HOLD_THE_HILL,
             "Secure the shrine",
-            "Capture the banner",
-            "Break the line",
+            _CAPTURE_THE_BANNER,
+            _BREAK_THE_LINE,
             "Drive back the enemy",
         ],
         "initial_priority": [
-            "Hold the hill",
+            _HOLD_THE_HILL,
             "Secure the shrine",
             "Maintain the line",
             "Break the enemy",
@@ -688,8 +722,8 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Numenor Veterans",
         ],
         "deployment": [
-            "Hold the harbor",
-            "Shieldwall",
+            _HOLD_THE_HARBOR,
+            _SHIELDWALL,
             "Coastal defense",
             "Flank by the docks",
             "Guard the gate",
@@ -702,17 +736,17 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
             "Coastal Road",
         ],
         "objectives": [
-            "Hold the harbor",
+            _HOLD_THE_HARBOR,
             "Secure the sea gate",
-            "Protect the banner",
+            _PROTECT_THE_BANNER,
             "Control the docks",
             "Drive off the raiders",
         ],
         "initial_priority": [
-            "Hold the harbor",
+            _HOLD_THE_HARBOR,
             "Secure the sea gate",
             "Control the docks",
-            "Protect the banner",
+            _PROTECT_THE_BANNER,
             "Hold the road",
         ],
     },
@@ -726,10 +760,10 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "deployment": [
             "Shadow advance",
-            "Encirclement",
+            _ENCIRCLEMENT,
             "Hold the ruin",
             "Night raid",
-            "Break the line",
+            _BREAK_THE_LINE,
         ],
         "layout": [
             "Frozen Ruins",
@@ -740,16 +774,16 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "objectives": [
             "Claim the ruins",
-            "Hold the pass",
-            "Capture the banner",
+            _HOLD_THE_PASS,
+            _CAPTURE_THE_BANNER,
             "Crush the defenders",
             "Secure the road",
         ],
         "initial_priority": [
-            "Hold the pass",
-            "Secure the ruins",
+            _HOLD_THE_PASS,
+            _SECURE_THE_RUINS,
             "Crush the line",
-            "Capture the banner",
+            _CAPTURE_THE_BANNER,
             "Control the road",
         ],
     },
@@ -763,7 +797,7 @@ _CONTENT_THEMES: dict[str, dict[str, list[str]]] = {
 DEPLOYMENT_DESCRIPTIONS = [
     "Vanguard deployment",
     "Flanking position",
-    "Defensive line",
+    _DEFENSIVE_LINE,
     "Staging ground",
 ]
 
@@ -837,3 +871,55 @@ def resolve_seed_preview(seed: int) -> dict[str, str]:
     For repo-aware resolution, use ``GenerateScenarioCard.resolve_seed_preview``.
     """
     return _resolve_seed_from_themes(seed)
+
+
+# =============================================================================
+# FULL SEED DEFAULTS (mode + table + text + shapes)
+# =============================================================================
+
+_MODES = ["casual", "narrative", "matched"]
+_TABLE_PRESETS = [
+    ("standard", 1200, 1200),
+    ("massive", 1800, 1200),
+]
+
+
+def _resolve_full_seed_defaults(seed: int) -> dict[str, Any]:
+    """Deterministically derive **all** card config fields from a seed.
+
+    Returns a dict matching the shape of ``_build_final_seed_config``
+    so that ``calculate_seed_from_config(result)`` can be compared
+    against the hash of user-submitted content to verify a seed match.
+
+    Keys: mode, table_preset, table_width_mm, table_height_mm, armies,
+    deployment, layout, objectives, initial_priority, special_rules,
+    deployment_shapes, objective_shapes, scenography_specs.
+    """
+    from application.use_cases._generate._shape_generation import (
+        _generate_seeded_shapes,
+    )
+
+    # Use a separate RNG namespace to avoid colliding with
+    # _resolve_seed_from_themes (which also seeds with ``seed``).
+    rng = random.Random(f"defaults-{seed}")  # nosec B311
+
+    mode = rng.choice(_MODES)
+    preset_name, tw, th = rng.choice(_TABLE_PRESETS)
+
+    text = _resolve_seed_from_themes(seed)
+    shapes = _generate_seeded_shapes(seed, tw, th)
+
+    return {
+        "mode": mode,
+        "table_preset": preset_name,
+        "table_width_mm": tw,
+        "table_height_mm": th,
+        **text,
+        "special_rules": None,
+        "deployment_shapes": shapes.get("deployment_shapes", []),
+        "objective_shapes": shapes.get("objective_shapes", []),
+        "scenography_specs": sorted(
+            shapes.get("scenography_specs", []),
+            key=lambda x: not x.get("allow_overlap", False),
+        ),
+    }

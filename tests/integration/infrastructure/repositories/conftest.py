@@ -59,16 +59,16 @@ def _get_urls() -> tuple[str, str, str]:
     netloc = parsed.netloc
     scheme = parsed.scheme
     path = parsed.path
+    query = parsed.query  # preserve query params (e.g. client_encoding)
 
     base_db = "scenario" if not path or path == "/" else path.lstrip("/")
 
-    if os.environ.get("DATABASE_URL_TEST"):
-        test_db_name = base_db or "scenario_test"
-    else:
-        test_db_name = f"{base_db}_repo_test"
+    # Always use a dedicated name so repo fixtures don't conflict with
+    # the session-scoped auth fixtures that share scenario_test.
+    test_db_name = f"{base_db}_repo"
 
-    test_db_url = urlunparse((scheme, netloc, f"/{test_db_name}", "", "", ""))
-    admin_url = urlunparse((scheme, netloc, "/postgres", "", "", ""))
+    test_db_url = urlunparse((scheme, netloc, f"/{test_db_name}", "", query, ""))
+    admin_url = urlunparse((scheme, netloc, "/postgres", "", query, ""))
     return test_db_url, admin_url, test_db_name
 
 
@@ -77,6 +77,8 @@ def _run_alembic(test_db_url: str) -> None:
     repo_root = Path(__file__).resolve().parents[4]
     env = os.environ.copy()
     env["DATABASE_URL"] = test_db_url
+    # Prevent alembic/env.py from overwriting DATABASE_URL with .env values
+    env["CI"] = "true"
 
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
@@ -119,6 +121,15 @@ def repo_db_url():
     engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     try:
         with engine.connect() as conn:
+            # Terminate stale connections (e.g. from auth session-scoped fixtures)
+            conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) "
+                    "FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ),
+                {"db": test_db_name},
+            )
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
             conn.execute(text(f"CREATE DATABASE {quoted_db}"))
 
@@ -126,6 +137,14 @@ def repo_db_url():
         yield test_db_url
     finally:
         with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) "
+                    "FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ),
+                {"db": test_db_name},
+            )
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
         engine.dispose()
         os.environ.pop("DATABASE_URL", None)

@@ -6,6 +6,7 @@ using the ``scenario_card`` component.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
@@ -111,56 +112,61 @@ def go_to_next_page(
     )
 
 
-def wire_home_page(
-    *,
-    home_recent_html: gr.HTML,
-    home_mode_filter: gr.Radio,
-    home_preset_filter: gr.Radio,
-    home_unit_selector: gr.Radio,
-    home_search_box: gr.Textbox,
-    home_per_page_dropdown: gr.Dropdown,
-    home_reload_btn: gr.Button,
-    home_prev_btn: gr.Button,
-    home_page_info: gr.HTML,
-    home_next_btn: gr.Button,
-    home_page_state: gr.State,
-    home_cards_cache_state: gr.State,
-    home_fav_ids_cache_state: gr.State,
-    app: gr.Blocks,
-    actor_id_state: gr.State | None = None,
-) -> None:
+@dataclass(frozen=True)
+class HomePageCtx:
+    """Widget references for home-page wiring."""
+
+    home_recent_html: gr.HTML
+    home_mode_filter: gr.Radio
+    home_preset_filter: gr.Radio
+    home_unit_selector: gr.Radio
+    home_search_box: gr.Textbox
+    home_per_page_dropdown: gr.Dropdown
+    home_reload_btn: gr.Button
+    home_prev_btn: gr.Button
+    home_page_info: gr.HTML
+    home_next_btn: gr.Button
+    home_page_state: gr.State
+    home_cards_cache_state: gr.State
+    home_fav_ids_cache_state: gr.State
+    app: gr.Blocks
+    actor_id_state: gr.State | None = None
+
+
+def wire_home_page(*, ctx: HomePageCtx) -> None:
     """Wire the home page to load recent cards with pagination and filters."""
+    c = ctx
     _all_inputs: list[gr.components.Component] = [
-        home_mode_filter,
-        home_preset_filter,
-        home_unit_selector,
-        home_page_state,
-        home_search_box,
-        home_per_page_dropdown,
+        c.home_mode_filter,
+        c.home_preset_filter,
+        c.home_unit_selector,
+        c.home_page_state,
+        c.home_search_box,
+        c.home_per_page_dropdown,
     ]
-    if actor_id_state is not None:
-        _all_inputs.append(actor_id_state)
+    if c.actor_id_state is not None:
+        _all_inputs.append(c.actor_id_state)
     _cache_inputs = [
-        home_mode_filter,
-        home_preset_filter,
-        home_unit_selector,
-        home_page_state,
-        home_cards_cache_state,
-        home_fav_ids_cache_state,
-        home_search_box,
-        home_per_page_dropdown,
+        c.home_mode_filter,
+        c.home_preset_filter,
+        c.home_unit_selector,
+        c.home_page_state,
+        c.home_cards_cache_state,
+        c.home_fav_ids_cache_state,
+        c.home_search_box,
+        c.home_per_page_dropdown,
     ]
-    _page_outputs = [home_recent_html, home_page_info, home_page_state]
+    _page_outputs = [c.home_recent_html, c.home_page_info, c.home_page_state]
     _full_outputs = [
-        home_recent_html,
-        home_page_info,
-        home_page_state,
-        home_cards_cache_state,
-        home_fav_ids_cache_state,
+        c.home_recent_html,
+        c.home_page_info,
+        c.home_page_state,
+        c.home_cards_cache_state,
+        c.home_fav_ids_cache_state,
     ]
 
     # Load cards on initial page load
-    app.load(fn=load_recent_cards, inputs=_all_inputs, outputs=_full_outputs)
+    c.app.load(fn=load_recent_cards, inputs=_all_inputs, outputs=_full_outputs)
 
     # Filter changes → reset to page 1 from cache
     def _cache_reset_page1(
@@ -178,10 +184,10 @@ def wire_home_page(
         )
 
     for widget in (
-        home_mode_filter,
-        home_preset_filter,
-        home_search_box,
-        home_per_page_dropdown,
+        c.home_mode_filter,
+        c.home_preset_filter,
+        c.home_search_box,
+        c.home_per_page_dropdown,
     ):
         widget.change(
             fn=_cache_reset_page1,
@@ -190,26 +196,26 @@ def wire_home_page(
         )
 
     # Unit change keeps current page
-    home_unit_selector.change(
+    c.home_unit_selector.change(
         fn=render_from_cache,
         inputs=_cache_inputs,
         outputs=_page_outputs,
     )
 
     # Reload from API
-    home_reload_btn.click(
+    c.home_reload_btn.click(
         fn=load_recent_cards,
         inputs=_all_inputs,
         outputs=_full_outputs,
     )
 
     # Pagination
-    home_prev_btn.click(
+    c.home_prev_btn.click(
         fn=go_to_previous_page,
         inputs=_cache_inputs,
         outputs=_page_outputs,
     )
-    home_next_btn.click(
+    c.home_next_btn.click(
         fn=go_to_next_page,
         inputs=_cache_inputs,
         outputs=_page_outputs,

@@ -34,15 +34,5 @@ DEFAULT_VISIBILITY = "private"
 DEFAULT_TABLE_PRESET = "standard"
 DEFAULT_FILTER = "mine"
 
-# Allowed values (adapter-level reference only)
-ALLOWED_GAME_MODES = {"casual", "narrative", "matched"}
-ALLOWED_VISIBILITIES = {"private", "shared", "public"}
-ALLOWED_TABLE_PRESETS = {"standard", "massive", "custom"}
-
-# Table presets
-TABLE_PRESET_STANDARD = "standard"
-TABLE_PRESET_MASSIVE = "massive"
-TABLE_PRESET_CUSTOM = "custom"
-
 # Health
 STATUS_OK = "ok"

@@ -28,7 +28,7 @@ def app_with_client(session_factory):
     app.config["TESTING"] = True
     c = app.test_client()
     auth = session_factory(c, "user-test")
-    c._test_csrf = auth["csrf_token"]
+    c._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
     return app, c
 
 
@@ -36,7 +36,7 @@ class TestCardsPutUpdate:
     """Test PUT /cards/<card_id> endpoint."""
 
     def test_put_update_existing_card_preserves_seed(self, app_with_client):
-        """PUT should update card while preserving seed."""
+        """PUT should update card; seed is preserved (edit mode stability)."""
         app, flask_client = app_with_client
         actor_id = "user-test"
 
@@ -87,11 +87,11 @@ class TestCardsPutUpdate:
         ), f"Expected 200, got {response.status_code}: {response.data}"
         data = response.get_json()
 
-        # 5) Verify seed is preserved
-        assert data["seed"] == initial_seed, (
-            f"Seed should be preserved during edit. "
-            f"Initial: {initial_seed}, Updated: {data['seed']}"
-        )
+        # 5) Edit mode preserves seed stability
+        assert data["seed"] > 0
+        assert (
+            data["seed"] == initial_seed
+        ), "Seed should be preserved on PUT update (edit mode stability)."
 
         # 6) Verify armies updated
         assert data["armies"] == "Updated Army"

@@ -6,6 +6,7 @@ using the ``scenario_card`` component.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
@@ -21,7 +22,7 @@ from adapters.ui_gradio.ui.router import (
 )
 
 # Set by wire_list_page(); used by _navigate_and_load() for no-op sizing.
-_N_CONTAINERS: int = 6
+_n_containers_holder: list[int] = [6]
 
 
 def _refresh_cache(
@@ -121,60 +122,43 @@ def _go_next(
 
 
 def _navigate_and_load(
-    loaded: bool,
     filter_value: str,
     unit: str,
-    cache: dict[str, list[dict[str, Any]]],
-    fav_ids: list[str],
     sid: str = "",
+    actor_id: str = "",
 ):
-    """Navigate to list page, loading data if not cached.
+    """Navigate to list page, always loading fresh data from the API.
 
     If the session has been invalidated (e.g. by a concurrent logout),
     returns a full no-op to avoid re-showing page containers after
     the login panel is already displayed.
     """
     # page_state + containers + 7 data outputs
-    _n_out = 1 + _N_CONTAINERS + 7
+    _n_out = 1 + _n_containers_holder[0] + 7
 
     # Fast check: if the session is already gone, skip everything.
     if sid and not is_session_valid(sid):
         return tuple(gr.update() for _ in range(_n_out))
 
     nav = navigate_to(PAGE_LIST)
-    if loaded:
-        html, page_info, new_page = _render_from_cache(
-            filter_value, unit, 1, cache, fav_ids
-        )
-        result = (
-            *nav,
-            filter_value,
-            html,
-            page_info,
-            new_page,
-            cache,
-            fav_ids,
-            loaded,
-        )
-    else:
-        (
-            html,
-            page_info,
-            new_page,
-            new_cache,
-            new_fav_ids,
-            loaded_flag,
-        ) = _refresh_cache("mine", "cm")
-        result = (
-            *nav,
-            "mine",
-            html,
-            page_info,
-            new_page,
-            new_cache,
-            new_fav_ids,
-            loaded_flag,
-        )
+    (
+        html,
+        page_info,
+        new_page,
+        new_cache,
+        new_fav_ids,
+        loaded_flag,
+    ) = _refresh_cache(filter_value, unit, actor_id=actor_id)
+    result = (
+        *nav,
+        filter_value,
+        html,
+        page_info,
+        new_page,
+        new_cache,
+        new_fav_ids,
+        loaded_flag,
+    )
 
     # Re-check AFTER the (potentially slow) API call so that a
     # concurrent logout that invalidated the session while we were
@@ -185,50 +169,51 @@ def _navigate_and_load(
     return result
 
 
-def wire_list_page(
-    *,
-    page_state: gr.State,
-    page_containers: list[gr.Column],
-    # List page widgets
-    list_filter: gr.Radio,
-    list_unit_selector: gr.Radio,
-    list_search_box: gr.Textbox,
-    list_per_page_dropdown: gr.Dropdown,
-    list_reload_btn: gr.Button,
-    list_cards_html: gr.HTML,
-    list_page_info: gr.HTML,
-    list_prev_btn: gr.Button,
-    list_next_btn: gr.Button,
-    list_page_state: gr.State,
-    # Home buttons that also trigger list load
-    home_browse_btn: gr.Button,
-    # Cache states
-    list_cards_cache_state: gr.State,
-    list_fav_ids_cache_state: gr.State,
-    list_loaded_state: gr.State,
-    actor_id_state: gr.State | None = None,
-    session_id_state: gr.State | None = None,
-) -> Any:
+@dataclass(frozen=True)
+class ListPageCtx:
+    """Widget references for list-page wiring."""
+
+    page_state: gr.State
+    page_containers: list[gr.Column]
+    list_filter: gr.Radio
+    list_unit_selector: gr.Radio
+    list_search_box: gr.Textbox
+    list_per_page_dropdown: gr.Dropdown
+    list_reload_btn: gr.Button
+    list_cards_html: gr.HTML
+    list_page_info: gr.HTML
+    list_prev_btn: gr.Button
+    list_next_btn: gr.Button
+    list_page_state: gr.State
+    home_browse_btn: gr.Button
+    list_cards_cache_state: gr.State
+    list_fav_ids_cache_state: gr.State
+    list_loaded_state: gr.State
+    actor_id_state: gr.State | None = None
+    session_id_state: gr.State | None = None
+
+
+def wire_list_page(*, ctx: ListPageCtx) -> Any:
     """Wire the list page interactions.
 
     Returns:
         The ``home_browse_btn.click`` event ``Dependency``.
     """
-    global _N_CONTAINERS
-    _N_CONTAINERS = len(page_containers)
+    c = ctx
+    _n_containers_holder[0] = len(c.page_containers)
 
     _cache_inputs = [
-        list_filter,
-        list_unit_selector,
-        list_page_state,
-        list_cards_cache_state,
-        list_fav_ids_cache_state,
-        list_search_box,
-        list_per_page_dropdown,
+        c.list_filter,
+        c.list_unit_selector,
+        c.list_page_state,
+        c.list_cards_cache_state,
+        c.list_fav_ids_cache_state,
+        c.list_search_box,
+        c.list_per_page_dropdown,
     ]
-    _page_outputs = [list_cards_html, list_page_info, list_page_state]
+    _page_outputs = [c.list_cards_html, c.list_page_info, c.list_page_state]
 
-    for widget in (list_filter, list_search_box, list_per_page_dropdown):
+    for widget in (c.list_filter, c.list_search_box, c.list_per_page_dropdown):
         widget.change(
             fn=_cache_reset_page1,
             inputs=_cache_inputs,
@@ -236,7 +221,7 @@ def wire_list_page(
         )
 
     # Unit change keeps current page
-    list_unit_selector.change(
+    c.list_unit_selector.change(
         fn=_render_from_cache,
         inputs=_cache_inputs,
         outputs=_page_outputs,
@@ -247,56 +232,55 @@ def wire_list_page(
         filter(
             None,
             [
-                list_filter,
-                list_unit_selector,
-                list_search_box,
-                list_per_page_dropdown,
-                actor_id_state,
+                c.list_filter,
+                c.list_unit_selector,
+                c.list_search_box,
+                c.list_per_page_dropdown,
+                c.actor_id_state,
             ],
         )
     )
 
-    list_reload_btn.click(
+    c.list_reload_btn.click(
         fn=_refresh_cache,
         inputs=_refresh_inputs,
         outputs=[
-            list_cards_html,
-            list_page_info,
-            list_page_state,
-            list_cards_cache_state,
-            list_fav_ids_cache_state,
-            list_loaded_state,
+            c.list_cards_html,
+            c.list_page_info,
+            c.list_page_state,
+            c.list_cards_cache_state,
+            c.list_fav_ids_cache_state,
+            c.list_loaded_state,
         ],
     )
 
     # Pagination
-    list_prev_btn.click(fn=_go_prev, inputs=_cache_inputs, outputs=_page_outputs)
-    list_next_btn.click(fn=_go_next, inputs=_cache_inputs, outputs=_page_outputs)
+    c.list_prev_btn.click(fn=_go_prev, inputs=_cache_inputs, outputs=_page_outputs)
+    c.list_next_btn.click(fn=_go_next, inputs=_cache_inputs, outputs=_page_outputs)
 
     # Navigate from home → list page
     _nav_inputs: list[gr.components.Component] = [
-        list_loaded_state,
-        list_filter,
-        list_unit_selector,
-        list_cards_cache_state,
-        list_fav_ids_cache_state,
+        c.list_filter,
+        c.list_unit_selector,
     ]
-    if session_id_state is not None:
-        _nav_inputs.append(session_id_state)
+    if c.session_id_state is not None:
+        _nav_inputs.append(c.session_id_state)
+    if c.actor_id_state is not None:
+        _nav_inputs.append(c.actor_id_state)
 
-    browse_event = home_browse_btn.click(
+    browse_event = c.home_browse_btn.click(
         fn=_navigate_and_load,
         inputs=_nav_inputs,
         outputs=[
-            page_state,
-            *page_containers,
-            list_filter,
-            list_cards_html,
-            list_page_info,
-            list_page_state,
-            list_cards_cache_state,
-            list_fav_ids_cache_state,
-            list_loaded_state,
+            c.page_state,
+            *c.page_containers,
+            c.list_filter,
+            c.list_cards_html,
+            c.list_page_info,
+            c.list_page_state,
+            c.list_cards_cache_state,
+            c.list_fav_ids_cache_state,
+            c.list_loaded_state,
         ],
     )
 

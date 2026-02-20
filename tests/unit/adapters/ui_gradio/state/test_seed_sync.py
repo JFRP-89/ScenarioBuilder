@@ -207,7 +207,7 @@ class TestApiScenographyToUiState:
             {"type": "rect", "x": 200, "y": 200, "width": 50, "height": 50},
             {"type": "polygon", "points": [[0, 0], [10, 0], [5, 8]]},
         ]
-        result = api_scenography_to_ui_state(shapes)
+        result = api_scenography_to_ui_state(shapes)  # type: ignore[arg-type]
         ids = [e["id"] for e in result]
         assert len(set(ids)) == 3
 

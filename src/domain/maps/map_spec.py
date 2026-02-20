@@ -10,6 +10,7 @@ from domain.maps.map_spec_validation import (
     _validate_shapes_not_none,
     validate_deployment_shapes,
     validate_objective_shapes,
+    validate_scenography_shapes,
 )
 from domain.maps.table_size import TableSize
 
@@ -32,6 +33,9 @@ class MapSpec:
 
         for shape in shapes:
             _validate_shape(shape, width_mm, height_mm)
+
+        # Validate scenography count and allow_overlap balance
+        validate_scenography_shapes(shapes)
 
         # Validate objective_shapes (optional)
         validate_objective_shapes(self.objective_shapes, width_mm, height_mm)

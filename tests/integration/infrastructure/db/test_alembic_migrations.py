@@ -92,15 +92,13 @@ def _get_urls() -> tuple[str, str, str]:
 
     base_db = "scenario" if not path or path == "/" else path.lstrip("/")
 
-    # Determine test database name
-    if os.environ.get("DATABASE_URL_TEST"):
-        test_db_name = base_db if base_db else "scenario_test"
-    else:
-        test_db_name = f"{base_db}_test"
+    # Always use a dedicated name so alembic fixtures don't conflict with
+    # the session-scoped auth fixtures that share scenario_test.
+    test_db_name = f"{base_db}_alembic"
 
     # Construct URLs with proper database names
-    test_db_url = urlunparse((scheme, netloc, f"/{test_db_name}", "", "", ""))
-    admin_url = urlunparse((scheme, netloc, "/postgres", "", "", ""))
+    test_db_url = urlunparse((scheme, netloc, f"/{test_db_name}", "", parsed.query, ""))
+    admin_url = urlunparse((scheme, netloc, "/postgres", "", parsed.query, ""))
 
     return test_db_url, admin_url, test_db_name
 
@@ -118,11 +116,28 @@ def test_db_url() -> Generator[str, None, None]:
     quoted_db = _quote_ident(test_db_name)
     try:
         with engine.connect() as conn:
+            # Terminate stale connections (e.g. from auth session-scoped fixtures)
+            conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) "
+                    "FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ),
+                {"db": test_db_name},
+            )
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
             conn.execute(text(f"CREATE DATABASE {quoted_db}"))
         yield test_db_url
     finally:
         with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) "
+                    "FROM pg_stat_activity "
+                    "WHERE datname = :db AND pid != pg_backend_pid()"
+                ),
+                {"db": test_db_name},
+            )
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
         engine.dispose()
         os.environ.pop("DATABASE_URL", None)
@@ -140,6 +155,7 @@ def test_alembic_upgrade_creates_cards_table(test_db_url: str) -> None:
     repo_root = Path(__file__).resolve().parents[4]
     env = os.environ.copy()
     env["DATABASE_URL"] = test_db_url
+    env["CI"] = "true"  # Prevent alembic/env.py overwriting with .env
 
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],

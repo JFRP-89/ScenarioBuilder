@@ -74,3 +74,11 @@ class InMemoryFavoritesRepository:
             List of card_ids sorted lexicographically.
         """
         return self._get_actor_favorites(actor_id)
+
+    def remove_all_for_card(self, card_id: str) -> None:
+        """Remove all favorites referencing a card.
+
+        Args:
+            card_id: The card id to remove from all actors' favorites.
+        """
+        self._favorites = {(a, c) for a, c in self._favorites if c != card_id}

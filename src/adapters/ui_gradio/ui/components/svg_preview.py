@@ -11,9 +11,14 @@ from typing import Any, Callable
 
 import gradio as gr
 
-# Render function injected at bootstrap (DIP — no infrastructure import).
-# Signature: (table_mm: dict[str, Any], shapes: list[dict[str, Any]]) -> str
-_render_fn: Callable[..., str] | None = None
+
+class _RendererHolder:
+    """Mutable holder for the injected SVG render function (DIP)."""
+
+    fn: Callable[..., str] | None = None
+
+
+_renderer = _RendererHolder()
 
 
 def configure_renderer(
@@ -25,8 +30,7 @@ def configure_renderer(
         render_fn: callable with signature
             ``(table_mm=dict, shapes=list[dict]) -> str``.
     """
-    global _render_fn
-    _render_fn = render_fn
+    _renderer.fn = render_fn
 
 
 # Default placeholder shown before any card is generated
@@ -109,12 +113,12 @@ def render_svg_from_card(card_data: dict[str, Any]) -> str:
     if not width_mm or not height_mm:
         return _PLACEHOLDER_HTML
 
-    if not _render_fn:
+    if _renderer.fn is None:
         return _PLACEHOLDER_HTML
 
     shapes = _flatten_shapes(card_data.get("shapes", []))
 
-    svg_content = _render_fn(
+    svg_content: str = _renderer.fn(
         table_mm={"width_mm": int(width_mm), "height_mm": int(height_mm)},
         shapes=shapes,
     )
