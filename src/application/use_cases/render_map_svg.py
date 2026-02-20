@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-# Legacy import for backwards compatibility
 from application.ports.map_renderer import MapRenderer
 from application.ports.repositories import CardRepository
 from application.use_cases._validation import (
@@ -93,12 +92,3 @@ class RenderMapSvg:
 
         # 6) Return response
         return RenderMapSvgResponse(svg=svg)
-
-
-# =============================================================================
-# LEGACY API (for backwards compatibility)
-# =============================================================================
-def execute(renderer: MapRenderer, map_spec: dict) -> str:
-    """Legacy functional API - delegates to renderer directly."""
-    svg: str = renderer.render_svg(map_spec)
-    return svg

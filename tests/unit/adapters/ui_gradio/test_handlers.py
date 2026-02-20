@@ -80,7 +80,7 @@ class TestOnTableUnitChange:
 
     def test_same_unit_returns_unchanged(self):
         """No conversion when new unit equals previous unit."""
-        unit_limits = {"cm": {"min": 60, "max": 300}}
+        unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
         def convert_unit_to_unit(value, from_unit, to_unit):
             return value
@@ -95,7 +95,7 @@ class TestOnTableUnitChange:
 
     def test_cm_to_inches_converts_values(self):
         """Converts cm to inches correctly."""
-        unit_limits = {"in": {"min": 24, "max": 120}}
+        unit_limits = {"in": {"min": 24.0, "max": 120.0}}
 
         def convert_unit_to_unit(value, from_unit, to_unit):
             if from_unit == "cm" and to_unit == "in":
@@ -112,7 +112,7 @@ class TestOnTableUnitChange:
 
     def test_clamps_below_min(self):
         """Values below minimum are clamped to min."""
-        unit_limits = {"cm": {"min": 60, "max": 300}}
+        unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
         def convert_unit_to_unit(value, from_unit, to_unit):
             return value * 0.5  # Simulate conversion that goes below min
@@ -127,7 +127,7 @@ class TestOnTableUnitChange:
 
     def test_clamps_above_max(self):
         """Values above maximum are clamped to max."""
-        unit_limits = {"cm": {"min": 60, "max": 300}}
+        unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
         def convert_unit_to_unit(value, from_unit, to_unit):
             return value * 10  # Simulate conversion that goes above max

@@ -63,18 +63,17 @@ def _generate_csrf_token() -> str:
 
 
 # ── Clock (injectable for testing) ───────────────────────────────────────────
-_clock: Clock = SystemClock()
+_clock_holder: list[Clock] = [SystemClock()]
 
 
 def set_clock(clock: Clock) -> None:
     """Replace the module clock — **for testing only**."""
-    global _clock
-    _clock = clock
+    _clock_holder[0] = clock
 
 
 def _now() -> datetime:
     """Return current UTC time via the configured clock."""
-    return _clock.now_utc()
+    return _clock_holder[0].now_utc()
 
 
 def _model_to_record(model: SessionModel) -> SessionRecord:
@@ -96,7 +95,7 @@ def _is_valid(model: SessionModel, now: datetime) -> bool:
     if now > model.expires_at:
         return False
     idle_limit = now - timedelta(minutes=SESSION_IDLE_MINUTES)
-    return not model.last_seen_at < idle_limit
+    return model.last_seen_at >= idle_limit
 
 
 # ── PostgresSessionStore ─────────────────────────────────────────────────────

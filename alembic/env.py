@@ -109,7 +109,10 @@ def _ensure_database_exists(url: str) -> None:
 
     try:
         import psycopg2
+    except ImportError:
+        return
 
+    try:
         conn = psycopg2.connect(admin_url)
         conn.autocommit = True
         cur = conn.cursor()
@@ -122,7 +125,7 @@ def _ensure_database_exists(url: str) -> None:
             print(f"  [alembic/env] Created database '{db_name}'")
         cur.close()
         conn.close()
-    except Exception as exc:
+    except psycopg2.Error as exc:
         # If we can't even reach the admin DB, let Alembic fail with
         # a clearer message from the normal connection path.
         print(f"  [alembic/env] Warning: could not ensure DB exists: {exc}")
@@ -145,18 +148,21 @@ DATABASE_URL = _explicit_url or _built_url or "sqlite:///./scenario_dev.db"
 DATABASE_URL = _escape_password_in_url(DATABASE_URL)
 
 # Log which source was used (mask password for safety)
-_src = (
-    "DATABASE_URL env"
-    if _explicit_url
-    else ("POSTGRES_* env" if _built_url else "sqlite fallback")
-)
+if _explicit_url:
+    _src = "DATABASE_URL env"
+elif _built_url:
+    _src = "POSTGRES_* env"
+else:
+    _src = "sqlite fallback"
 _safe_url = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL
 print(f"  [alembic/env] URL source: {_src}  →  …@{_safe_url}")
 
 # Create the database if it doesn't exist yet
 _ensure_database_exists(DATABASE_URL)
 
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+_SQLALCHEMY_URL_KEY = "sqlalchemy.url"
+
+config.set_main_option(_SQLALCHEMY_URL_KEY, DATABASE_URL)
 
 # Target metadata for autogenerate
 target_metadata = Base.metadata
@@ -164,7 +170,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in offline mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option(_SQLALCHEMY_URL_KEY)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -180,7 +186,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
     # Create engine with url from env var or alembic config
-    sqlalchemy_url = config.get_main_option("sqlalchemy.url")
+    sqlalchemy_url = config.get_main_option(_SQLALCHEMY_URL_KEY)
     if not sqlalchemy_url:
         sqlalchemy_url = DATABASE_URL
 

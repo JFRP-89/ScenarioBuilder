@@ -22,7 +22,7 @@ def wire_view_navigation(
     view_card_id: gr.Textbox,
     view_card_btn: gr.Button,
     page_state: gr.State,
-    detail_card_id_state: gr.State,
+    detail_card_id_state: gr.Textbox,
     detail_reload_trigger: gr.State,
     previous_page_state: gr.State,
     page_containers: list[gr.Column],
@@ -84,7 +84,6 @@ def wire_view_navigation(
         nav = navigate_to_detail(
             card_id.strip(), from_page=current_page, reload_trigger=reload_trigger
         )
-        # nav = (page_state, card_id, prev_page, reload_trigger, *visibility)
         return (
             *nav,
             gr.update(),  # session_id_state

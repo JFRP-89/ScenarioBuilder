@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Scenario Card Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: #0b0f19;
+      color: #c5c8d6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 .3rem;
+      text-align: center;
+      color: #e5e7eb;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: .85rem;
+      color: #9ca3af;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-size: .85rem;
+      margin-bottom: .3rem;
+      color: #9ca3af;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="email"] {
+      width: 100%;
+      padding: .6rem .75rem;
+      margin-bottom: .25rem;
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      background: #111827;
+      color: #e5e7eb;
+      font-size: .95rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99,102,241,.3);
+    }
+    input.valid { border-color: #22c55e; }
+    input.invalid { border-color: #f87171; }
+    .field-hint {
+      font-size: .75rem;
+      min-height: 1.1em;
+      margin-bottom: .6rem;
+      transition: color .15s;
+    }
+    .field-hint.ok { color: #22c55e; }
+    .field-hint.err { color: #f87171; }
+    .field-hint.neutral { color: #9ca3af; }
+    button {
+      width: 100%;
+      padding: .65rem;
+      border: none;
+      border-radius: 6px;
+      background: #4f46e5;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background .15s;
+      margin-top: .5rem;
+    }
+    button:hover { background: #4338ca; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .error {
+      color: #f87171;
+      font-size: .85rem;
+      margin-top: .75rem;
+      text-align: center;
+      min-height: 1.2em;
+    }
+    .login-link {
+      display: block;
+      text-align: right;
+      margin-top: 1rem;
+      font-size: .85rem;
+    }
+    .login-link a {
+      color: #818cf8;
+      text-decoration: none;
+    }
+    .login-link a:hover { text-decoration: underline; }
+    .pw-requirements {
+      font-size: .75rem;
+      color: #9ca3af;
+      margin: 0 0 .6rem;
+      padding-left: 1rem;
+      list-style: none;
+    }
+    .pw-requirements li { margin-bottom: .15rem; }
+    .pw-requirements li::before { content: "• "; }
+    .pw-requirements li.met { color: #22c55e; }
+    .pw-requirements li.unmet { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Scenario Card Generator</h1>
+    <p class="subtitle">Create your account</p>
+    <form id="register-form" autocomplete="off">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text"
+             placeholder="3-32 lowercase letters, digits, -, _" required autofocus>
+      <div class="field-hint neutral" id="username-hint">&nbsp;</div>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password"
+             placeholder="Min 8 characters" required>
+      <ul class="pw-requirements" id="pw-reqs">
+        <li id="pw-len">At least 8 characters</li>
+        <li id="pw-upper">One uppercase letter</li>
+        <li id="pw-lower">One lowercase letter</li>
+        <li id="pw-digit">One digit</li>
+        <li id="pw-special">One special character</li>
+      </ul>
+
+      <label for="confirm-password">Confirm Password</label>
+      <input id="confirm-password" name="confirm_password" type="password"
+             placeholder="Repeat your password" required>
+      <div class="field-hint neutral" id="confirm-hint">&nbsp;</div>
+
+      <label for="email">Email <span style="color:#6b7280">(optional)</span></label>
+      <input id="email" name="email" type="email"
+             placeholder="you@example.com">
+      <div class="field-hint neutral" id="email-hint">&nbsp;</div>
+
+      <button type="submit" id="submit-btn" disabled>Create account</button>
+      <div class="error" id="error" role="alert"></div>
+
+      <div class="login-link">
+        Already have an account? <a href="/login">Log in</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var form = document.getElementById("register-form");
+      var errorEl = document.getElementById("error");
+      var btn = document.getElementById("submit-btn");
+
+      var usernameInput = document.getElementById("username");
+      var passwordInput = document.getElementById("password");
+      var confirmInput = document.getElementById("confirm-password");
+      var emailInput = document.getElementById("email");
+
+      var usernameHint = document.getElementById("username-hint");
+      var confirmHint = document.getElementById("confirm-hint");
+      var emailHint = document.getElementById("email-hint");
+
+      var pwLen = document.getElementById("pw-len");
+      var pwUpper = document.getElementById("pw-upper");
+      var pwLower = document.getElementById("pw-lower");
+      var pwDigit = document.getElementById("pw-digit");
+      var pwSpecial = document.getElementById("pw-special");
+
+      // ── State tracking ───────────────────────────────────────────
+      var state = {
+        usernameOk: false,
+        passwordOk: false,
+        confirmOk: false,
+        emailOk: true  // optional, so OK by default
+      };
+
+      var usernameCheckTimer = null;
+
+      function updateButton() {
+        btn.disabled = !(state.usernameOk && state.passwordOk && state.confirmOk && state.emailOk);
+      }
+
+      function setHint(el, input, text, ok) {
+        el.textContent = text || "\u00a0";
+        var cls;
+        if (ok === true) { cls = "ok"; }
+        else if (ok === false) { cls = "err"; }
+        else { cls = "neutral"; }
+        el.className = "field-hint " + cls;
+        if (input) {
+          input.classList.remove("valid", "invalid");
+          if (ok === true) input.classList.add("valid");
+          else if (ok === false) input.classList.add("invalid");
+        }
+      }
+
+      function setReq(el, met) {
+        el.className = met ? "met" : "unmet";
+      }
+
+      // ── Username: real-time availability check ────────────────────
+      usernameInput.addEventListener("input", function () {
+        var val = usernameInput.value;
+        clearTimeout(usernameCheckTimer);
+
+        // Basic format check: ^[a-z0-9][a-z0-9_-]{2,31}$
+        var re = /^[a-z0-9][a-z0-9_-]{2,31}$/;
+        if (!re.test(val)) {
+          state.usernameOk = false;
+          if (val.length > 0 && val.length < 3) {
+            setHint(usernameHint, usernameInput, "At least 3 characters required.", false);
+          } else if (val.length === 0) {
+            setHint(usernameHint, usernameInput, "", null);
+          } else {
+            setHint(usernameHint, usernameInput, "Only lowercase letters, digits, - and _ allowed.", false);
+          }
+          updateButton();
+          return;
+        }
+
+        setHint(usernameHint, usernameInput, "Checking availability\u2026", null);
+
+        usernameCheckTimer = setTimeout(function () {
+          fetch("/auth/check-username?username=" + encodeURIComponent(val), {
+            credentials: "same-origin"
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (usernameInput.value !== val) return;  // stale
+              state.usernameOk = !!data.available;
+              setHint(usernameHint, usernameInput, data.message, data.available);
+              updateButton();
+            })
+            .catch(function () {
+              setHint(usernameHint, usernameInput, "Could not check availability.", false);
+              state.usernameOk = false;
+              updateButton();
+            });
+        }, 350);
+      });
+
+      // ── Password: real-time strength indicator ────────────────────
+      passwordInput.addEventListener("input", function () {
+        var val = passwordInput.value;
+        var lenOk = val.length >= 8;
+        var upperOk = /[A-Z]/.test(val);
+        var lowerOk = /[a-z]/.test(val);
+        var digitOk = /\d/.test(val);
+        var specialOk = /[^A-Za-z0-9]/.test(val);
+
+        setReq(pwLen, lenOk);
+        setReq(pwUpper, upperOk);
+        setReq(pwLower, lowerOk);
+        setReq(pwDigit, digitOk);
+        setReq(pwSpecial, specialOk);
+
+        state.passwordOk = lenOk && upperOk && lowerOk && digitOk && specialOk;
+
+        passwordInput.classList.remove("valid", "invalid");
+        if (val.length > 0) {
+          passwordInput.classList.add(state.passwordOk ? "valid" : "invalid");
+        }
+
+        // Re-check confirm match
+        checkConfirm();
+        updateButton();
+      });
+
+      // ── Confirm password: match check ─────────────────────────────
+      function checkConfirm() {
+        var val = confirmInput.value;
+        if (!val) {
+          state.confirmOk = false;
+          setHint(confirmHint, confirmInput, "", null);
+          return;
+        }
+        if (val === passwordInput.value) {
+          state.confirmOk = true;
+          setHint(confirmHint, confirmInput, "Passwords match.", true);
+        } else {
+          state.confirmOk = false;
+          setHint(confirmHint, confirmInput, "Passwords do not match.", false);
+        }
+      }
+      confirmInput.addEventListener("input", function () {
+        checkConfirm();
+        updateButton();
+      });
+
+      // ── Email: optional format check ──────────────────────────────
+      emailInput.addEventListener("input", function () {
+        var val = emailInput.value.trim();
+        if (!val) {
+          state.emailOk = true;
+          setHint(emailHint, emailInput, "", null);
+        } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+          state.emailOk = true;
+          setHint(emailHint, emailInput, "Valid email.", true);
+        } else {
+          state.emailOk = false;
+          setHint(emailHint, emailInput, "Invalid email format.", false);
+        }
+        updateButton();
+      });
+
+      // ── Form submission ───────────────────────────────────────────
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        errorEl.textContent = "";
+        btn.disabled = true;
+        btn.textContent = "Creating account\u2026";
+
+        var payload = JSON.stringify({
+          username: usernameInput.value,
+          password: passwordInput.value,
+          confirm_password: confirmInput.value,
+          name: "",
+          email: emailInput.value.trim()
+        });
+
+        fetch("/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: payload
+        })
+          .then(function (resp) {
+            return resp.json().then(function (d) { return { status: resp.status, data: d }; });
+          })
+          .then(function (result) {
+            if (result.data.ok) {
+              globalThis.location.href = "/sb/";
+            } else {
+              var msg = result.data.message || "Registration failed.";
+              if (result.data.errors && result.data.errors.length > 1) {
+                msg = result.data.errors.join(" ");
+              }
+              errorEl.textContent = msg;
+              btn.disabled = false;
+              btn.textContent = "Create account";
+            }
+          })
+          .catch(function () {
+            errorEl.textContent = "Network error \u2014 please try again.";
+            btn.disabled = false;
+            btn.textContent = "Create account";
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

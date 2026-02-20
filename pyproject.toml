@@ -66,6 +66,12 @@ max-locals = 15
 max-branches = 12
 max-statements = 50
 
+[tool.pylint.typecheck]
+generated-members = ["alembic.op.*", "alembic.context.*"]
+
+[tool.pylint.main]
+ignore-paths = ["^alembic[/\\\\]"]
+
 [tool.radon]
 exclude = ".git,__pycache__,.venv,venv,build,dist,tests"
 ignore-nosec = false

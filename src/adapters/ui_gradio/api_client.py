@@ -25,7 +25,6 @@ ERROR_REQUEST_FAILED = "Request failed"
 ERROR_REQUESTS_NOT_AVAILABLE = "Requests library not available"
 ERROR_API_FAILURE = "API call failed"
 ERROR_UNEXPECTED = "Unexpected error"
-SUCCESS_STATUS_CODES = [200, 201]
 
 
 def get_api_base_url() -> str:
@@ -139,7 +138,7 @@ def normalize_error(
                 "status": "error",
                 "message": f"API error {response.status_code}: {response_json['message']}",
             }
-    except Exception:
+    except (ValueError, KeyError):  # nosec B110
         pass
 
     return {

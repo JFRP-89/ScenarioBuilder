@@ -32,10 +32,10 @@ class TestSanitizeSearchQuery:
         assert sanitize_search_query("") == ""
 
     def test_none_returns_empty(self):
-        assert sanitize_search_query(None) == ""
+        assert sanitize_search_query(None) == ""  # type: ignore[arg-type]
 
     def test_non_string_returns_empty(self):
-        assert sanitize_search_query(42) == ""
+        assert sanitize_search_query(42) == ""  # type: ignore[arg-type]
 
     def test_strips_whitespace(self):
         assert sanitize_search_query("  hello  ") == "hello"
@@ -139,7 +139,7 @@ class TestParsePerPage:
         assert parse_per_page("abc") == DEFAULT_ITEMS_PER_PAGE
 
     def test_none_returns_default(self):
-        assert parse_per_page(None) == DEFAULT_ITEMS_PER_PAGE
+        assert parse_per_page(None) == DEFAULT_ITEMS_PER_PAGE  # type: ignore[arg-type]
 
     def test_empty_string_returns_default(self):
         assert parse_per_page("") == DEFAULT_ITEMS_PER_PAGE
@@ -243,9 +243,9 @@ class TestEscapeHtml:
         assert escape_html("") == ""
 
     def test_non_string_returns_empty(self):
-        assert escape_html(None) == ""
-        assert escape_html(42) == ""
-        assert escape_html([]) == ""
+        assert escape_html(None) == ""  # type: ignore[arg-type]
+        assert escape_html(42) == ""  # type: ignore[arg-type]
+        assert escape_html([]) == ""  # type: ignore[arg-type]
 
     def test_plain_text_unchanged(self):
         assert escape_html("Normal text") == "Normal text"
@@ -353,10 +353,10 @@ class TestSanitizeSearchQueryEdgeCases:
         assert sanitize_search_query("<div><span></span></div>") == ""
 
     def test_boolean_input(self):
-        assert sanitize_search_query(True) == ""
+        assert sanitize_search_query(True) == ""  # type: ignore[arg-type]
 
     def test_list_input(self):
-        assert sanitize_search_query(["a"]) == ""
+        assert sanitize_search_query(["a"]) == ""  # type: ignore[arg-type]
 
 
 class TestValidatePage:
@@ -420,10 +420,10 @@ class TestParsePerPageSecurity:
 
     def test_float_valid_value(self):
         # float 10.0 → int 10 → in whitelist
-        assert parse_per_page(10.0) == 10
+        assert parse_per_page(10.0) == 10  # type: ignore[arg-type]
 
     def test_float_invalid_value(self):
-        assert parse_per_page(10.5) == DEFAULT_ITEMS_PER_PAGE
+        assert parse_per_page(10.5) == DEFAULT_ITEMS_PER_PAGE  # type: ignore[arg-type]
 
     def test_negative_value(self):
         assert parse_per_page(-10) == DEFAULT_ITEMS_PER_PAGE

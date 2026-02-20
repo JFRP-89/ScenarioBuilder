@@ -158,14 +158,3 @@ class CreateVariant:
             mode=new_card.mode.value,
             visibility=new_card.visibility.value,
         )
-
-
-# =============================================================================
-# LEGACY API (for backwards compatibility)
-# =============================================================================
-def execute(card, new_seed: int):
-    """Legacy functional API - stub that returns card unchanged.
-
-    For full variant creation use the CreateVariant class.
-    """
-    return card

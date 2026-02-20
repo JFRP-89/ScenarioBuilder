@@ -148,7 +148,7 @@ def test_card_requires_table_and_mapspec_types(map_spec: MapSpec, owner: str):
             shared_with=None,
             mode=GameMode.MATCHED,
             seed=123,
-            table={"width_mm": 1200, "height_mm": 1200},
+            table={"width_mm": 1200, "height_mm": 1200},  # type: ignore[arg-type]
             map_spec=map_spec,
         )
 
@@ -163,7 +163,7 @@ def test_card_requires_table_and_mapspec_types(map_spec: MapSpec, owner: str):
             mode=GameMode.MATCHED,
             seed=123,
             table=table_valid,
-            map_spec={"shapes": []},
+            map_spec={"shapes": []},  # type: ignore[arg-type]
         )
 
 
@@ -290,7 +290,7 @@ def test_parse_game_mode_rejects_unknown_value():
 def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
     with pytest.raises(ValidationError):
         Card(
-            card_id=123,
+            card_id=123,  # type: ignore[arg-type]
             owner_id="owner",
             visibility=Visibility.PRIVATE,
             shared_with=None,
@@ -303,7 +303,7 @@ def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
-            owner_id=456,
+            owner_id=456,  # type: ignore[arg-type]
             visibility=Visibility.PRIVATE,
             shared_with=None,
             mode=GameMode.MATCHED,
@@ -320,7 +320,7 @@ def test_card_rejects_invalid_visibility_type(
         Card(
             card_id="card-001",
             owner_id=owner,
-            visibility="private",
+            visibility="private",  # type: ignore[arg-type]
             shared_with=None,
             mode=GameMode.MATCHED,
             seed=123,
@@ -338,7 +338,7 @@ def test_card_rejects_invalid_mode_type(
             owner_id=owner,
             visibility=Visibility.PRIVATE,
             shared_with=None,
-            mode="matched",
+            mode="matched",  # type: ignore[arg-type]
             seed=123,
             table=table,
             map_spec=map_spec,

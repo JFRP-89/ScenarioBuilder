@@ -12,37 +12,53 @@ from adapters.ui_gradio.constants import (
 )
 
 
-def validate_deployment_zone_within_table(  # noqa: C901
-    zone: dict[str, Any], table_width_mm: int, table_height_mm: int
+def _extract_point_coords(
+    point: Any,
+    index: int,
+) -> tuple[tuple[Any, Any], None] | tuple[None, str]:
+    """Extract ``(x, y)`` from a single polygon point.
+
+    Returns ``((x, y), None)`` on success or ``(None, error_msg)`` on
+    failure so the caller can short-circuit without nested branching.
+    """
+    if isinstance(point, dict):
+        if "x" not in point or "y" not in point:
+            return None, f"Invalid point format at index {index}: missing x or y"
+        return (point["x"], point["y"]), None
+    if isinstance(point, (list, tuple)) and len(point) == 2:
+        return (point[0], point[1]), None
+    return None, f"Invalid point format at index {index}"
+
+
+def _validate_polygon_zone(
+    zone: dict[str, Any],
+    table_width_mm: int,
+    table_height_mm: int,
 ) -> str | None:
-    """Validate deployment zone fits within table bounds (in mm)."""
-    zone_type = zone.get("type", "rect")
+    """Validate polygon deployment zone fits within table bounds."""
+    points = zone.get("points", [])
+    if not points:
+        return "Polygon zone must have points"
 
-    if zone_type == "polygon":
-        # Validate polygon (triangle) points
-        points = zone.get("points", [])
-        if not points:
-            return "Polygon zone must have points"
+    for i, point in enumerate(points):
+        coords, err = _extract_point_coords(point, i)
+        if err is not None:
+            return err
+        x, y = coords  # type: ignore[misc]
 
-        for i, point in enumerate(points):
-            # Support both dict format {"x": ..., "y": ...} and tuple/list format
-            if isinstance(point, dict):
-                if "x" not in point or "y" not in point:
-                    return f"Invalid point format at index {i}: missing x or y"
-                x = point["x"]
-                y = point["y"]
-            elif isinstance(point, (list, tuple)) and len(point) == 2:
-                x, y = point
-            else:
-                return f"Invalid point format at index {i}"
+        if x < 0 or x > table_width_mm:
+            return f"Polygon point {i} extends beyond table width: ({x}, {y})"
+        if y < 0 or y > table_height_mm:
+            return f"Polygon point {i} extends beyond table height: ({x}, {y})"
+    return None
 
-            if x < 0 or x > table_width_mm:
-                return f"Polygon point {i} extends beyond table width: ({x}, {y})"
-            if y < 0 or y > table_height_mm:
-                return f"Polygon point {i} extends beyond table height: ({x}, {y})"
-        return None
 
-    # Validate rectangle zone
+def _validate_rect_zone(
+    zone: dict[str, Any],
+    table_width_mm: int,
+    table_height_mm: int,
+) -> str | None:
+    """Validate rectangle deployment zone fits within table bounds."""
     x = float(zone.get("x", 0))
     y = float(zone.get("y", 0))
     width = float(zone.get("width", 0))
@@ -63,6 +79,17 @@ def validate_deployment_zone_within_table(  # noqa: C901
             f"{DEPLOYMENT_ZONE_MIN_SIZE} and {DEPLOYMENT_ZONE_MAX_SIZE} mm"
         )
     return None
+
+
+def validate_deployment_zone_within_table(
+    zone: dict[str, Any], table_width_mm: int, table_height_mm: int
+) -> str | None:
+    """Validate deployment zone fits within table bounds (in mm)."""
+    zone_type = zone.get("type", "rect")
+
+    if zone_type == "polygon":
+        return _validate_polygon_zone(zone, table_width_mm, table_height_mm)
+    return _validate_rect_zone(zone, table_width_mm, table_height_mm)
 
 
 def calculate_zone_coordinates(
@@ -126,63 +153,61 @@ def validate_separation_coords(
     clamped_x = max(0, min(sep_x, max_x))
     clamped_y = max(0, min(sep_y, max_y))
 
-    if border == "north":
-        x = clamped_x
-        y = clamped_y
-
-    elif border == "south":
+    if border == "south":
         x = clamped_x
         y = max_y - clamped_y
 
-    elif border == "west":
-        x = clamped_x
+    elif border == "east":
+        x = max_x - clamped_x
         y = clamped_y
 
-    else:  # east
-        x = max_x - clamped_x
+    else:  # north, west (both use clamped values directly)
+        x = clamped_x
         y = clamped_y
 
     return x, y
 
 
+def _get_zone_bounding_box(
+    zone: dict[str, Any],
+) -> tuple[float, float, float, float]:
+    """Get bounding box ``(x, y, width, height)`` for any zone type."""
+    zone_type = zone.get("type", "rect")
+
+    if zone_type == "polygon":
+        points = zone.get("points", [])
+        if not points:
+            return (0, 0, 0, 0)
+
+        xs: list[float] = []
+        ys: list[float] = []
+        for p in points:
+            if isinstance(p, dict):
+                xs.append(p.get("x", 0))
+                ys.append(p.get("y", 0))
+            elif isinstance(p, (list, tuple)) and len(p) >= 2:
+                xs.append(p[0])
+                ys.append(p[1])
+
+        if not xs or not ys:
+            return (0, 0, 0, 0)
+
+        min_x, max_x_val = min(xs), max(xs)
+        min_y, max_y_val = min(ys), max(ys)
+        return (min_x, min_y, max_x_val - min_x, max_y_val - min_y)
+
+    # Rectangle
+    rx = float(zone.get("x", 0))
+    ry = float(zone.get("y", 0))
+    w = float(zone.get("width", 0))
+    h = float(zone.get("height", 0))
+    return (rx, ry, w, h)
+
+
 def deployment_zones_overlap(zone1: dict[str, Any], zone2: dict[str, Any]) -> bool:
     """Check if two deployment zones overlap."""
-
-    def get_bounding_box(zone: dict[str, Any]) -> tuple[float, float, float, float]:
-        """Get bounding box (x, y, width, height) for any zone type."""
-        zone_type = zone.get("type", "rect")
-
-        if zone_type == "polygon":
-            points = zone.get("points", [])
-            if not points:
-                return (0, 0, 0, 0)
-
-            xs: list[float] = []
-            ys: list[float] = []
-            for p in points:
-                if isinstance(p, dict):
-                    xs.append(p.get("x", 0))
-                    ys.append(p.get("y", 0))
-                elif isinstance(p, (list, tuple)) and len(p) >= 2:
-                    xs.append(p[0])
-                    ys.append(p[1])
-
-            if not xs or not ys:
-                return (0, 0, 0, 0)
-
-            min_x, max_x_val = min(xs), max(xs)
-            min_y, max_y_val = min(ys), max(ys)
-            return (min_x, min_y, max_x_val - min_x, max_y_val - min_y)
-        else:
-            # Rectangle
-            rx = float(zone.get("x", 0))
-            ry = float(zone.get("y", 0))
-            w = float(zone.get("width", 0))
-            h = float(zone.get("height", 0))
-            return (rx, ry, w, h)
-
-    x1, y1, w1, h1 = get_bounding_box(zone1)
-    x2, y2, w2, h2 = get_bounding_box(zone2)
+    x1, y1, w1, h1 = _get_zone_bounding_box(zone1)
+    x2, y2, w2, h2 = _get_zone_bounding_box(zone2)
 
     return not (x1 + w1 <= x2 or x2 + w2 <= x1 or y1 + h1 <= y2 or y2 + h2 <= y1)
 
@@ -195,6 +220,26 @@ def calculate_zone_depth(table_dimension: float, percentage: float) -> float:
 def calculate_zone_separation(table_dimension: float, percentage: float) -> float:
     """Calculate zone separation from percentage."""
     return table_dimension * (percentage / 100)
+
+
+def _check_zone_overlaps(
+    zone_data: dict[str, Any],
+    state: list[dict[str, Any]],
+    exclude_id: str | None = None,
+) -> str | None:
+    """Return an error if *zone_data* overlaps any existing zone."""
+    for existing in state:
+        if exclude_id and existing["id"] == exclude_id:
+            continue
+        if deployment_zones_overlap(zone_data, existing["data"]):
+            return "Deployment zones cannot overlap"
+    return None
+
+
+def _build_zone_label(zone_id: str, zone_data: dict[str, Any]) -> str:
+    """Build a human-readable zone label."""
+    description = zone_data.get("description", "").strip()
+    return f"{description} (Zone {zone_id})" if description else f"Zone {zone_id}"
 
 
 def add_deployment_zone(
@@ -217,27 +262,22 @@ def add_deployment_zone(
     if len(current_state) >= DEPLOYMENT_MAX_ZONES:
         return current_state, f"Maximum {DEPLOYMENT_MAX_ZONES} deployment zones allowed"
 
-    # Validate within table bounds
     error = validate_deployment_zone_within_table(
         zone_data, table_width_mm, table_height_mm
     )
     if error:
         return current_state, error
 
-    # Check overlap with existing zones
-    for existing in current_state:
-        if deployment_zones_overlap(zone_data, existing["data"]):
-            return current_state, "Deployment zones cannot overlap"
+    overlap_err = _check_zone_overlaps(zone_data, current_state)
+    if overlap_err:
+        return current_state, overlap_err
 
     zone_id = str(uuid.uuid4())[:8]
-    description = zone_data.get("description", "").strip()
-    label = f"{description} (Zone {zone_id})" if description else f"Zone {zone_id}"
-
     new_state = [
         *current_state,
         {
             "id": zone_id,
-            "label": label,
+            "label": _build_zone_label(zone_id, zone_data),
             "data": zone_data,
         },
     ]
@@ -286,14 +326,11 @@ def update_deployment_zone(
     if error:
         return current_state, error
 
-    for existing in current_state:
-        if existing["id"] == zone_id:
-            continue
-        if deployment_zones_overlap(zone_data, existing["data"]):
-            return current_state, "Deployment zones cannot overlap"
+    overlap_err = _check_zone_overlaps(zone_data, current_state, exclude_id=zone_id)
+    if overlap_err:
+        return current_state, overlap_err
 
-    description = zone_data.get("description", "").strip()
-    label = f"{description} (Zone {zone_id})" if description else f"Zone {zone_id}"
+    label = _build_zone_label(zone_id, zone_data)
 
     updated_state: list[dict[str, Any]] = []
     for zone in current_state:

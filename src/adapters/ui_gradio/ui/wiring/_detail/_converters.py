@@ -10,6 +10,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+
+def _short_id() -> str:
+    """Generate a short (8-char) unique identifier."""
+    return str(uuid.uuid4())[:8]
+
+
 # ============================================================================
 # Objectives
 # ============================================================================
@@ -28,7 +34,7 @@ def _extract_objectives_text_for_form(
         vp_items = objectives.get("victory_points", [])
         vp_enabled = bool(vp_items)
         vp_list = (
-            [{"id": str(uuid.uuid4())[:8], "description": str(vp)} for vp in vp_items]
+            [{"id": _short_id(), "description": str(vp)} for vp in vp_items]
             if isinstance(vp_items, list) and vp_items
             else []
         )
@@ -55,7 +61,7 @@ def _api_special_rules_to_state(
     for rule in api_rules:
         if not isinstance(rule, dict):
             continue
-        sid = str(uuid.uuid4())[:8]
+        sid = _short_id()
         name = rule.get("name", "")
         # Determine rule_type and value from API format
         if "source" in rule:
@@ -90,7 +96,7 @@ def _api_deployment_to_state(api_shapes: list[dict[str, Any]]) -> list[dict[str,
     for shape in api_shapes:
         if not isinstance(shape, dict):
             continue
-        sid = str(uuid.uuid4())[:8]
+        sid = _short_id()
         desc = shape.get("description", "") or ""
         shape_type = shape.get("type", "rect")
 
@@ -133,7 +139,7 @@ def _api_scenography_to_state(
     for shape in api_shapes:
         if not isinstance(shape, dict):
             continue
-        sid = str(uuid.uuid4())[:8]
+        sid = _short_id()
         shape_type = shape.get("type", "rect")
         desc = shape.get("description", "") or ""
         allow_overlap = shape.get("allow_overlap", False)
@@ -172,7 +178,7 @@ def _api_objectives_to_state(
     for shape in api_shapes:
         if not isinstance(shape, dict):
             continue
-        sid = str(uuid.uuid4())[:8]
+        sid = _short_id()
         entry: dict[str, Any] = {
             "id": sid,
             "cx": shape.get("cx", 0),

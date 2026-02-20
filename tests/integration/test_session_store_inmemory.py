@@ -34,11 +34,11 @@ class _FakeClock:
 def _isolate_session_module(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """Reset module state so tests don't pollute each other."""
     # Redirect store to None (use in-memory fallback)
-    monkeypatch.setattr(session_store, "_store", None)
+    monkeypatch.setattr(session_store, "_store_holder", [None])
     # Clear sessions dict
     session_store._SESSIONS.clear()
     # Point disk path to temp so writes don't touch real file
-    monkeypatch.setattr(session_store, "_STORE_PATH", str(tmp_path / "sess.json"))
+    monkeypatch.setattr(session_store, "_STORE_PATH", tmp_path / "sess.json")
     # Install a known clock
     clock = _FakeClock(datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc))
     session_store.set_clock(clock)

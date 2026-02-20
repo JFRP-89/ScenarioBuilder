@@ -97,12 +97,12 @@ class TestBorderFillFieldStates:
     def test_labels_contain_unit(self):
         fs = border_fill_field_states("north", False, 120.0, 80.0, "in")
         for name in ("width", "height", "sep_x", "sep_y"):
-            assert "(in)" in fs[name]["label"]
+            assert "(in)" in fs[name]["label"]  # type: ignore[operator]
 
     def test_locked_labels_contain_locked_suffix(self):
         fs = border_fill_field_states("north", True, 120.0, 80.0, "cm")
-        assert "[LOCKED]" in fs["width"]["label"]
-        assert "[LOCKED]" not in fs["height"]["label"]
+        assert "[LOCKED]" in fs["width"]["label"]  # type: ignore[operator]
+        assert "[LOCKED]" not in fs["height"]["label"]  # type: ignore[operator]
 
 
 # ---------------------------------------------------------------------------
@@ -115,14 +115,14 @@ class TestPerfectTriangleSide2:
         s = perfect_triangle_side2(True, 25.0, "cm")
         assert s["value"] == 25.0
         assert s["interactive"] is False
-        assert "[LOCKED]" in s["label"]
+        assert "[LOCKED]" in s["label"]  # type: ignore[operator]
 
     def test_not_perfect_unlocks_side2(self):
         s = perfect_triangle_side2(False, 25.0, "cm")
         assert "value" not in s
         assert s["interactive"] is True
-        assert "[LOCKED]" not in s["label"]
+        assert "[LOCKED]" not in s["label"]  # type: ignore[operator]
 
     def test_label_contains_unit(self):
         s = perfect_triangle_side2(False, 10.0, "ft")
-        assert "(ft)" in s["label"]
+        assert "(ft)" in s["label"]  # type: ignore[operator]

@@ -6,13 +6,32 @@ to lists of descriptive names used when generating random scenography.
 
 from __future__ import annotations
 
+# =============================================================================
+# Shared scenery names (extracted to satisfy DRY / no-duplicate-literals)
+# =============================================================================
+_BARRICADE = "Barricade"
+_BROKEN_WALL = "Broken wall"
+_CRUMBLING_WALL = "Crumbling wall"
+_DEBRIS_FIELD = "Debris field"
+_DIFFICULT_TERRAIN = "Difficult terrain"
+_FOUNTAIN = "Fountain"
+_MEETING_CIRCLE = "Meeting circle"
+_PAVED_SQUARE = "Paved square"
+_ROCKY_GROUND = "Rocky ground"
+_RUBBLE_FIELD = "Rubble field"
+_SACRED_GROVE = "Sacred grove"
+_SIGNAL_FIRE = "Signal fire"
+_SUPPLY_DEPOT = "Supply depot"
+_WELL = "Well"
+_WOODEN_PALISADE = "Wooden palisade"
+
 SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
     "urban": {
         "rect": [
             "Low ruins",
             "Stone wall",
             "Collapsed building",
-            "Barricade",
+            _BARRICADE,
             "Storage crates",
         ],
         "circle": [
@@ -23,7 +42,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Cooling silo",
         ],
         "polygon": [
-            "Rubble field",
+            _RUBBLE_FIELD,
             "Collapsed plaza",
             "Broken pavement",
             "Urban debris",
@@ -33,22 +52,22 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
     "forest": {
         "rect": [
             "Hunting lodge",
-            "Wooden palisade",
+            _WOODEN_PALISADE,
             "Abandoned cabin",
             "Rangers outpost",
             "Fallen log pile",
         ],
         "circle": [
             "Dense woods",
-            "Sacred grove",
+            _SACRED_GROVE,
             "Thicket",
             "Mossy clearing",
             "Ancient tree ring",
         ],
         "polygon": [
-            "Rocky ground",
+            _ROCKY_GROUND,
             "Marshland",
-            "Difficult terrain",
+            _DIFFICULT_TERRAIN,
             "Thorny brush",
             "Wetland",
         ],
@@ -57,8 +76,8 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Broken outpost",
             "Sandbag line",
-            "Crumbling wall",
-            "Supply depot",
+            _CRUMBLING_WALL,
+            _SUPPLY_DEPOT,
             "Shelter ruins",
         ],
         "circle": [
@@ -87,7 +106,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "circle": [
             "Village green",
             "Orchard grove",
-            "Well",
+            _WELL,
             "Hobbit garden",
             "Flower ring",
         ],
@@ -102,7 +121,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
     "rohan": {
         "rect": [
             "Riders camp",
-            "Wooden palisade",
+            _WOODEN_PALISADE,
             "Horse stables",
             "Watch hut",
             "Supply wagons",
@@ -112,7 +131,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Horse corral",
             "Grass ring",
             "Training circle",
-            "Meeting circle",
+            _MEETING_CIRCLE,
         ],
         "polygon": [
             "Rolling plain",
@@ -126,22 +145,22 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Guard post",
             "Stone bastion",
-            "Broken wall",
-            "Supply depot",
-            "Barricade",
+            _BROKEN_WALL,
+            _SUPPLY_DEPOT,
+            _BARRICADE,
         ],
         "circle": [
-            "Signal fire",
-            "Fountain",
+            _SIGNAL_FIRE,
+            _FOUNTAIN,
             "Statue base",
-            "Well",
+            _WELL,
             "Courtyard",
         ],
         "polygon": [
             "Battle debris",
             "Broken causeway",
-            "Rubble field",
-            "Paved square",
+            _RUBBLE_FIELD,
+            _PAVED_SQUARE,
             "Collapsed arch",
         ],
     },
@@ -151,10 +170,10 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Guardhouse",
             "Gatehouse ruins",
             "Supply crates",
-            "Barricade",
+            _BARRICADE,
         ],
         "circle": [
-            "Fountain",
+            _FOUNTAIN,
             "Tower base",
             "Beacon brazier",
             "Courtyard",
@@ -162,9 +181,9 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "polygon": [
             "Broken stairs",
-            "Rubble field",
+            _RUBBLE_FIELD,
             "Collapsed terrace",
-            "Paved square",
+            _PAVED_SQUARE,
             "Shattered arch",
         ],
     },
@@ -172,7 +191,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Broken bridge",
             "Collapsed hall",
-            "Crumbling wall",
+            _CRUMBLING_WALL,
             "Stone pier",
             "Ruined tower",
         ],
@@ -188,7 +207,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Slick stone",
             "Shattered causeway",
             "Broken pavement",
-            "Debris field",
+            _DEBRIS_FIELD,
         ],
     },
     "helms_deep": {
@@ -196,20 +215,20 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Fortified wall",
             "Gatehouse",
             "Supply crates",
-            "Barricade",
+            _BARRICADE,
             "Siege debris",
         ],
         "circle": [
             "Culvert",
-            "Signal fire",
-            "Well",
+            _SIGNAL_FIRE,
+            _WELL,
             "Guard circle",
             "Training ring",
         ],
         "polygon": [
             "Rocky slope",
             "Broken ramp",
-            "Debris field",
+            _DEBRIS_FIELD,
             "Rubble heap",
             "Stony ground",
         ],
@@ -219,14 +238,14 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Forge platform",
             "Wooden stockade",
             "Steel scaffolds",
-            "Supply depot",
+            _SUPPLY_DEPOT,
             "Barracks",
         ],
         "circle": [
             "Blast pit",
             "Water pool",
             "Engine base",
-            "Signal fire",
+            _SIGNAL_FIRE,
             "Machinery ring",
         ],
         "polygon": [
@@ -234,14 +253,14 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Ashen ground",
             "Scrap heap",
             "Broken track",
-            "Rubble field",
+            _RUBBLE_FIELD,
         ],
     },
     "mordor": {
         "rect": [
             "Dark watchtower",
             "Spiked palisade",
-            "Broken wall",
+            _BROKEN_WALL,
             "Supply pens",
             "Slave pens",
         ],
@@ -249,7 +268,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Lava pit",
             "Ash crater",
             "Dark well",
-            "Signal fire",
+            _SIGNAL_FIRE,
             "Pit trap",
         ],
         "polygon": [
@@ -264,21 +283,21 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Stone pillar",
             "Fallen arch",
-            "Crumbling wall",
+            _CRUMBLING_WALL,
             "Ancient dais",
             "Broken gate",
         ],
         "circle": [
-            "Well",
+            _WELL,
             "Chasm edge",
             "Rune circle",
             "Collapsed dome",
             "Deep pit",
         ],
         "polygon": [
-            "Rubble field",
+            _RUBBLE_FIELD,
             "Broken walkway",
-            "Rocky ground",
+            _ROCKY_GROUND,
             "Shattered floor",
             "Debris pile",
         ],
@@ -293,10 +312,10 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         ],
         "circle": [
             "Reflecting pool",
-            "Sacred grove",
-            "Fountain",
+            _SACRED_GROVE,
+            _FOUNTAIN,
             "Sunwell",
-            "Meeting circle",
+            _MEETING_CIRCLE,
         ],
         "polygon": [
             "Terraced garden",
@@ -315,7 +334,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Sentry post",
         ],
         "circle": [
-            "Sacred grove",
+            _SACRED_GROVE,
             "Moonlit pool",
             "Tree ring",
             "Glade",
@@ -325,7 +344,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Leafy ground",
             "Mossy field",
             "Shaded glade",
-            "Difficult terrain",
+            _DIFFICULT_TERRAIN,
             "Fallen leaves",
         ],
     },
@@ -333,7 +352,7 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Webbed ruins",
             "Fallen tree",
-            "Wooden palisade",
+            _WOODEN_PALISADE,
             "Hunters camp",
             "Sentry post",
         ],
@@ -347,8 +366,8 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "polygon": [
             "Twisted roots",
             "Foggy ground",
-            "Difficult terrain",
-            "Rocky ground",
+            _DIFFICULT_TERRAIN,
+            _ROCKY_GROUND,
             "Deadfall",
         ],
     },
@@ -364,13 +383,13 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Ancient grove",
             "Mossy clearing",
             "Spring",
-            "Meeting circle",
+            _MEETING_CIRCLE,
             "Ring of stones",
         ],
         "polygon": [
-            "Rocky ground",
+            _ROCKY_GROUND,
             "Thorny brush",
-            "Difficult terrain",
+            _DIFFICULT_TERRAIN,
             "Wetland",
             "Forest floor",
         ],
@@ -411,11 +430,11 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
             "Anvil circle",
             "Rune circle",
             "Hot pit",
-            "Well",
+            _WELL,
         ],
         "polygon": [
             "Broken walkway",
-            "Rubble field",
+            _RUBBLE_FIELD,
             "Stone floor",
             "Collapsed stair",
             "Debris pile",
@@ -425,23 +444,23 @@ SCENERY_THEMES: dict[str, dict[str, list[str]]] = {
         "rect": [
             "Market stall",
             "Trade post",
-            "Broken wall",
+            _BROKEN_WALL,
             "Guardhouse",
-            "Barricade",
+            _BARRICADE,
         ],
         "circle": [
             "Town square",
-            "Fountain",
-            "Well",
-            "Signal fire",
-            "Meeting circle",
+            _FOUNTAIN,
+            _WELL,
+            _SIGNAL_FIRE,
+            _MEETING_CIRCLE,
         ],
         "polygon": [
-            "Paved square",
-            "Rubble field",
+            _PAVED_SQUARE,
+            _RUBBLE_FIELD,
             "Broken street",
             "Collapsed plaza",
-            "Debris field",
+            _DEBRIS_FIELD,
         ],
     },
 }

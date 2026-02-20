@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from adapters.ui_gradio._messages import MSG_NO_PREVIEW
 from adapters.ui_gradio.services._generate._card_result import augment_generated_card
 from application.use_cases.generate_scenario_card import GenerateScenarioCardRequest
 from application.use_cases.save_card import SaveCardRequest
+from domain.errors import DomainError
 from infrastructure.bootstrap import get_services
 
 
@@ -42,7 +44,7 @@ def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
         Augmented card dict with ``card_id`` on success, or error dict.
     """
     if not preview_data or not isinstance(preview_data, dict):
-        return {"status": "error", "message": "Generate a card preview first."}
+        return {"status": "error", "message": MSG_NO_PREVIEW}
 
     if preview_data.get("status") == "error":
         return {
@@ -51,7 +53,7 @@ def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
         }
 
     if preview_data.get("status") != "preview":
-        return {"status": "error", "message": "Generate a card preview first."}
+        return {"status": "error", "message": MSG_NO_PREVIEW}
 
     payload = preview_data.get("_payload")
     actor_id = preview_data.get("_actor_id", "")
@@ -74,8 +76,22 @@ def handle_create_scenario(preview_data: dict[str, Any]) -> dict[str, Any]:
         custom_table = payload.get("table_cm")
         return augment_generated_card(response_json, payload, preset, custom_table)
 
-    except Exception as exc:
+    except DomainError as exc:
         return {"status": "error", "message": f"Create failed: {exc}"}
+    except (
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Unexpected error in handle_create_scenario: %s", exc
+        )
+        return {"status": "error", "message": "An unexpected error occurred."}
 
 
 def handle_update_scenario(
@@ -94,7 +110,7 @@ def handle_update_scenario(
     if not card_id:
         return {"status": "error", "message": "No card ID for update."}
     if not preview_data or not isinstance(preview_data, dict):
-        return {"status": "error", "message": "Generate a card preview first."}
+        return {"status": "error", "message": MSG_NO_PREVIEW}
 
     if preview_data.get("status") == "error":
         return {
@@ -103,7 +119,7 @@ def handle_update_scenario(
         }
 
     if preview_data.get("status") != "preview":
-        return {"status": "error", "message": "Generate a card preview first."}
+        return {"status": "error", "message": MSG_NO_PREVIEW}
 
     payload = preview_data.get("_payload")
     actor_id = preview_data.get("_actor_id", "")
@@ -137,5 +153,19 @@ def handle_update_scenario(
         custom_table = payload.get("table_cm")
         return augment_generated_card(response_json, payload, preset, custom_table)
 
-    except Exception as exc:
+    except DomainError as exc:
         return {"status": "error", "message": f"Update failed: {exc}"}
+    except (
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Unexpected error in handle_update_scenario: %s", exc
+        )
+        return {"status": "error", "message": "An unexpected error occurred."}

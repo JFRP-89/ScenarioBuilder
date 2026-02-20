@@ -19,7 +19,7 @@ def build_auth_gate() -> tuple[gr.Column, gr.Markdown]:
     with gr.Column(visible=False, elem_id="auth-gate") as auth_gate:
         gr.Markdown("## Scenario Card Generator — Authentication Required")
         auth_message = gr.Markdown(
-            'You are not logged in. Please <a href="/login">log in</a> ' "to continue.",
+            'You are not logged in. Please <a href="/login">log in</a> to continue.',
             elem_id="auth-message",
         )
     return auth_gate, auth_message
@@ -58,6 +58,8 @@ def build_profile_panel() -> tuple[
     gr.Textbox,
     gr.Textbox,
     gr.Textbox,
+    gr.Textbox,
+    gr.Textbox,
     gr.Button,
     gr.Button,
     gr.Textbox,
@@ -68,8 +70,8 @@ def build_profile_panel() -> tuple[
     -------
     tuple
         (profile_panel, profile_username_display, profile_name_input,
-         profile_email_input, profile_save_btn, profile_close_btn,
-         profile_message)
+         profile_email_input, profile_pw_input, profile_pw_confirm_input,
+         profile_save_btn, profile_close_btn, profile_message)
     """
     with gr.Column(visible=False, elem_id="profile-panel") as profile_panel:
         gr.Markdown("### Profile")
@@ -85,6 +87,22 @@ def build_profile_panel() -> tuple[
         profile_email_input = gr.Textbox(
             label="Email",
             elem_id="profile-email",
+        )
+        gr.Markdown(
+            "#### Change Password\n"
+            "*Leave both fields empty to keep your current password.*",
+        )
+        profile_pw_input = gr.Textbox(
+            label="New Password",
+            type="password",
+            placeholder="Min 8 chars, upper, lower, digit, special",
+            elem_id="profile-new-password",
+        )
+        profile_pw_confirm_input = gr.Textbox(
+            label="Confirm New Password",
+            type="password",
+            placeholder="Repeat new password",
+            elem_id="profile-confirm-password",
         )
         with gr.Row():
             profile_save_btn = gr.Button(
@@ -110,6 +128,8 @@ def build_profile_panel() -> tuple[
         profile_username_display,
         profile_name_input,
         profile_email_input,
+        profile_pw_input,
+        profile_pw_confirm_input,
         profile_save_btn,
         profile_close_btn,
         profile_message,

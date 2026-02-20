@@ -84,3 +84,15 @@ class PostgresFavoritesRepository:
             return [m.card_id for m in models]  # type: ignore[misc]
         finally:
             session.close()
+
+    def remove_all_for_card(self, card_id: str) -> None:
+        """Remove all favorites referencing a card."""
+        session = self._session_factory()
+        try:
+            session.query(FavoritesModel).filter_by(card_id=card_id).delete()
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()

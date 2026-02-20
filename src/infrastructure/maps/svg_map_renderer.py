@@ -26,7 +26,6 @@ from infrastructure.maps._renderer._primitives import (
     text_label_svg,
 )
 from infrastructure.maps._renderer._sanitize import (  # - keep importable
-    escape_attr,
     escape_text,
     safe_numeric,
     safe_paint,
@@ -47,10 +46,6 @@ class SvgMapRenderer:
     # -- kept for backward compat (tests reference via instance) ---------------
     def _escape_text(self, text: str) -> str:  # pragma: no cover - delegate
         return escape_text(text)
-
-    @staticmethod
-    def _escape_attr(value: str) -> str:  # pragma: no cover - delegate
-        return escape_attr(value)
 
     @staticmethod
     def _safe_paint(value: str, default: str) -> str:  # pragma: no cover - delegate

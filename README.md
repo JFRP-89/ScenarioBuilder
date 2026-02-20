@@ -7,17 +7,19 @@ Incluye generación determinista por `seed`, renderizado de **board layouts en S
 
 ## Estado del proyecto
 
-✅ **Funcional** — 412 tests pasando  
-🏗️ **Adaptadores**: Flask API modernizada + Gradio UI con composition root  
-🔒 **Seguridad**: XSS/XXE mitigation en SVG, anti-IDOR en AuthZ  
-📐 **Arquitectura**: Clean Architecture (domain → application → infrastructure → adapters)
+✅ **Funcional** — 2984 tests pasando (1887 unit + 1097 integration)  
+🏗️ **Adaptadores**: Flask API + Gradio UI con composition root  
+🔒 **Seguridad**: XSS/XXE mitigation en SVG, anti-IDOR en AuthZ, autenticación con cambio de contraseña  
+📐 **Arquitectura**: Clean Architecture (domain → application → infrastructure → adapters)  
+🔐 **Autenticación**: Login, registro, perfil con cambio de contraseña (PBKDF2-HMAC-SHA256, política fuerte)  
+🗄️ **Persistencia**: PostgreSQL con Alembic migrations (cards, favorites, users, sessions)
 
 ## Stack técnico
 
 - **Python 3.11+** (type hints con `|`, dataclasses)
 - **Flask 2.x+** (API REST con Blueprints)
 - **Gradio 4.x** (UI interactiva)
-- **PostgreSQL** (persistencia, pendiente)
+- **PostgreSQL** (persistencia con Alembic migrations)
 - **Docker Compose** (orquestación)
 - **pytest** (TDD: 60% unit, 30% integration, 10% e2e)
 - **ruff** (lint), **defusedxml** (XXE prevention)
@@ -34,8 +36,8 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 
 # Ejecutar tests
-pytest -q                     # Todos (412 tests)
-pytest tests/unit -q          # Solo unitarios (rápido)
+pytest -q                     # Todos (2984 tests)
+pytest tests/unit -q          # Solo unitarios (1887 tests)
 pytest -q --cov=src --cov-report=term-missing  # Con coverage
 
 # Linting
@@ -51,7 +53,7 @@ No PostgreSQL required. Tests marked `@pytest.mark.db` are auto-skipped.
 
 ```bash
 pytest tests/unit tests/integration -q
-# → 2500+ passed, ~55 skipped (DB), 0 errors
+# → 1887 passed (unit), ~61 skipped (DB integration)
 ```
 
 **Profile B — with-db**
@@ -60,8 +62,9 @@ Requires a running PostgreSQL instance. Runs *all* tests including DB integratio
 ```bash
 # 1. Start PostgreSQL (local or Docker)
 # 2. Set env vars and run:
-RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql+psycopg2://user:pass@localhost:5432/test_db \
+RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql://user:pass@localhost:5432/test_db \
   pytest tests/unit tests/integration -q
+# → 2984 passed (1887 unit + 1097 integration con DB)
 ```
 
 | Variable | Purpose |
@@ -72,7 +75,7 @@ RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql+psycopg2://user:pass@localhost:5432/
 > **Tip (Windows PowerShell):**
 > ```powershell
 > $env:RUN_DB_TESTS="1"
-> $env:DATABASE_URL_TEST="postgresql+psycopg2://postgres:postgres@localhost:5434/scenario_test"
+> $env:DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5434/scenario_test?client_encoding=utf8"
 > pytest tests/unit tests/integration -q
 > ```
 
@@ -84,10 +87,27 @@ docker compose up
 
 # La aplicación combinada está disponible en:
 # - http://localhost:8000          ← FastAPI + Flask/Gradio (unified)
-# - http://localhost:8000/sb/      ← Gradio UI
+# - http://localhost:8000/sb/      ← Gradio UI (con login y panel de perfil)
 # - http://localhost:8000/auth/*   ← Flask auth endpoints
 # - http://localhost:8000/health   ← Health check
 ```
+
+## Interfaz Gradio — Funcionalidades
+
+### Autenticación
+- **Login**: Usuario y contraseña con validación
+- **Registro**: Crear nueva cuenta con confirmación de contraseña
+- **Check Username**: Verificación en tiempo real de disponibilidad  
+
+### Perfil de Usuario
+- **Mostrar**: Username, nombre, email
+- **Editar**: Actualizar nombre y email
+- **Cambiar Contraseña**: 
+  - Campos "New Password" y "Confirm New Password" (opcionales)
+  - Si ambos vacíos → guardar sin cambiar contraseña
+  - Si alguno lleno → validar coincidencia + política fuerte
+  - Campos se limpian automáticamente después de guardar o al abrir el panel
+- **Logout**: Cerrar sesión desde el panel superior
 
 ## Estructura del proyecto
 
@@ -99,31 +119,46 @@ ScenarioBuilder/
 │   │   ├── maps/            # TableSize, MapSpec
 │   │   └── security/        # Authorization (anti-IDOR)
 │   ├── application/         # Casos de uso + ports (depende de domain)
-│   │   ├── use_cases/       # CreateCard, ToggleFavorite, etc.
+│   │   ├── use_cases/       # CreateCard, GetCard, ToggleFavorite, etc.
 │   │   └── ports/           # Interfaces (repos, generators)
 │   ├── infrastructure/      # Implementaciones (depende de application)
 │   │   ├── bootstrap.py     # Composition root (build_services)
+│   │   ├── auth/            # Autenticación (user_store, auth_service, session_store, validators)
 │   │   ├── repositories/    # In-memory repos (CardRepo, FavoritesRepo)
 │   │   ├── generators/      # ID/Seed generators
 │   │   └── maps/            # SVG renderers (con XSS/XXE mitigation)
 │   └── adapters/            # HTTP/UI (depende de infrastructure)
-│       ├── http_flask/      # Flask API (cards, favorites, maps)
-│       └── ui_gradio/       # Gradio UI (sin HTTP en import/build)
+│       ├── http_flask/      # Flask API (cards, favorites, maps, auth)
+│       └── ui_gradio/       # Gradio UI (login, register, profile, cards)
 ├── content/                 # JSON editable (constraints, objectives, etc.)
 ├── tests/                   # TDD: 60% unit, 30% integration, 10% e2e
-│   ├── unit/                # Tests de dominio y lógica pura
-│   ├── integration/         # Tests de adapters + repos
-│   └── e2e/                 # Tests end-to-end (placeholder)
+│   ├── unit/                # Tests de dominio y lógica pura (1500+)
+│   ├── integration/         # Tests de adapters + repos (1300+)
+│   └── e2e/                 # Tests end-to-end (11 smoke tests)
 ├── context/                 # Conocimiento para IA (arquitectura, calidad, security)
-│   ├── architecture/        # Layers, import policy, error model
-│   ├── quality/             # TDD, coverage, SOLID
-│   ├── security/            # Security by design, anti-IDOR, input validation
+│   ├── agents/              # Guías para agentes especializados
+│   ├── architecture/        # Layers, import policy, error model, facades
+│   ├── quality/             # TDD, coverage, SOLID, definition-of-done
+│   ├── security/            # Security by design, anti-IDOR, input validation, auth
 │   └── workflow/            # Centaur mode, prompting
 ├── docs/                    # Documentación de evaluación
 └── AGENTS.md                # Índice de reglas globales + punteros a context/
 ```
 
 ## API Flask — Endpoints
+
+### Authentication
+
+- `POST /auth/login` — Autenticar usuario (body: `{"username": "...", "password": "..."}`)
+- `POST /auth/register` — Registrar nuevo usuario (body: `{"username": "...", "password": "...", "confirm_password": "...", "name": "...", "email": "..."}`)
+- `GET /auth/check-username` — Verificar disponibilidad de username (query: `?username=...`)
+- `POST /auth/logout` — Cerrar sesión
+- `POST /auth/profile` — Actualizar perfil incluyendo cambio de contraseña (body: `{"name": "...", "email": "...", "new_password": "...", "confirm_new_password": "..."}`)
+- `GET /auth/me` — Obtener perfil del usuario actual
+
+**Headers**: 
+- Obligatorio `X-CSRF-Token` en POST (incluido en cookies de sesión)
+- Sesión almacenada en cookie `sb_session_id`
 
 ### Cards
 
@@ -176,6 +211,11 @@ ScenarioBuilder/
 
 - **Deny by default**: AuthZ explícita en cada operación
 - **Anti-IDOR**: Validación de ownership en domain
+- **Autenticación**:
+  - Hash PBKDF2-HMAC-SHA256 (100k iteraciones, 32-byte salt)
+  - Política de contraseña fuerte: 8+ chars, mayúscula, minúscula, número, carácter especial
+  - Lockout: 3 intentos fallidos → bloqueado por 1 hora
+  - Sesiones con timeout (24 horas activas, idle timeout)
 - **XSS prevention**: 
   - int casting en SVG renderers
   - defusedxml para parsing seguro
@@ -243,9 +283,12 @@ alembic revision --autogenerate -m "describe change"
 - [x] Use cases: CreateCard, GetCard, UpdateCard, DeleteCard, ListCards
 - [x] Use cases: ToggleFavorite, ListFavorites
 - [x] Adapters: Flask API (cards, favorites, maps)
-- [x] Adapters: Gradio UI (smoke tests)
+- [x] Adapters: Gradio UI (completa con autenticación)
 - [x] Seguridad: XSS/XXE mitigation en SVG
-- [x] Persistencia: PostgreSQL repos
+- [x] Persistencia: PostgreSQL repos con Alembic migrations
+- [x] Autenticación: Login/Logout con sesiones PostgreSQL
+- [x] Registro: Nueva creación de cuenta con política fuerte de contraseña
+- [x] Perfil: Edición de nombre/email + cambio de contraseña
 - [ ] Deploy: Cloud (Render/Railway)
 - [ ] E2E: Tests completos Flask ↔ Gradio
 

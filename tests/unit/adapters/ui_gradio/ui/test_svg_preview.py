@@ -129,13 +129,13 @@ class TestRenderSvgFromCard:
     # --- fallback to placeholder ---
 
     def test_none_returns_placeholder(self):
-        assert render_svg_from_card(None) == _PLACEHOLDER_HTML
+        assert render_svg_from_card(None) == _PLACEHOLDER_HTML  # type: ignore[arg-type]
 
     def test_empty_dict_returns_placeholder(self):
         assert render_svg_from_card({}) == _PLACEHOLDER_HTML
 
     def test_non_dict_returns_placeholder(self):
-        assert render_svg_from_card("not a dict") == _PLACEHOLDER_HTML
+        assert render_svg_from_card("not a dict") == _PLACEHOLDER_HTML  # type: ignore[arg-type]
 
     def test_error_status_returns_placeholder(self):
         card = {"status": "error", "detail": "Something broke"}

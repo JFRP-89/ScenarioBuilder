@@ -29,17 +29,25 @@ from adapters.ui_gradio.services._generate._card_result import (
     table_cm_from_preset as _table_cm_from_preset,
 )
 from adapters.ui_gradio.services._generate._form_state import FormState
-from adapters.ui_gradio.services._generate._submission import (  # noqa: F401
+from adapters.ui_gradio.services._generate._submission import (
     handle_create_scenario,
     handle_update_scenario,
 )
 from adapters.ui_gradio.ui_types import ErrorDict
+from domain.errors import DomainError
+
+__all__ = [
+    "handle_create_scenario",
+    "handle_generate",
+    "handle_preview",
+    "handle_update_scenario",
+]
 from infrastructure.generators.deterministic_seed_generator import (
     calculate_seed_from_config,
 )
 
 
-def _prepare_payload(  # noqa: C901
+def _prepare_payload(
     fs: FormState,
 ) -> dict[str, Any]:
     """Validate inputs and build the card payload (shared by preview & generate).
@@ -55,24 +63,26 @@ def _prepare_payload(  # noqa: C901
     """
     default_actor_id = _get_default_actor_id()
     validation_error = payload_builder.validate_required_fields(
-        actor=fs.actor,
-        name=fs.name,
-        m=fs.mode,
-        armies_val=fs.armies_val,
-        preset=fs.preset,
-        width=fs.width,
-        height=fs.height,
-        unit=fs.unit,
-        depl=fs.depl,
-        lay=fs.lay,
-        obj=fs.obj,
-        init_priority=fs.init_priority,
-        rules_state=fs.rules_state,
-        vp_state=fs.vp_state,
-        deployment_zones_state_val=fs.deployment_zones_state_val,
-        objective_points_state_val=fs.objective_points_state_val,
-        scenography_state_val=fs.scenography_state_val,
-        default_actor_id=default_actor_id,
+        payload_builder.ValidationInput(
+            actor=fs.actor,
+            name=fs.name,
+            mode=fs.mode,
+            armies=fs.armies_val,
+            preset=fs.preset,
+            width=fs.width,
+            height=fs.height,
+            unit=fs.unit,
+            deployment=fs.depl,
+            layout=fs.lay,
+            objectives=fs.obj,
+            initial_priority=fs.init_priority,
+            rules_state=fs.rules_state,
+            vp_state=fs.vp_state,
+            deployment_zones=fs.deployment_zones_state_val,
+            objective_points=fs.objective_points_state_val,
+            scenography=fs.scenography_state_val,
+            default_actor_id=default_actor_id,
+        )
     )
     if validation_error:
         return {"status": "error", "message": validation_error}
@@ -104,18 +114,9 @@ def _prepare_payload(  # noqa: C901
         armies=fs.armies_val,
     )
 
-    if fs.objectives_with_vp_enabled and fs.vp_state:
-        normalized_vps, error_msg = payload_builder.validate_victory_points(fs.vp_state)
-        if error_msg:
-            return {"status": "error", "message": error_msg}
-        assert normalized_vps is not None
-        objectives_dict: dict[str, Any] = {
-            "objective": fs.obj.strip() if fs.obj.strip() else ""
-        }
-        if len(normalized_vps) > 0:
-            objectives_dict["victory_points"] = normalized_vps
-        if objectives_dict.get("objective"):
-            payload["objectives"] = objectives_dict
+    vp_error = _apply_victory_points(payload, fs)
+    if vp_error:
+        return vp_error
 
     if fs.init_priority.strip():
         payload["initial_priority"] = fs.init_priority.strip()
@@ -130,7 +131,47 @@ def _prepare_payload(  # noqa: C901
     payload.setdefault("seed", None)
     payload.setdefault("shared_with", None)
 
-    # -- Build shapes ---------------------------------------------------
+    shapes = _build_shapes(payload, fs)
+
+    return {
+        "status": "ok",
+        "payload": payload,
+        "actor_id": actor_id,
+        "custom_table": custom_table,
+        "preset": fs.preset,
+        "shapes": shapes,
+    }
+
+
+def _apply_victory_points(
+    payload: dict[str, Any],
+    fs: FormState,
+) -> dict[str, Any] | None:
+    """Add victory-point data to payload.  Returns error dict or *None*."""
+    if not (fs.objectives_with_vp_enabled and fs.vp_state):
+        return None
+
+    normalized_vps, error_msg = payload_builder.validate_victory_points(fs.vp_state)
+    if error_msg:
+        return {"status": "error", "message": error_msg}
+    if normalized_vps is None:  # pragma: no cover
+        return {"status": "error", "message": "Unexpected VP validation error"}
+
+    objectives_dict: dict[str, Any] = {
+        "objective": fs.obj.strip() if fs.obj.strip() else ""
+    }
+    if len(normalized_vps) > 0:
+        objectives_dict["victory_points"] = normalized_vps
+    if objectives_dict.get("objective"):
+        payload["objectives"] = objectives_dict
+    return None
+
+
+def _build_shapes(
+    payload: dict[str, Any],
+    fs: FormState,
+) -> dict[str, Any]:
+    """Build shapes from form state and attach to payload.  Returns shapes dict."""
     scenography_specs: list[dict[str, Any]] = []
     if fs.scenography_state_val:
         scenography_specs = shapes_builder.build_map_specs_from_state(
@@ -153,17 +194,99 @@ def _prepare_payload(  # noqa: C901
         payload["objective_shapes"] = objective_shapes
 
     return {
-        "status": "ok",
-        "payload": payload,
-        "actor_id": actor_id,
-        "custom_table": custom_table,
-        "preset": fs.preset,
-        "shapes": {
-            "deployment_shapes": deployment_shapes,
-            "objective_shapes": objective_shapes,
-            "scenography_specs": scenography_specs,
-        },
+        "deployment_shapes": deployment_shapes,
+        "objective_shapes": objective_shapes,
+        "scenography_specs": scenography_specs,
     }
+
+
+def _compute_preview_seed(fs: FormState, seed_config: dict[str, Any]) -> int:
+    """Compute the seed value for a preview card.
+
+    Rules:
+    1. Not replicable → seed = 0
+    2. GFS set and form matches seed theme → seed = gfs
+    3. Otherwise → seed = hash(form)
+    """
+    if not fs.is_replicable:
+        return 0
+
+    actual_hash = calculate_seed_from_config(seed_config)
+    gfs_int = (
+        int(fs.generate_from_seed)
+        if fs.generate_from_seed is not None and fs.generate_from_seed > 0
+        else 0
+    )
+    if gfs_int > 0:
+        from application.use_cases._generate._themes import (
+            _resolve_full_seed_defaults,
+        )
+
+        expected_config = _resolve_full_seed_defaults(gfs_int)
+        expected_hash = calculate_seed_from_config(expected_config)
+        return gfs_int if actual_hash == expected_hash else actual_hash
+
+    return actual_hash
+
+
+def _build_seed_config(
+    fs: FormState,
+    payload: dict[str, Any],
+    preset: str,
+    table_mm: dict[str, int],
+    shapes: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the configuration dict used for deterministic seed calculation."""
+    return {
+        "mode": fs.mode,
+        "table_preset": preset,
+        "table_width_mm": table_mm.get("width_mm") if table_mm else None,
+        "table_height_mm": table_mm.get("height_mm") if table_mm else None,
+        "armies": fs.armies_val.strip() if fs.armies_val else None,
+        "deployment": fs.depl.strip() if fs.depl else None,
+        "layout": fs.lay.strip() if fs.lay else None,
+        "objectives": payload.get("objectives"),
+        "initial_priority": fs.init_priority.strip() if fs.init_priority else None,
+        "special_rules": fs.rules_state if fs.rules_state else None,
+        "deployment_shapes": shapes["deployment_shapes"],
+        "objective_shapes": shapes["objective_shapes"],
+        "scenography_specs": shapes["scenography_specs"],
+    }
+
+
+def _build_preview_dict(
+    fs: FormState,
+    payload: dict[str, Any],
+    seed: int,
+    preset: str,
+    table_mm: dict[str, int],
+    shapes: dict[str, Any],
+    actor_id: str,
+) -> dict[str, Any]:
+    """Assemble the preview result dict (NOT persisted)."""
+    preview: dict[str, Any] = {
+        "status": "preview",
+        "name": fs.name.strip(),
+        FIELD_MODE: fs.mode,
+        "seed": seed,
+        "is_replicable": fs.is_replicable,
+        "armies": fs.armies_val.strip() if fs.armies_val else "",
+        "table_preset": preset,
+        "table_mm": table_mm,
+        "deployment": fs.depl.strip() if fs.depl else "",
+        "layout": fs.lay.strip() if fs.lay else "",
+        "objectives": payload.get("objectives") or (fs.obj.strip() if fs.obj else ""),
+        "initial_priority": fs.init_priority.strip() if fs.init_priority else "",
+        "visibility": fs.vis,
+        "shapes": shapes,
+        "_payload": payload,
+        "_actor_id": actor_id,
+    }
+    if payload.get("special_rules"):
+        preview["special_rules"] = payload["special_rules"]
+    if payload.get("shared_with"):
+        preview["shared_with"] = payload["shared_with"]
+    return preview
 
 
 def handle_preview(fs: FormState) -> dict[str, Any]:
@@ -180,105 +303,38 @@ def handle_preview(fs: FormState) -> dict[str, Any]:
 
         payload = prepared["payload"]
         actor_id = prepared["actor_id"]
-        custom_table = prepared["custom_table"]
         preset = prepared["preset"]
 
         # -- Compute table_mm locally -----------------------------------
-        if custom_table:
-            table_mm = _build_table_mm_from_cm(custom_table)
+        if prepared["custom_table"]:
+            table_mm = _build_table_mm_from_cm(prepared["custom_table"])
         else:
-            cm = _table_cm_from_preset(preset)
-            table_mm = _build_table_mm_from_cm(cm)
+            table_mm = _build_table_mm_from_cm(_table_cm_from_preset(preset))
 
-        # -- Calculate seed -----------------------------------------------
-        # Build config for hash-based seed (reusable across branches)
-        seed_objectives = payload.get("objectives")
-        seed_config = {
-            "mode": fs.mode,
-            "table_preset": preset,
-            "table_width_mm": table_mm.get("width_mm") if table_mm else None,
-            "table_height_mm": table_mm.get("height_mm") if table_mm else None,
-            "armies": fs.armies_val.strip() if fs.armies_val else None,
-            "deployment": fs.depl.strip() if fs.depl else None,
-            "layout": fs.lay.strip() if fs.lay else None,
-            "objectives": seed_objectives,
-            "initial_priority": (
-                fs.init_priority.strip() if fs.init_priority else None
-            ),
-            "special_rules": fs.rules_state if fs.rules_state else None,
-            "deployment_shapes": prepared["shapes"]["deployment_shapes"],
-            "objective_shapes": prepared["shapes"]["objective_shapes"],
-            "scenography_specs": prepared["shapes"]["scenography_specs"],
-        }
+        shapes = prepared["shapes"]
+        seed_config = _build_seed_config(fs, payload, preset, table_mm, shapes)
+        seed = _compute_preview_seed(fs, seed_config)
 
-        gfs = (
-            int(fs.generate_from_seed)
-            if fs.generate_from_seed and fs.generate_from_seed > 0
-            else 0
+        return _build_preview_dict(
+            fs, payload, seed, preset, table_mm, shapes, actor_id
         )
-        if gfs > 0:
-            # Check if user modified content after applying the seed.
-            # If unmodified → keep generate_from_seed as card seed.
-            # If modified → recalculate so seed reflects actual data.
-            from infrastructure.bootstrap import get_services
 
-            svc = get_services()
-            original = svc.generate_scenario_card.resolve_seed_preview(gfs)
-            content_unmodified = (
-                (fs.armies_val.strip() if fs.armies_val else "") == original["armies"]
-                and (fs.depl.strip() if fs.depl else "") == original["deployment"]
-                and (fs.lay.strip() if fs.lay else "") == original["layout"]
-                and (fs.obj.strip() if fs.obj else "") == original["objectives"]
-                and (fs.init_priority.strip() if fs.init_priority else "")
-                == original["initial_priority"]
-            )
-            seed = (
-                gfs if content_unmodified else calculate_seed_from_config(seed_config)
-            )
-        elif fs.is_replicable:
-            seed = calculate_seed_from_config(seed_config)
-        else:
-            seed = 0
-
-        # Shapes come strictly from the UI form state — no auto-fill from seed.
-        # The "Apply Seed" button is the only mechanism that injects seed shapes.
-        preview_shapes = prepared["shapes"]
-        preview_objectives = payload.get("objectives") or (
-            fs.obj.strip() if fs.obj else ""
-        )
-        preview_name = fs.name.strip()
-        preview_special_rules = payload.get("special_rules")
-
-        # -- Build preview result (NOT persisted) -----------------------
-        # Note: _payload and _actor_id are internal fields needed for submission.
-        # They are stored in the preview dict but filtered out before display.
-        preview: dict[str, Any] = {
-            "status": "preview",
-            "name": preview_name,
-            FIELD_MODE: fs.mode,
-            "seed": seed,
-            "is_replicable": fs.is_replicable,
-            "armies": fs.armies_val.strip() if fs.armies_val else "",
-            "table_preset": preset,
-            "table_mm": table_mm,
-            "deployment": fs.depl.strip() if fs.depl else "",
-            "layout": fs.lay.strip() if fs.lay else "",
-            "objectives": preview_objectives,
-            "initial_priority": (fs.init_priority.strip() if fs.init_priority else ""),
-            "visibility": fs.vis,
-            "shapes": preview_shapes,
-            "_payload": payload,  # Internal: for submission only
-            "_actor_id": actor_id,  # Internal: for submission only
-        }
-        if preview_special_rules:
-            preview["special_rules"] = preview_special_rules
-        if payload.get("shared_with"):
-            preview["shared_with"] = payload["shared_with"]
-
-        return preview
-
-    except Exception as exc:
+    except DomainError as exc:
         return {"status": "error", "message": f"Preview failed: {exc}"}
+    except (
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Unexpected error in handle_preview: %s", exc
+        )
+        return {"status": "error", "message": "An unexpected error occurred."}
 
 
 def handle_generate(fs: FormState) -> dict[str, Any]:
@@ -326,8 +382,22 @@ def handle_generate(fs: FormState) -> dict[str, Any]:
         }
         return _augment_generated_card(response_json, payload, preset, custom_table)
 
-    except Exception as exc:
+    except DomainError as exc:
         return {"status": "error", "message": f"Generate failed: {exc}"}
+    except (
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Unexpected error in handle_generate: %s", exc
+        )
+        return {"status": "error", "message": "An unexpected error occurred."}
 
 
 def _get_default_actor_id() -> str:

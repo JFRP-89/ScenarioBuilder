@@ -8,20 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
-# Legacy import for backward compatibility
 from application.ports.repositories import CardRepository
 from application.use_cases._validation import validate_actor_id
 from domain.errors import ValidationError
 from domain.security.authz import Visibility
-
-
-# =============================================================================
-# LEGACY API (kept for backward compatibility)
-# =============================================================================
-def execute(repo: CardRepository, owner_id: str):
-    """Legacy functional API - kept for backward compatibility."""
-    return list(repo.list_for_owner(owner_id))
-
 
 # =============================================================================
 # VALID FILTERS

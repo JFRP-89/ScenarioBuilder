@@ -19,6 +19,9 @@ def build_stay_outputs(
 
     Every slot is ``gr.update()`` (no-op) except the final status textbox,
     which receives *msg* and becomes visible.
+
+    Home-page outputs (recent HTML, page info, caches) are **not** included
+    here because they are refreshed by a separate ``.then()`` chain.
     """
     nav_noop = [gr.update()] * n_nav
     form_noop = [gr.update()] * n_form
@@ -26,7 +29,6 @@ def build_stay_outputs(
     extra_noop = [gr.update()] * n_extra
     return (
         *nav_noop,
-        gr.update(),  # home_recent_html
         *form_noop,
         *dropdowns_noop,
         *extra_noop,

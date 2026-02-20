@@ -24,6 +24,7 @@ from adapters.http_flask.routes.presets import presets_bp
 from domain.errors import ForbiddenError, NotFoundError, ValidationError
 from flask import Flask, g, jsonify, redirect, render_template, request
 from infrastructure.bootstrap import build_services
+from werkzeug.wrappers import Response as WerkzeugResponse
 
 
 def _get_actor_id() -> str:
@@ -41,6 +42,30 @@ def _get_actor_id() -> str:
     if not actor_id:
         raise ValidationError("Missing or empty X-Actor-Id header")
     return actor_id
+
+
+def _redirect_if_authenticated() -> WerkzeugResponse | None:
+    """Redirect to /sb/ if the user already has a valid session cookie."""
+    from infrastructure.auth import session_store
+
+    session_id = request.cookies.get("sb_session", "")
+    if session_id:
+        session = session_store.get_session(session_id)
+        if session is not None:
+            return redirect("/sb/")
+    return None
+
+
+def _classify_exception(exc: Exception) -> tuple[str, str, int] | None:
+    """Classify a generic exception as NotFound or Forbidden, or None."""
+    exc_type = type(exc).__name__
+    exc_message = str(exc).lower()
+
+    if exc_type == "NotFound" or "not found" in exc_message:
+        return ERROR_NOT_FOUND, MSG_NOT_FOUND, STATUS_NOT_FOUND
+    if exc_type == "Forbidden" or "forbidden" in exc_message:
+        return ERROR_FORBIDDEN, MSG_FORBIDDEN, STATUS_FORBIDDEN
+    return None
 
 
 def create_app() -> Flask:
@@ -71,14 +96,16 @@ def create_app() -> Flask:
 
         If already authenticated (valid session cookie), redirect to /sb/.
         """
-        from infrastructure.auth import session_store
+        return _redirect_if_authenticated() or render_template("login.html")
 
-        session_id = request.cookies.get("sb_session", "")
-        if session_id:
-            session = session_store.get_session(session_id)
-            if session is not None:
-                return redirect("/sb/")
-        return render_template("login.html")
+    # ── Registration page (HTML) ─────────────────────────────────
+    @app.route("/register")
+    def register_page():
+        """Serve the HTML registration form.
+
+        If already authenticated (valid session cookie), redirect to /sb/.
+        """
+        return _redirect_if_authenticated() or render_template("register.html")
 
     # --- Error handlers ---
     @app.errorhandler(ValidationError)
@@ -92,7 +119,7 @@ def create_app() -> Flask:
         return jsonify(body), status
 
     @app.errorhandler(NotFoundError)
-    def handle_not_found_error(exc: NotFoundError):
+    def handle_not_found_error(_exc: NotFoundError):
         """Map domain NotFoundError to 404."""
         body, status = error_response(
             ERROR_NOT_FOUND,
@@ -102,7 +129,7 @@ def create_app() -> Flask:
         return jsonify(body), status
 
     @app.errorhandler(ForbiddenError)
-    def handle_forbidden_error(exc: ForbiddenError):
+    def handle_forbidden_error(_exc: ForbiddenError):
         """Map domain ForbiddenError to 403."""
         body, status = error_response(
             ERROR_FORBIDDEN,
@@ -118,24 +145,10 @@ def create_app() -> Flask:
         IMPORTANT: For 500 errors, always return a generic message.
         Never expose internal error details to the client.
         """
-        exc_type = type(exc).__name__
-        exc_message = str(exc).lower()
-
-        # Fallback string matching for legacy code paths
-        if exc_type == "NotFound" or "not found" in exc_message:
-            body, status = error_response(
-                ERROR_NOT_FOUND,
-                MSG_NOT_FOUND,
-                STATUS_NOT_FOUND,
-            )
-            return jsonify(body), status
-
-        if exc_type == "Forbidden" or "forbidden" in exc_message:
-            body, status = error_response(
-                ERROR_FORBIDDEN,
-                MSG_FORBIDDEN,
-                STATUS_FORBIDDEN,
-            )
+        classified = _classify_exception(exc)
+        if classified is not None:
+            code, msg, st = classified
+            body, status = error_response(code, msg, st)
             return jsonify(body), status
 
         # Default: 500 Internal Server Error with GENERIC message (never leak internals)

@@ -35,7 +35,6 @@ def add_special_rule(
     value_stripped = (value_input or "").strip()
 
     if not name_stripped or not value_stripped:
-        error_msg = "Special Rule requires both Name and Value to be filled."
         if not name_stripped and not value_stripped:
             error_msg = "Special Rule requires both Name and Value to be filled."
         elif not name_stripped:

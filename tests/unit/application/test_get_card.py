@@ -91,6 +91,18 @@ class FakeCardRepository:
     def save(self, card: Card) -> None:
         self.cards[card.card_id] = card
 
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        return next((c for c in self.cards.values() if c.seed == seed), None)
+
+    def delete(self, card_id: str) -> bool:
+        return self.cards.pop(card_id, None) is not None
+
+    def list_all(self) -> list[Card]:
+        return list(self.cards.values())
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        return [c for c in self.cards.values() if c.owner_id == owner_id]
+
 
 @pytest.fixture
 def empty_repository() -> FakeCardRepository:

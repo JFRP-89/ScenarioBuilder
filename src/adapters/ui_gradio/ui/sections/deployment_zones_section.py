@@ -36,7 +36,7 @@ def build_deployment_zones_section() -> tuple[Any, ...]:
     with gr.Group(visible=False) as zones_group:
         gr.Markdown("### Deployment Zones")
         gr.Markdown(
-            "_Define deployment zones for army placement. " "Choose type and location._"
+            "_Define deployment zones for army placement. Choose type and location._"
         )
 
         deployment_zones_state = gr.State([])

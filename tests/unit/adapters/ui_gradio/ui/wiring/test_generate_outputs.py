@@ -12,11 +12,11 @@ class TestBuildStayOutputsTupleLength:
     @pytest.mark.parametrize(
         ("n_nav", "n_form", "n_dropdowns", "n_extra", "expected_len"),
         [
-            # total = n_nav + 1 (home_recent) + n_form + n_dropdowns + n_extra + 1 (status)
-            (3, 18, 0, 0, 23),
-            (3, 18, 6, 0, 29),
-            (3, 18, 6, 2, 31),
-            (1, 0, 0, 0, 3),
+            # total = n_nav + n_form + n_dropdowns + n_extra + 1 (status)
+            (3, 18, 0, 0, 22),
+            (3, 18, 6, 0, 28),
+            (3, 18, 6, 2, 30),
+            (1, 0, 0, 0, 2),
         ],
     )
     def test_length(
@@ -78,9 +78,9 @@ class TestBuildStayOutputsEdgeCases:
 
     def test_zero_form_zero_dropdowns(self) -> None:
         result = build_stay_outputs("test", n_nav=1, n_form=0, n_dropdowns=0, n_extra=0)
-        # 1 nav + 1 home_recent + 0 + 0 + 0 + 1 status = 3
-        assert len(result) == 3
+        # 1 nav + 0 + 0 + 0 + 1 status = 2
+        assert len(result) == 2
 
     def test_all_zeros_except_nav(self) -> None:
         result = build_stay_outputs("x", n_nav=5, n_form=0, n_dropdowns=0, n_extra=0)
-        assert len(result) == 7  # 5 + 1 + 1
+        assert len(result) == 6  # 5 + 1

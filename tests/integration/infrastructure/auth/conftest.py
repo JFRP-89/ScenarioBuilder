@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import sys
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse, urlunparse
 
 import pytest
 from dotenv import load_dotenv
@@ -36,6 +38,63 @@ def _escape_password_in_url(url_str: str) -> str:
     return f"{scheme_part}://{user}:{quote_plus(password)}@{host_part}"
 
 
+def _ensure_db_and_schema(url: str) -> None:
+    """Create the test database (if needed) and run migrations."""
+    url = _escape_password_in_url(url)
+    parsed = urlparse(url)
+    db_name = parsed.path.lstrip("/").split("?")[0] if parsed.path else ""
+    if not db_name:
+        return
+
+    admin_url = urlunparse(
+        (parsed.scheme, parsed.netloc, "/postgres", "", parsed.query, "")
+    )
+
+    try:
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": db_name},
+            )
+            if not result.fetchone():
+                safe = db_name.replace('"', '""')
+                conn.execute(text(f'CREATE DATABASE "{safe}"'))
+                logger.info("Created database '%s'", db_name)
+        engine.dispose()
+    except Exception as exc:
+        logger.warning("Could not ensure DB exists: %s", exc)
+        return
+
+    # Run alembic migrations
+    repo_root = Path(__file__).resolve().parents[4]
+    env = os.environ.copy()
+    env["DATABASE_URL"] = url
+    env["CI"] = "true"  # Prevent alembic/env.py overwriting with .env
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if proc.returncode != 0 or not proc.stdout.strip():
+        try:
+            from infrastructure.db.models import Base
+            from sqlalchemy import create_engine as ce
+
+            eng = ce(url)
+            Base.metadata.create_all(eng)
+            eng.dispose()
+        except Exception as exc:
+            logger.warning("Fallback schema creation failed: %s", exc)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def restore_database_url_session():
     """Set DATABASE_URL so SessionLocal connects to the test database.
@@ -49,6 +108,10 @@ def restore_database_url_session():
     url = os.environ.get("DATABASE_URL_TEST") or os.environ.get("DATABASE_URL")
     if not url:
         pytest.skip("DATABASE_URL_TEST must be set for auth integration tests.")
+
+    # Ensure the test database and schema exist
+    _ensure_db_and_schema(url)
+
     # SessionLocal reads DATABASE_URL — point it at the test database.
     os.environ["DATABASE_URL"] = url
     logger.info("Auth integration tests: DATABASE_URL → %s", url[:40] + "…")
@@ -59,9 +122,9 @@ def restore_database_url_session():
     try:
         from infrastructure.db import session as _sess_mod
 
-        if _sess_mod._engine is not None:
-            _sess_mod._engine.dispose()
-        _sess_mod._engine = None
-        _sess_mod._session_local = None
+        if _sess_mod._engine is not None:  # type: ignore[attr-defined]
+            _sess_mod._engine.dispose()  # type: ignore[attr-defined]
+        _sess_mod._engine = None  # type: ignore[attr-defined]
+        _sess_mod._session_local = None  # type: ignore[attr-defined]
     except Exception:  # pragma: no cover
         pass

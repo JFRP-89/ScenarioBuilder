@@ -410,7 +410,7 @@ class TestObjectivesValidation:
             table_preset="standard",
             visibility=None,
             shared_with=None,
-            objectives=42,
+            objectives=42,  # type: ignore[arg-type]
         )
         with pytest.raises(
             ValidationError, match="(?i)objectives must be a string or dict"

@@ -65,6 +65,21 @@ class FakeCardRepository:
         """Get card by id."""
         return self._cards.get(card_id)
 
+    def save(self, card: Card) -> None:
+        self._cards[card.card_id] = card
+
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        return next((c for c in self._cards.values() if c.seed == seed), None)
+
+    def delete(self, card_id: str) -> bool:
+        return self._cards.pop(card_id, None) is not None
+
+    def list_all(self) -> list[Card]:
+        return list(self._cards.values())
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        return [c for c in self._cards.values() if c.owner_id == owner_id]
+
 
 class SpySvgRenderer:
     """Spy SVG renderer that tracks calls and returns configurable SVG."""
@@ -81,6 +96,10 @@ class SpySvgRenderer:
         self.calls.append((table_mm, shapes))
         if self._should_raise:
             raise self._should_raise
+        return self._svg
+
+    def render_svg(self, map_spec: dict) -> str:
+        """Render map spec to SVG."""
         return self._svg
 
 

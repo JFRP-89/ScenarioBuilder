@@ -79,3 +79,14 @@ class InMemoryCardRepository:
             List of all cards in insertion order.
         """
         return list(self._cards.values())
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        """List all cards owned by a specific user.
+
+        Args:
+            owner_id: The owner's user ID.
+
+        Returns:
+            List of cards owned by the given user.
+        """
+        return [c for c in self._cards.values() if c.owner_id == owner_id]

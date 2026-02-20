@@ -12,6 +12,9 @@ Routing priority:
 
 from __future__ import annotations
 
+import re
+from urllib.parse import urlencode
+
 import gradio as gr
 from a2wsgi import WSGIMiddleware
 from adapters.http_flask.app import create_app as create_flask_app
@@ -19,6 +22,11 @@ from adapters.ui_gradio.app import build_app as build_gradio_app
 from adapters.ui_gradio.ui.router import PAGE_TO_URL
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+
+# Query-param names allowed to be forwarded through sub-route redirects.
+_FORWARD_PARAMS: frozenset[str] = frozenset({"id", "seed", "mode", "filter"})
+# Only alphanumerics, hyphens, dots and underscores are accepted as values.
+_SAFE_PARAM_VALUE = re.compile(r"^[\w\-.:]+$")
 
 
 def create_combined_app() -> FastAPI:
@@ -43,13 +51,13 @@ def create_combined_app() -> FastAPI:
 
     # Root redirect → UI
     @main_app.get("/")
-    async def _root():
+    def _root():
         return RedirectResponse("/sb/")
 
     # Backwards-compat: old /ui/ path redirects to /sb/
     @main_app.get("/ui")
     @main_app.get("/ui/")
-    async def _legacy_ui():
+    def _legacy_ui():
         return RedirectResponse("/sb/", status_code=301)
 
     # ── Sub-route redirects for SPA URL navigation ───────────────
@@ -66,12 +74,13 @@ def create_combined_app() -> FastAPI:
 
         # Create closure that captures page_name
         def _make_redirect(pn: str):
-            async def _redirect(request: Request):
-                target = f"/sb/?page={pn}"
-                # Forward extra query params (e.g. ?id=abc for detail page)
+            def _redirect(request: Request):
+                params: dict[str, str] = {"page": pn}
                 for key, val in request.query_params.items():
-                    target += f"&{key}={val}"
-                return RedirectResponse(target)
+                    m = _SAFE_PARAM_VALUE.fullmatch(val)
+                    if key in _FORWARD_PARAMS and m:
+                        params[key] = m.group(0)
+                return RedirectResponse(f"/sb/?{urlencode(params)}")
 
             return _redirect
 
@@ -96,7 +105,7 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    host = os.environ.get("HOST", "0.0.0.0")
+    host = os.environ.get("HOST", "0.0.0.0")  # nosec B104 — container/local dev
     port = int(os.environ.get("PORT", "8000"))
     uvicorn.run(
         create_combined_app(),

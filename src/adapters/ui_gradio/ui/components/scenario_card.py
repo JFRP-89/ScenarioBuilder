@@ -90,6 +90,70 @@ def make_square_placeholder(size_px: int = 100) -> str:
 
 
 # ============================================================================
+# Card HTML helpers (extracted to reduce cognitive complexity)
+# ============================================================================
+def _build_actions_html(card_id: str, fav_icon: str, fav_color: str) -> str:
+    """Build the View + Favorite action buttons HTML for a card."""
+    toggle_js = (
+        "(function(btn){"
+        "var isFav=btn.textContent.trim()==='★';"
+        "if(isFav){btn.textContent='☆';btn.style.color='#999';}"
+        "else{btn.textContent='★';btn.style.color='#f5a623';}"
+        "var favPage=document.getElementById('page-favorites');"
+        "if(favPage && favPage.contains(btn)){"
+        "var style=window.getComputedStyle(favPage);"
+        "if(style.display!=='none' && isFav){"
+        "var card=btn.closest('[data-card-id]');if(card)card.remove();"
+        "}}"
+        "var inp=document.querySelector('#fav-toggle-card-id textarea,#fav-toggle-card-id input');"
+        "if(inp){inp.value=btn.getAttribute('data-card-id')||'';"
+        "inp.dispatchEvent(new Event('input',{bubbles:true}));}"
+        "setTimeout(function(){var btn2=document.querySelector('#fav-toggle-btn');"
+        "if(btn2)btn2.click();},0);"
+        "})(this)"
+    )
+    return (
+        '<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">'
+        f'<button class="card-view-btn" data-card-id="{card_id}" '
+        'style="padding:4px 10px;font-size:12px;cursor:pointer;'
+        'border:1px solid #ccc;border-radius:4px;background:#fff;" '
+        'onclick="(function(btn){'
+        "var inp=document.querySelector('#view-card-id textarea,#view-card-id input');"
+        "if(inp){inp.value=btn.getAttribute('data-card-id')||'';"
+        "inp.dispatchEvent(new Event('input',{bubbles:true}));}"
+        "setTimeout(function(){var btn2=document.querySelector('#view-card-btn');"
+        "if(btn2)btn2.click();},0);"
+        '})(this)">'
+        "View</button>"
+        f'<span class="card-fav-btn" data-card-id="{card_id}" '
+        f'style="font-size:18px;cursor:pointer;color:{fav_color};'
+        f'user-select:none;" '
+        f'title="Toggle favorite" '
+        f'onclick="{toggle_js}">{fav_icon}</span>'
+        "</div>"
+    )
+
+
+def _build_display_name(name: str, mode: str, seed: str) -> str:
+    """Derive the display name from card fields."""
+    if name and name.strip():
+        return name
+    mode_display = mode.capitalize() if isinstance(mode, str) else "Scenario"
+    seed_display = f"#{seed}" if seed and seed != "—" else ""
+    return f"{mode_display} Scenario {seed_display}".strip()
+
+
+def _extract_table_dimensions(
+    card: dict[str, Any],
+) -> tuple[int, int]:
+    """Return (width_mm, height_mm) from card's table_mm dict."""
+    table_mm = card.get("table_mm", {})
+    if isinstance(table_mm, dict):
+        return table_mm.get("width_mm", 0), table_mm.get("height_mm", 0)
+    return 0, 0
+
+
+# ============================================================================
 # Card HTML renderer
 # ============================================================================
 def render_card_html(
@@ -119,72 +183,19 @@ def render_card_html(
     visibility = html.escape(str(card.get("visibility", "private")), quote=True)
     seed = html.escape(str(card.get("seed", "—")), quote=True)
 
-    # Extract table info
-    table_mm = card.get("table_mm", {})
-    width_mm = table_mm.get("width_mm", 0) if isinstance(table_mm, dict) else 0
-    height_mm = table_mm.get("height_mm", 0) if isinstance(table_mm, dict) else 0
-
-    # Format dimensions in requested unit
-    table_info = ""
-    if width_mm and height_mm:
-        table_info = format_dimensions(width_mm, height_mm, unit)
+    width_mm, height_mm = _extract_table_dimensions(card)
+    table_info = (
+        format_dimensions(width_mm, height_mm, unit) if width_mm and height_mm else ""
+    )
 
     fav_icon = "★" if is_favorite else "☆"
     fav_color = "#f5a623" if is_favorite else "#999"
 
     preview_html = svg_preview or make_square_placeholder(100)
-
-    actions_html = ""
-    if show_actions:
-        # JS onclick: update star instantly, optionally remove from favorites
-        # page, then call the hidden toggle button to persist.
-        toggle_js = (
-            "(function(btn){"
-            "var isFav=btn.textContent.trim()==='★';"
-            "if(isFav){btn.textContent='☆';btn.style.color='#999';}"
-            "else{btn.textContent='★';btn.style.color='#f5a623';}"
-            "var favPage=document.getElementById('page-favorites');"
-            "if(favPage && favPage.contains(btn)){"
-            "var style=window.getComputedStyle(favPage);"
-            "if(style.display!=='none' && isFav){"
-            "var card=btn.closest('[data-card-id]');if(card)card.remove();"
-            "}}"
-            "var inp=document.querySelector('#fav-toggle-card-id textarea,#fav-toggle-card-id input');"
-            "if(inp){inp.value=btn.getAttribute('data-card-id')||'';"
-            "inp.dispatchEvent(new Event('input',{bubbles:true}));}"
-            "setTimeout(function(){var btn2=document.querySelector('#fav-toggle-btn');"
-            "if(btn2)btn2.click();},0);"
-            "})(this)"
-        )
-        actions_html = (
-            '<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">'
-            f'<button class="card-view-btn" data-card-id="{card_id}" '
-            'style="padding:4px 10px;font-size:12px;cursor:pointer;'
-            'border:1px solid #ccc;border-radius:4px;background:#fff;" '
-            'onclick="(function(btn){'
-            "var inp=document.querySelector('#view-card-id textarea,#view-card-id input');"
-            "if(inp){inp.value=btn.getAttribute('data-card-id')||'';"
-            "inp.dispatchEvent(new Event('input',{bubbles:true}));}"
-            "setTimeout(function(){var btn2=document.querySelector('#view-card-btn');"
-            "if(btn2)btn2.click();},0);"
-            '})(this)">'
-            "View</button>"
-            f'<span class="card-fav-btn" data-card-id="{card_id}" '
-            f'style="font-size:18px;cursor:pointer;color:{fav_color};'
-            f'user-select:none;" '
-            f'title="Toggle favorite" '
-            f'onclick="{toggle_js}">{fav_icon}</span>'
-            "</div>"
-        )
-
-    # Build name display: use name if provided, otherwise generate from mode+seed
-    if name and name.strip():
-        display_name = name
-    else:
-        # Auto-generate name from mode and seed when name is empty
-        mode_display = mode.capitalize() if isinstance(mode, str) else "Scenario"
-        seed_display = f"#{seed}" if seed and seed != "—" else ""
-        display_name = f"{mode_display} Scenario {seed_display}".strip()
+    actions_html = (
+        _build_actions_html(card_id, fav_icon, fav_color) if show_actions else ""
+    )
+    display_name = _build_display_name(name, mode, seed)
 
     return (
         f'<div data-card-id="{card_id}" style="display:flex;gap:12px;padding:10px;'

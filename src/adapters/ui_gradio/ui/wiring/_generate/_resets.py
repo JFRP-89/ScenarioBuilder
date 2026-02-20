@@ -56,6 +56,7 @@ def build_extra_resets(
     *,
     has_editing_card_id: bool,
     has_create_heading_md: bool,
+    has_create_scenario_btn: bool = False,
 ) -> list[Any]:
     """Return reset values for edit-mode state components."""
     resets: list[Any] = []
@@ -63,4 +64,6 @@ def build_extra_resets(
         resets.append("")  # clear editing_card_id
     if has_create_heading_md:
         resets.append(gr.update(value="## Create New Scenario"))
+    if has_create_scenario_btn:
+        resets.append(gr.update(value="Create Scenario"))
     return resets

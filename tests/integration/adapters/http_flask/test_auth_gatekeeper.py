@@ -189,5 +189,6 @@ class TestSessionCreation:
         client.post("/auth/logout", headers={"X-CSRF-Token": csrf})
 
         # Session should be invalidated
+        assert session_id is not None
         session = session_store.get_session(session_id)
         assert session is None

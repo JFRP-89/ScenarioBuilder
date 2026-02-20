@@ -56,7 +56,7 @@ def build_create_page(
         Meta
         ~~~~
         scenario_name, mode, is_replicable, generate_from_seed,
-        apply_seed_btn, armies
+        apply_seed_btn, refill_scenario_btn, armies
 
         Visibility
         ~~~~~~~~~~
@@ -154,6 +154,7 @@ def build_create_page(
             is_replicable,
             generate_from_seed,
             apply_seed_btn,
+            refill_scenario_btn,
             armies,
         ) = scenario_meta_section.build_scenario_meta_section()
 
@@ -331,6 +332,7 @@ def build_create_page(
         is_replicable=is_replicable,
         generate_from_seed=generate_from_seed,
         apply_seed_btn=apply_seed_btn,
+        refill_scenario_btn=refill_scenario_btn,
         armies=armies,
         # Visibility
         visibility=visibility,

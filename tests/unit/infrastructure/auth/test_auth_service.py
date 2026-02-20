@@ -94,6 +94,7 @@ class TestGetMe:
         result = auth_service.get_me(session_id)
         assert result["ok"] is True
         profile = result["profile"]
+        assert isinstance(profile, dict)
         assert profile["username"] == "alice"
 
     def test_expired_session(self):

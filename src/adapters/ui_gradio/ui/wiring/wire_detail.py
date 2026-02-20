@@ -11,6 +11,8 @@ Internal modules
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import gradio as gr
@@ -26,7 +28,7 @@ from adapters.ui_gradio.ui.router import (
     PAGE_LIST,
     navigate_to,
 )
-from adapters.ui_gradio.ui.wiring._detail._converters import (  # noqa: F401
+from adapters.ui_gradio.ui.wiring._detail._converters import (
     _api_deployment_to_state,
     _api_objectives_to_state,
     _api_scenography_to_state,
@@ -34,9 +36,12 @@ from adapters.ui_gradio.ui.wiring._detail._converters import (  # noqa: F401
     _extract_objectives_text_for_form,
 )
 from adapters.ui_gradio.ui.wiring._detail._edit_button import (
+    EditButtonCtx,
+)
+from adapters.ui_gradio.ui.wiring._detail._edit_button import (
     wire_edit_button as _wire_edit_button,
 )
-from adapters.ui_gradio.ui.wiring._detail._render import (  # noqa: F401
+from adapters.ui_gradio.ui.wiring._detail._render import (
     _build_card_title,
     _extract_objectives_text,
     _field_row,
@@ -49,6 +54,38 @@ from adapters.ui_gradio.ui.wiring._detail._render import (  # noqa: F401
     _section_title,
     _wrap_svg,
 )
+
+# Re-exports for tests — keep in __all__ so linters treat them as public.
+__all__ = [
+    "wire_detail_page",
+    "DetailPageCtx",
+    "EditButtonCtx",
+    "_fetch_card_and_svg",
+    "_get_reset_detail_for_loading",
+    "_load_card_detail",
+    "_toggle_fav",
+    "_confirm_delete",
+    "_go_edit_fallback",
+    "_build_inputs",
+    # _detail._converters
+    "_api_deployment_to_state",
+    "_api_objectives_to_state",
+    "_api_scenography_to_state",
+    "_api_special_rules_to_state",
+    "_extract_objectives_text_for_form",
+    # _detail._render
+    "_build_card_title",
+    "_extract_objectives_text",
+    "_field_row",
+    "_format_table_display",
+    "_render_detail_content",
+    "_render_mandatory_fields",
+    "_render_shared_with",
+    "_render_special_rules",
+    "_render_victory_points",
+    "_section_title",
+    "_wrap_svg",
+]
 
 # ============================================================================
 # Service-dependent helpers (keep here — they need nav_svc / Gradio)
@@ -84,70 +121,172 @@ def _get_reset_detail_for_loading():
     return _reset
 
 
-def wire_detail_page(  # noqa: C901
+# ── Module-level handlers (avoids nesting CC penalty) ────────────
+
+
+def _load_card_detail(card_id: str, actor_id: str = "") -> tuple:
+    """Fetch card data, render detail view, and check ownership."""
+    if not actor_id:
+        actor_id = get_default_actor_id()
+    if not card_id:
+        return (
+            "## Scenario Detail",
+            '<div style="color:#999;">No card selected</div>',
+            '<div style="color:#999;text-align:center;">No data</div>',
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+        )
+    card_data, svg_wrapped = _fetch_card_and_svg(card_id, actor_id)
+
+    if card_data.get("status") == "error":
+        msg = escape_html(card_data.get("message", "Unknown error"))
+        return (
+            "## Error",
+            f'<div style="color:red;">{msg}</div>',
+            f'<div style="color:red;">{msg}</div>',
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+        )
+
+    title = _build_card_title(card_data)
+    content_html = _render_detail_content(card_data)
+
+    is_owner = card_data.get("owner_id", "") == actor_id
+    owner_visible = gr.update(visible=is_owner)
+
+    return (
+        title,
+        svg_wrapped,
+        content_html,
+        owner_visible,
+        owner_visible,
+        gr.update(visible=False),
+    )
+
+
+def _toggle_fav(card_id: str, actor_id: str = "") -> str:
+    """Toggle favorite status for the given card."""
+    if not card_id:
+        return "⭐ Toggle Favorite"
+    if not actor_id:
+        actor_id = get_default_actor_id()
+    result = nav_svc.toggle_favorite(actor_id, card_id)
+    if result.get("is_favorite"):
+        return "★ Favorited"
+    return "☆ Toggle Favorite"
+
+
+def _confirm_delete(
+    card_id: str,
+    from_page: str,
+    actor_id: str = "",
     *,
-    page_state: gr.State,
-    page_containers: list[gr.Column],
-    previous_page_state: gr.State,
-    detail_card_id_state: gr.State,
-    detail_reload_trigger: gr.State,
-    editing_reload_trigger: gr.State | None = None,
+    n_nav_outputs: int,
+) -> tuple:
+    """Delete the card via API and navigate to previous page."""
+    if not card_id:
+        return (gr.update(visible=False), *navigate_to(PAGE_HOME))
+
+    if not actor_id:
+        actor_id = get_default_actor_id()
+    result = nav_svc.delete_card(actor_id, card_id)
+
+    if result.get("status") == "error":
+        return (gr.update(visible=False), *(gr.update(),) * n_nav_outputs)
+
+    if from_page not in [PAGE_HOME, PAGE_LIST, PAGE_FAVORITES]:
+        from_page = PAGE_HOME
+    return (gr.update(visible=False), *navigate_to(from_page))
+
+
+def _go_edit_fallback(card_id: str) -> tuple:
+    """Fallback edit: navigate to old edit page."""
+    nav = navigate_to(PAGE_EDIT)
+    if not card_id:
+        return (*nav, card_id, "## Edit", "", {})
+    card_data, svg_wrapped = _fetch_card_and_svg(card_id)
+    name = card_data.get("name", "")
+    edit_title = f"## Edit: {escape_html(name)}" if name else "## Edit Scenario"
+    return (*nav, card_id, edit_title, svg_wrapped, card_data)
+
+
+def _build_inputs(
+    base: list[gr.components.Component],
+    actor_id_state: gr.State | None,
+) -> list[gr.components.Component]:
+    """Append actor_id_state to inputs if present."""
+    if actor_id_state is not None:
+        return [*base, actor_id_state]
+    return list(base)
+
+
+@dataclass(frozen=True)
+class DetailPageCtx:
+    """Widget references for detail-page wiring."""
+
+    page_state: gr.State
+    page_containers: list[gr.Column]
+    previous_page_state: gr.State
+    detail_card_id_state: gr.Textbox
+    detail_reload_trigger: gr.State
     # Detail page widgets
-    detail_title_md: gr.Markdown,
-    detail_svg_preview: gr.HTML,
-    detail_content_html: gr.HTML,
-    detail_edit_btn: gr.Button,
-    detail_delete_btn: gr.Button,
-    detail_delete_confirm_row: gr.Row,
-    detail_delete_confirm_btn: gr.Button,
-    detail_delete_cancel_btn: gr.Button,
-    detail_favorite_btn: gr.Button,
+    detail_title_md: gr.Markdown
+    detail_svg_preview: gr.HTML
+    detail_content_html: gr.HTML
+    detail_edit_btn: gr.Button
+    detail_delete_btn: gr.Button
+    detail_delete_confirm_row: gr.Row
+    detail_delete_confirm_btn: gr.Button
+    detail_delete_cancel_btn: gr.Button
+    detail_favorite_btn: gr.Button
     # Edit page widgets (kept for backward compat)
-    edit_title_md: gr.Markdown,
-    edit_svg_preview: gr.HTML,
-    edit_card_json: gr.JSON,
-    # ── Create-form fields for populate-on-edit ────────────────
-    editing_card_id: gr.State | None = None,
-    create_heading_md: gr.Markdown | None = None,
-    scenario_name: gr.Textbox | None = None,
-    mode: gr.Radio | None = None,
-    is_replicable: gr.Checkbox | None = None,
-    armies: gr.Textbox | None = None,
-    table_preset: gr.Radio | None = None,
-    deployment: gr.Textbox | None = None,
-    layout: gr.Textbox | None = None,
-    objectives: gr.Textbox | None = None,
-    initial_priority: gr.Textbox | None = None,
-    objectives_with_vp_toggle: gr.Checkbox | None = None,
-    vp_state: gr.State | None = None,
-    visibility: gr.Radio | None = None,
-    shared_with: gr.Textbox | None = None,
-    special_rules_state: gr.State | None = None,
-    scenography_state: gr.State | None = None,
-    deployment_zones_state: gr.State | None = None,
-    objective_points_state: gr.State | None = None,
-    svg_preview: gr.HTML | None = None,
-    output: gr.JSON | None = None,
-    # Dropdowns, toggles, and groups for shape sections
-    deployment_zones_list: gr.Dropdown | None = None,
-    deployment_zones_toggle: gr.Checkbox | None = None,
-    zones_group: gr.Group | None = None,
-    objective_points_list: gr.Dropdown | None = None,
-    objective_points_toggle: gr.Checkbox | None = None,
-    objective_points_group: gr.Group | None = None,
-    scenography_list: gr.Dropdown | None = None,
-    scenography_toggle: gr.Checkbox | None = None,
-    scenography_group: gr.Group | None = None,
-    # VP section
-    vp_list: gr.Dropdown | None = None,
-    vp_group: gr.Group | None = None,
-    # Special rules section
-    rules_list: gr.Dropdown | None = None,
-    special_rules_toggle: gr.Checkbox | None = None,
-    rules_group: gr.Group | None = None,
-    # Actor state for per-session auth
-    actor_id_state: gr.State | None = None,
-) -> None:
+    edit_title_md: gr.Markdown
+    edit_svg_preview: gr.HTML
+    edit_card_json: gr.JSON
+    # Create-form fields for populate-on-edit
+    editing_card_id: gr.Textbox | None = None
+    editing_reload_trigger: gr.State | None = None
+    create_heading_md: gr.Markdown | None = None
+    scenario_name: gr.Textbox | None = None
+    mode: gr.Radio | None = None
+    is_replicable: gr.Checkbox | None = None
+    armies: gr.Textbox | None = None
+    table_preset: gr.Radio | None = None
+    deployment: gr.Textbox | None = None
+    layout: gr.Textbox | None = None
+    objectives: gr.Textbox | None = None
+    initial_priority: gr.Textbox | None = None
+    objectives_with_vp_toggle: gr.Checkbox | None = None
+    vp_state: gr.State | None = None
+    visibility: gr.Radio | None = None
+    shared_with: gr.Textbox | None = None
+    special_rules_state: gr.State | None = None
+    scenography_state: gr.State | None = None
+    deployment_zones_state: gr.State | None = None
+    objective_points_state: gr.State | None = None
+    svg_preview: gr.HTML | None = None
+    output: gr.JSON | None = None
+    deployment_zones_list: gr.Dropdown | None = None
+    deployment_zones_toggle: gr.Checkbox | None = None
+    zones_group: gr.Group | None = None
+    objective_points_list: gr.Dropdown | None = None
+    objective_points_toggle: gr.Checkbox | None = None
+    objective_points_group: gr.Group | None = None
+    scenography_list: gr.Dropdown | None = None
+    scenography_toggle: gr.Checkbox | None = None
+    scenography_group: gr.Group | None = None
+    vp_list: gr.Dropdown | None = None
+    vp_group: gr.Group | None = None
+    rules_list: gr.Dropdown | None = None
+    special_rules_toggle: gr.Checkbox | None = None
+    rules_group: gr.Group | None = None
+    actor_id_state: gr.State | None = None
+    create_scenario_btn: gr.Button | None = None
+
+
+def wire_detail_page(*, ctx: DetailPageCtx) -> None:
     """Wire the detail page interactions.
 
     * Loads card data when ``detail_card_id_state`` changes.
@@ -156,76 +295,25 @@ def wire_detail_page(  # noqa: C901
     * Edit button navigates to the Create page in *edit mode*,
       populating all form fields and setting ``editing_card_id``.
     """
+    c = ctx
 
     # ── Security: deny-by-default reset ────────────────────────────
-    # Step 1 (instant, no API call): hide the Edit button and show a
-    # loading state so there is no window where the previous card's
-    # Edit button is still clickable.
     _reset_detail_for_loading = _get_reset_detail_for_loading()
 
-    # Step 2 (chained, calls API): fetch the real data and decide
-    # whether to show Edit based on ownership.
-    def _load_card_detail(card_id: str, actor_id: str = "") -> tuple:
-        """Fetch card data, render detail view, and check ownership."""
-        if not actor_id:
-            actor_id = get_default_actor_id()
-        if not card_id:
-            return (
-                "## Scenario Detail",
-                '<div style="color:#999;">No card selected</div>',
-                '<div style="color:#999;text-align:center;">No data</div>',
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-            )
-        card_data, svg_wrapped = _fetch_card_and_svg(card_id, actor_id)
-
-        if card_data.get("status") == "error":
-            msg = escape_html(card_data.get("message", "Unknown error"))
-            return (
-                "## Error",
-                f'<div style="color:red;">{msg}</div>',
-                f'<div style="color:red;">{msg}</div>',
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-            )
-
-        title = _build_card_title(card_data)
-        content_html = _render_detail_content(card_data)
-
-        # Ownership check: only show edit/delete if actor == owner
-        is_owner = card_data.get("owner_id", "") == actor_id
-        owner_visible = gr.update(visible=is_owner)
-
-        return (
-            title,
-            svg_wrapped,
-            content_html,
-            owner_visible,
-            owner_visible,
-            gr.update(visible=False),
-        )
-
     _detail_outputs = [
-        detail_title_md,
-        detail_svg_preview,
-        detail_content_html,
-        detail_edit_btn,
-        detail_delete_btn,
-        detail_delete_confirm_row,
+        c.detail_title_md,
+        c.detail_svg_preview,
+        c.detail_content_html,
+        c.detail_edit_btn,
+        c.detail_delete_btn,
+        c.detail_delete_confirm_row,
     ]
 
-    # When card_id or reload_trigger changes: reset immediately → then load real data
-    _load_inputs: list[gr.components.Component] = [detail_card_id_state]
-    if actor_id_state is not None:
-        _load_inputs.append(actor_id_state)
+    _load_inputs = _build_inputs([c.detail_card_id_state], c.actor_id_state)
 
-    # Listen to both card_id changes AND reload_trigger changes
-    # This ensures reload happens even if clicking the same card multiple times
-    detail_card_id_state.change(
+    c.detail_card_id_state.change(
         fn=_reset_detail_for_loading,
-        inputs=[detail_card_id_state],
+        inputs=[c.detail_card_id_state],
         outputs=_detail_outputs,
     ).then(
         fn=_load_card_detail,
@@ -233,10 +321,9 @@ def wire_detail_page(  # noqa: C901
         outputs=_detail_outputs,
     )
 
-    # Also listen to reload_trigger to force reload even if card_id hasn't changed
-    detail_reload_trigger.change(
+    c.detail_reload_trigger.change(
         fn=_reset_detail_for_loading,
-        inputs=[detail_card_id_state],
+        inputs=[c.detail_card_id_state],
         outputs=_detail_outputs,
     ).then(
         fn=_load_card_detail,
@@ -245,152 +332,101 @@ def wire_detail_page(  # noqa: C901
     )
 
     # Toggle favorite button
-    def _toggle_fav(card_id: str, actor_id: str = "") -> str:
-        if not card_id:
-            return "⭐ Toggle Favorite"
-        if not actor_id:
-            actor_id = get_default_actor_id()
-        result = nav_svc.toggle_favorite(actor_id, card_id)
-        if result.get("is_favorite"):
-            return "★ Favorited"
-        return "☆ Toggle Favorite"
-
-    _fav_inputs: list[gr.components.Component] = [detail_card_id_state]
-    if actor_id_state is not None:
-        _fav_inputs.append(actor_id_state)
-
-    detail_favorite_btn.click(
+    c.detail_favorite_btn.click(
         fn=_toggle_fav,
-        inputs=_fav_inputs,
-        outputs=[detail_favorite_btn],
+        inputs=_build_inputs([c.detail_card_id_state], c.actor_id_state),
+        outputs=[c.detail_favorite_btn],
     )
 
-    # ── Delete button → show confirmation ─────────────────────────
-    def _show_confirmation():
-        """Show the delete confirmation row."""
-        return gr.update(visible=True)
-
-    def _hide_confirmation():
-        """Hide the delete confirmation row."""
-        return gr.update(visible=False)
-
-    detail_delete_btn.click(
-        fn=_show_confirmation,
+    # ── Delete button → show/hide confirmation ────────────────────
+    c.detail_delete_btn.click(
+        fn=lambda: gr.update(visible=True),
         inputs=[],
-        outputs=[detail_delete_confirm_row],
+        outputs=[c.detail_delete_confirm_row],
     )
-
-    detail_delete_cancel_btn.click(
-        fn=_hide_confirmation,
+    c.detail_delete_cancel_btn.click(
+        fn=lambda: gr.update(visible=False),
         inputs=[],
-        outputs=[detail_delete_confirm_row],
+        outputs=[c.detail_delete_confirm_row],
     )
 
     # ── Confirm Delete → call API and navigate back ───────────────
-    nav_outputs = [page_state, *page_containers]
+    nav_outputs = [c.page_state, *c.page_containers]
 
-    def _confirm_delete(card_id: str, from_page: str, actor_id: str = "") -> tuple:
-        """Delete the card via API and navigate to previous page."""
-        if not card_id:
-            return (gr.update(visible=False), *navigate_to(PAGE_HOME))
-
-        if not actor_id:
-            actor_id = get_default_actor_id()
-        result = nav_svc.delete_card(actor_id, card_id)
-
-        if result.get("status") == "error":
-            # Stay on page, hide confirmation
-            return (gr.update(visible=False), *(gr.update(),) * len(nav_outputs))
-
-        # Navigate back to where user came from
-        if from_page not in [PAGE_HOME, PAGE_LIST, PAGE_FAVORITES]:
-            from_page = PAGE_HOME
-        return (gr.update(visible=False), *navigate_to(from_page))
-
-    _delete_inputs: list[gr.components.Component] = [
-        detail_card_id_state,
-        previous_page_state,
-    ]
-    if actor_id_state is not None:
-        _delete_inputs.append(actor_id_state)
-
-    detail_delete_confirm_btn.click(
-        fn=_confirm_delete,
-        inputs=_delete_inputs,
-        outputs=[detail_delete_confirm_row, *nav_outputs],
+    c.detail_delete_confirm_btn.click(
+        fn=partial(_confirm_delete, n_nav_outputs=len(nav_outputs)),
+        inputs=_build_inputs(
+            [c.detail_card_id_state, c.previous_page_state],
+            c.actor_id_state,
+        ),
+        outputs=[c.detail_delete_confirm_row, *nav_outputs],
     )
 
     # ── Edit button → navigate to CREATE page + populate form ─────
     _can_edit_mode = (
-        editing_card_id is not None
-        and create_heading_md is not None
-        and scenario_name is not None
+        c.editing_card_id is not None
+        and c.create_heading_md is not None
+        and c.scenario_name is not None
     )
 
     if _can_edit_mode:
         _wire_edit_button(
-            fetch_card_and_svg=_fetch_card_and_svg,
-            detail_edit_btn=detail_edit_btn,
-            detail_card_id_state=detail_card_id_state,
-            page_state=page_state,
-            page_containers=page_containers,
-            editing_card_id=editing_card_id,
-            editing_reload_trigger=editing_reload_trigger,
-            create_heading_md=create_heading_md,
-            scenario_name=scenario_name,
-            mode=mode,
-            is_replicable=is_replicable,
-            armies=armies,
-            table_preset=table_preset,
-            deployment=deployment,
-            layout=layout,
-            objectives=objectives,
-            initial_priority=initial_priority,
-            objectives_with_vp_toggle=objectives_with_vp_toggle,
-            vp_state=vp_state,
-            visibility=visibility,
-            shared_with=shared_with,
-            special_rules_state=special_rules_state,
-            scenography_state=scenography_state,
-            deployment_zones_state=deployment_zones_state,
-            objective_points_state=objective_points_state,
-            svg_preview=svg_preview,
-            output=output,
-            deployment_zones_list=deployment_zones_list,
-            deployment_zones_toggle=deployment_zones_toggle,
-            zones_group=zones_group,
-            objective_points_list=objective_points_list,
-            objective_points_toggle=objective_points_toggle,
-            objective_points_group=objective_points_group,
-            scenography_list=scenography_list,
-            scenography_toggle=scenography_toggle,
-            scenography_group=scenography_group,
-            vp_list=vp_list,
-            vp_group=vp_group,
-            rules_list=rules_list,
-            special_rules_toggle=special_rules_toggle,
-            rules_group=rules_group,
+            ctx=EditButtonCtx(
+                fetch_card_and_svg=_fetch_card_and_svg,
+                detail_edit_btn=c.detail_edit_btn,
+                detail_card_id_state=c.detail_card_id_state,
+                actor_id_state=c.actor_id_state,
+                page_state=c.page_state,
+                page_containers=c.page_containers,
+                editing_card_id=c.editing_card_id,
+                editing_reload_trigger=c.editing_reload_trigger,
+                create_heading_md=c.create_heading_md,
+                scenario_name=c.scenario_name,
+                mode=c.mode,
+                is_replicable=c.is_replicable,
+                armies=c.armies,
+                table_preset=c.table_preset,
+                deployment=c.deployment,
+                layout=c.layout,
+                objectives=c.objectives,
+                initial_priority=c.initial_priority,
+                objectives_with_vp_toggle=c.objectives_with_vp_toggle,
+                vp_state=c.vp_state,
+                visibility=c.visibility,
+                shared_with=c.shared_with,
+                special_rules_state=c.special_rules_state,
+                scenography_state=c.scenography_state,
+                deployment_zones_state=c.deployment_zones_state,
+                objective_points_state=c.objective_points_state,
+                svg_preview=c.svg_preview,
+                output=c.output,
+                deployment_zones_list=c.deployment_zones_list,
+                deployment_zones_toggle=c.deployment_zones_toggle,
+                zones_group=c.zones_group,
+                objective_points_list=c.objective_points_list,
+                objective_points_toggle=c.objective_points_toggle,
+                objective_points_group=c.objective_points_group,
+                scenography_list=c.scenography_list,
+                scenography_toggle=c.scenography_toggle,
+                scenography_group=c.scenography_group,
+                vp_list=c.vp_list,
+                vp_group=c.vp_group,
+                rules_list=c.rules_list,
+                special_rules_toggle=c.special_rules_toggle,
+                rules_group=c.rules_group,
+                create_scenario_btn=c.create_scenario_btn,
+            )
         )
     else:
-        # Fallback: navigate to old edit page (kept for compat)
-        def _go_edit(card_id: str) -> tuple:
-            nav = navigate_to(PAGE_EDIT)
-            if not card_id:
-                return (*nav, card_id, "## Edit", "", {})
-            card_data, svg_wrapped = _fetch_card_and_svg(card_id)
-            name = card_data.get("name", "")
-            edit_title = f"## Edit: {escape_html(name)}" if name else "## Edit Scenario"
-            return (*nav, card_id, edit_title, svg_wrapped, card_data)
-
-        detail_edit_btn.click(
-            fn=_go_edit,
-            inputs=[detail_card_id_state],
+        c.detail_edit_btn.click(
+            fn=_go_edit_fallback,
+            inputs=[c.detail_card_id_state],
             outputs=[
-                page_state,
-                *page_containers,
-                detail_card_id_state,
-                edit_title_md,
-                edit_svg_preview,
-                edit_card_json,
+                c.page_state,
+                *c.page_containers,
+                c.detail_card_id_state,
+                c.edit_title_md,
+                c.edit_svg_preview,
+                c.edit_card_json,
             ],
         )

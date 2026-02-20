@@ -158,6 +158,69 @@ class TestInMemoryFavoritesRepositoryListFavorites:
 
 
 # =============================================================================
+# REMOVE_ALL_FOR_CARD TESTS
+# =============================================================================
+class TestInMemoryFavoritesRepositoryRemoveAllForCard:
+    """Tests for remove_all_for_card operation."""
+
+    def test_removes_all_favorites_for_card(self) -> None:
+        """remove_all_for_card removes favorites from all actors."""
+        from infrastructure.repositories.in_memory_favorites_repository import (
+            InMemoryFavoritesRepository,
+        )
+
+        repo = InMemoryFavoritesRepository()
+        repo.set_favorite("u1", "c1", True)
+        repo.set_favorite("u2", "c1", True)
+        repo.set_favorite("u3", "c1", True)
+
+        repo.remove_all_for_card("c1")
+
+        assert not repo.is_favorite("u1", "c1")
+        assert not repo.is_favorite("u2", "c1")
+        assert not repo.is_favorite("u3", "c1")
+
+    def test_preserves_other_cards(self) -> None:
+        """remove_all_for_card does not affect other cards."""
+        from infrastructure.repositories.in_memory_favorites_repository import (
+            InMemoryFavoritesRepository,
+        )
+
+        repo = InMemoryFavoritesRepository()
+        repo.set_favorite("u1", "c1", True)
+        repo.set_favorite("u1", "c2", True)
+        repo.set_favorite("u2", "c1", True)
+
+        repo.remove_all_for_card("c1")
+
+        assert repo.is_favorite("u1", "c2")
+        assert not repo.is_favorite("u1", "c1")
+        assert not repo.is_favorite("u2", "c1")
+
+    def test_noop_for_nonexistent_card(self) -> None:
+        """remove_all_for_card on non-existent card is a no-op."""
+        from infrastructure.repositories.in_memory_favorites_repository import (
+            InMemoryFavoritesRepository,
+        )
+
+        repo = InMemoryFavoritesRepository()
+        repo.set_favorite("u1", "c1", True)
+
+        repo.remove_all_for_card("nonexistent")
+
+        assert repo.is_favorite("u1", "c1")
+
+    def test_noop_on_empty_repo(self) -> None:
+        """remove_all_for_card on empty repo does not raise."""
+        from infrastructure.repositories.in_memory_favorites_repository import (
+            InMemoryFavoritesRepository,
+        )
+
+        repo = InMemoryFavoritesRepository()
+        repo.remove_all_for_card("c1")  # should not raise
+
+
+# =============================================================================
 # ISOLATION TESTS
 # =============================================================================
 class TestInMemoryFavoritesRepositoryIsolation:

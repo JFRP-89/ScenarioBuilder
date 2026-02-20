@@ -10,6 +10,9 @@ from typing import Any
 
 from adapters.ui_gradio.ui.components.search_helpers import escape_html
 
+_EMPTY = "\u2014"  # em-dash fallback for missing values
+_UNKNOWN_RULE = "Unknown"
+
 # ============================================================================
 # Low-level row / section helpers
 # ============================================================================
@@ -101,7 +104,7 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
     # 1) Source-only rules: bold names, comma-separated
     if source_only:
         names_html = ", ".join(
-            f'<strong>{escape_html(r.get("name", "Unknown"))}</strong>'
+            f'<strong>{escape_html(r.get("name", _UNKNOWN_RULE))}</strong>'
             for r in source_only
         )
         html_parts.append(
@@ -112,7 +115,7 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
     # 2) Description rules: Name: Description
     if with_description:
         for rule in with_description:
-            name = escape_html(rule.get("name", "Unknown"))
+            name = escape_html(rule.get("name", _UNKNOWN_RULE))
             desc = escape_html(rule.get("description", ""))
             html_parts.append(
                 f'<div style="padding:4px 0;color:#333;font-size:14px;">'
@@ -124,7 +127,7 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
     if rules_with_source:
         source_items = "".join(
             f'<div style="padding:3px 0;font-size:13px;color:#555;">'
-            f'<strong>{escape_html(r.get("name", "Unknown"))}</strong>: '
+            f'<strong>{escape_html(r.get("name", _UNKNOWN_RULE))}</strong>: '
             f'{escape_html(r.get("source", ""))}</div>'
             for r in rules_with_source
         )
@@ -162,10 +165,10 @@ def _format_table_display(card_data: dict[str, Any]) -> str:
 def _extract_objectives_text(objectives: Any) -> str:
     """Extract objectives display text from str or dict."""
     if isinstance(objectives, dict):
-        return str(objectives.get("objective", "—"))
+        return str(objectives.get("objective", _EMPTY))
     if isinstance(objectives, str):
         return objectives
-    return "—"
+    return _EMPTY
 
 
 # ============================================================================
@@ -177,23 +180,23 @@ def _render_mandatory_fields(card_data: dict[str, Any]) -> list[str]:
     """Render all mandatory scenario detail fields."""
     parts: list[str] = []
     parts.append(_section_title("Scenario Details"))
-    parts.append(_field_row("Author / Owner", card_data.get("owner_id", "—")))
-    parts.append(_field_row("Scenario Name", card_data.get("name", "—") or "—"))
-    parts.append(_field_row("Game Mode", card_data.get("mode", "—").capitalize()))
-    parts.append(_field_row("Seed", str(card_data.get("seed", "—"))))
+    parts.append(_field_row("Author / Owner", card_data.get("owner_id", _EMPTY)))
+    parts.append(_field_row("Scenario Name", card_data.get("name", _EMPTY) or _EMPTY))
+    parts.append(_field_row("Game Mode", card_data.get("mode", _EMPTY).capitalize()))
+    parts.append(_field_row("Seed", str(card_data.get("seed", _EMPTY))))
 
     armies = card_data.get("armies")
-    parts.append(_field_row("Armies", armies if armies else "—"))
+    parts.append(_field_row("Armies", armies if armies else _EMPTY))
     parts.append(
-        _field_row("Visibility", card_data.get("visibility", "—").capitalize())
+        _field_row("Visibility", card_data.get("visibility", _EMPTY).capitalize())
     )
     parts.append(_field_row("Table Preset", _format_table_display(card_data)))
 
     deployment = card_data.get("deployment")
-    parts.append(_field_row("Deployment", deployment if deployment else "—"))
+    parts.append(_field_row("Deployment", deployment if deployment else _EMPTY))
 
     layout = card_data.get("layout")
-    parts.append(_field_row("Layout", layout if layout else "—"))
+    parts.append(_field_row("Layout", layout if layout else _EMPTY))
 
     objectives = card_data.get("objectives")
     parts.append(_field_row("Objectives", _extract_objectives_text(objectives)))
@@ -206,7 +209,7 @@ def _render_mandatory_fields(card_data: dict[str, Any]) -> list[str]:
 
     initial_priority = card_data.get("initial_priority")
     parts.append(
-        _field_row("Initial Priority", initial_priority if initial_priority else "—")
+        _field_row("Initial Priority", initial_priority if initial_priority else _EMPTY)
     )
     return parts
 

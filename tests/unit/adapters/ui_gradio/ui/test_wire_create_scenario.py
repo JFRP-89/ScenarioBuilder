@@ -6,7 +6,10 @@ from unittest.mock import patch
 
 import gradio as gr
 from adapters.ui_gradio.ui.router import ALL_PAGES, PAGE_HOME
-from adapters.ui_gradio.ui.wiring.wire_generate import _wire_create_scenario
+from adapters.ui_gradio.ui.wiring.wire_generate import (
+    _CreateScenarioCtx,
+    _wire_create_scenario,
+)
 
 # Number of page containers (mirrors ALL_PAGES)
 _N_PAGES = len(ALL_PAGES)
@@ -15,9 +18,10 @@ _N_PAGES = len(ALL_PAGES)
 _N_FORM = 19
 # Dropdown/list components passed to wire: 6
 _N_DROPDOWNS = 6
-# Handler returns: page_state + N visibilities + home_recent_html
-#                  + form resets + dropdown resets + status
-_EXPECTED_LEN = 1 + _N_PAGES + 1 + _N_FORM + _N_DROPDOWNS + 1
+# Handler returns: page_state + N visibilities
+#                  + form resets + dropdown resets + btn reset + status
+# Home data (recent_html, page_info, caches) is loaded via .then() chain.
+_EXPECTED_LEN = 1 + _N_PAGES + _N_FORM + _N_DROPDOWNS + 1 + 1
 
 
 class _FakeComponent:
@@ -25,9 +29,17 @@ class _FakeComponent:
 
     def __init__(self):
         self._click_fn = None
+        self._then_fn = None
+        self._then_outputs = None
 
     def click(self, *, fn, inputs, outputs):
         self._click_fn = fn
+        return self  # support .then() chaining
+
+    def then(self, *, fn, inputs, outputs):
+        self._then_fn = fn
+        self._then_outputs = outputs
+        return self
 
 
 def _make_fake_containers():
@@ -73,37 +85,43 @@ class TestOnCreateScenario:
         objective_points_list = gr.Dropdown(visible=False)
 
         _wire_create_scenario(
-            output=output,
-            preview_full_state=output,
-            create_scenario_btn=btn,
-            create_scenario_status=status,
-            svg_preview=svg_preview,
-            page_state=page_state,
-            page_containers=page_containers,
-            home_recent_html=home_recent_html,
-            scenario_name=scenario_name,
-            mode=mode,
-            is_replicable=is_replicable,
-            generate_from_seed=generate_from_seed,
-            armies=armies,
-            deployment=deployment,
-            layout=layout,
-            objectives=objectives,
-            initial_priority=initial_priority,
-            visibility=visibility,
-            shared_with=shared_with,
-            special_rules_state=special_rules_state,
-            objectives_with_vp_toggle=objectives_with_vp_toggle,
-            vp_state=vp_state,
-            scenography_state=scenography_state,
-            deployment_zones_state=deployment_zones_state,
-            objective_points_state=objective_points_state,
-            vp_input=vp_input,
-            vp_list=vp_list,
-            rules_list=rules_list,
-            scenography_list=scenography_list,
-            deployment_zones_list=deployment_zones_list,
-            objective_points_list=objective_points_list,
+            ctx=_CreateScenarioCtx(
+                output=output,
+                preview_full_state=output,
+                create_scenario_btn=btn,
+                create_scenario_status=status,
+                svg_preview=svg_preview,
+                page_state=page_state,
+                page_containers=page_containers,
+                home_recent_html=home_recent_html,
+                scenario_name=scenario_name,
+                mode=mode,
+                is_replicable=is_replicable,
+                generate_from_seed=generate_from_seed,
+                armies=armies,
+                deployment=deployment,
+                layout=layout,
+                objectives=objectives,
+                initial_priority=initial_priority,
+                visibility=visibility,
+                shared_with=shared_with,
+                special_rules_state=special_rules_state,
+                objectives_with_vp_toggle=objectives_with_vp_toggle,
+                vp_state=vp_state,
+                scenography_state=scenography_state,
+                deployment_zones_state=deployment_zones_state,
+                objective_points_state=objective_points_state,
+                vp_input=vp_input,
+                vp_list=vp_list,
+                rules_list=rules_list,
+                scenography_list=scenography_list,
+                deployment_zones_list=deployment_zones_list,
+                objective_points_list=objective_points_list,
+                home_page_info=_FakeComponent(),
+                home_page_state=_FakeComponent(),
+                home_cards_cache_state=_FakeComponent(),
+                home_fav_ids_cache_state=_FakeComponent(),
+            )
         )
         return btn._click_fn
 
@@ -146,7 +164,6 @@ class TestOnCreateScenario:
             "card_id": "abc-123",
             "mode": "matched",
         }
-        mock_load.return_value = "<div>recent</div>"
         handler = self._get_handler()
         preview = {
             "status": "preview",
@@ -187,8 +204,8 @@ class TestOnCreateScenario:
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.load_recent_cards")
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.handle_create_scenario")
     def test_success_refreshes_recent_cards(self, mock_create, mock_load):
+        """Home data is refreshed via .then() chain, not inline."""
         mock_create.return_value = {"card_id": "x1"}
-        mock_load.return_value = "<div>cards list</div>"
         handler = self._get_handler()
         preview = {
             "status": "preview",
@@ -196,4 +213,6 @@ class TestOnCreateScenario:
             "_actor_id": "actor-1",
         }
         result = handler(preview)  # noqa: F841
-        mock_load.assert_called_once()
+        # load_recent_cards is NOT called inline by the handler;
+        # it is invoked by the .then() chain wired in _wire_create_scenario.
+        mock_load.assert_not_called()

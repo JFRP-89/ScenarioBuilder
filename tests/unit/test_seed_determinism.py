@@ -1,6 +1,5 @@
 from domain.cards.generator import generate_card
-
-from src.infrastructure.content.file_content_provider import FileContentProvider
+from infrastructure.content.file_content_provider import FileContentProvider
 
 
 def test_seed_determinism():

@@ -106,23 +106,22 @@ def shapes_overlap(shape1: dict[str, Any], shape2: dict[str, Any]) -> bool:
         return rects_overlap(shape1, shape2)
 
     # All other combinations: use bounding box approximation
-    bounds1 = (
-        get_circle_bounds(shape1)
-        if type1 == "circle"
-        else (
-            get_rect_bounds(shape1) if type1 == "rect" else get_polygon_bounds(shape1)
-        )
-    )
-
-    bounds2 = (
-        get_circle_bounds(shape2)
-        if type2 == "circle"
-        else (
-            get_rect_bounds(shape2) if type2 == "rect" else get_polygon_bounds(shape2)
-        )
-    )
+    bounds1 = _get_shape_bounds(type1, shape1)
+    bounds2 = _get_shape_bounds(type2, shape2)
 
     return bounding_boxes_overlap(bounds1, bounds2)
+
+
+def _get_shape_bounds(
+    shape_type: str,
+    shape: dict[str, Any],
+) -> tuple[float, float, float, float]:
+    """Return bounding box for a shape by type."""
+    if shape_type == "circle":
+        return get_circle_bounds(shape)
+    if shape_type == "rect":
+        return get_rect_bounds(shape)
+    return get_polygon_bounds(shape)
 
 
 # =============================================================================

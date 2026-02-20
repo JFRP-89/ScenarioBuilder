@@ -30,7 +30,6 @@ STATUS_INTERNAL_ERROR = 500
 # Standard Error Messages (User-Safe)
 # =============================================================================
 
-MSG_VALIDATION_ERROR = "Invalid request data"
 MSG_NOT_FOUND = "Resource not found"
 MSG_FORBIDDEN = "Access denied"
 MSG_INTERNAL_ERROR = "An internal error occurred"

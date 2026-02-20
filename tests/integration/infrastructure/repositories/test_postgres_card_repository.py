@@ -56,7 +56,7 @@ def _make_card(
         "special_rules": [{"name": "Night Fight", "description": "Reduced visibility"}],
     }
     defaults.update(overrides)
-    return Card(**defaults)
+    return Card(**defaults)  # type: ignore[arg-type]
 
 
 def _make_repo(session_factory):

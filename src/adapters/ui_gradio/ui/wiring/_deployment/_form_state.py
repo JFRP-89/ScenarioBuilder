@@ -11,6 +11,11 @@ from typing import Any
 from adapters.ui_gradio.units import convert_unit_to_unit
 
 # ---------------------------------------------------------------------------
+# UI constants
+# ---------------------------------------------------------------------------
+BTN_ADD_ZONE = "+ Add Zone"
+
+# ---------------------------------------------------------------------------
 # Sentinel — the UI layer should emit ``gr.update()`` (no-op) for this.
 # ---------------------------------------------------------------------------
 UNCHANGED: object = object()
@@ -47,7 +52,7 @@ def default_zone_form() -> dict[str, Any]:
         "separation_row_visible": True,
         # Editing state
         "editing_id": None,
-        "add_btn_text": "+ Add Zone",
+        "add_btn_text": BTN_ADD_ZONE,
         "cancel_btn_visible": False,
     }
 

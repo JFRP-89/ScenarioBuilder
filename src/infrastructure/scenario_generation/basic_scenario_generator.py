@@ -11,6 +11,7 @@ from __future__ import annotations
 import random
 
 from domain.cards.card import GameMode
+from domain.errors import ValidationError
 from domain.maps.collision import (
     MIN_CLEARANCE_MM,
     has_no_collisions,
@@ -175,7 +176,7 @@ class BasicScenarioGenerator:
         Args:
             seed: Random seed for deterministic generation.
             table: Table size defining the valid area.
-            mode: Game mode (currently not used for variation).
+            mode: Game mode (required by protocol, unused).
 
         Returns:
             List of shape dictionaries valid for MapSpec.
@@ -184,6 +185,7 @@ class BasicScenarioGenerator:
             RuntimeError: If all retry attempts are exhausted without
                 producing a valid, collision-free layout.
         """
+        del mode  # Required by ScenarioGenerator protocol
         w = table.width_mm
         h = table.height_mm
 
@@ -198,7 +200,7 @@ class BasicScenarioGenerator:
             # Validate with MapSpec (catches any edge-case domain violations)
             try:
                 MapSpec(table=table, shapes=shapes)
-            except Exception:
+            except ValidationError:
                 continue
 
             # Verify no collisions (belt-and-suspenders)

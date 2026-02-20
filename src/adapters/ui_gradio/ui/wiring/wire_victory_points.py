@@ -14,6 +14,8 @@ from adapters.ui_gradio.state_helpers import (
     update_victory_point,
 )
 
+_BTN_ADD_VP = "+ Add Victory Point"
+
 
 def wire_victory_points(  # noqa: C901
     *,
@@ -43,7 +45,7 @@ def wire_victory_points(  # noqa: C901
             return {
                 vp_input: gr.update(value=""),
                 vp_editing_state: None,
-                add_vp_btn: gr.update(value="+ Add Victory Point"),
+                add_vp_btn: gr.update(value=_BTN_ADD_VP),
                 cancel_edit_vp_btn: gr.update(visible=False),
             }
         vp = next((v for v in current_state if v["id"] == selected_id), None)
@@ -51,7 +53,7 @@ def wire_victory_points(  # noqa: C901
             return {
                 vp_input: gr.update(),
                 vp_editing_state: None,
-                add_vp_btn: gr.update(value="+ Add Victory Point"),
+                add_vp_btn: gr.update(value=_BTN_ADD_VP),
                 cancel_edit_vp_btn: gr.update(visible=False),
             }
         return {
@@ -66,7 +68,7 @@ def wire_victory_points(  # noqa: C901
         return {
             vp_input: gr.update(value=""),
             vp_editing_state: None,
-            add_vp_btn: gr.update(value="+ Add Victory Point"),
+            add_vp_btn: gr.update(value=_BTN_ADD_VP),
             cancel_edit_vp_btn: gr.update(visible=False),
             vp_list: gr.update(value=None),
         }
@@ -98,7 +100,7 @@ def wire_victory_points(  # noqa: C901
             vp_list: gr.update(choices=choices, value=None),
             vp_input: gr.update(value=""),
             vp_editing_state: None,
-            add_vp_btn: gr.update(value="+ Add Victory Point"),
+            add_vp_btn: gr.update(value=_BTN_ADD_VP),
             cancel_edit_vp_btn: gr.update(visible=False),
         }
 
@@ -112,7 +114,7 @@ def wire_victory_points(  # noqa: C901
             vp_list: gr.update(choices=choices, value=None),
             vp_input: gr.update(value=""),
             vp_editing_state: None,
-            add_vp_btn: gr.update(value="+ Add Victory Point"),
+            add_vp_btn: gr.update(value=_BTN_ADD_VP),
             cancel_edit_vp_btn: gr.update(visible=False),
         }
 
@@ -125,7 +127,7 @@ def wire_victory_points(  # noqa: C901
                 vp_list: gr.update(),
                 vp_input: gr.update(value=""),
                 vp_editing_state: None,
-                add_vp_btn: gr.update(value="+ Add Victory Point"),
+                add_vp_btn: gr.update(value=_BTN_ADD_VP),
                 cancel_edit_vp_btn: gr.update(visible=False),
             }
         new_state = remove_selected_victory_point(current_state, selected_id)
@@ -135,7 +137,7 @@ def wire_victory_points(  # noqa: C901
             vp_list: gr.update(choices=choices, value=None),
             vp_input: gr.update(value=""),
             vp_editing_state: None,
-            add_vp_btn: gr.update(value="+ Add Victory Point"),
+            add_vp_btn: gr.update(value=_BTN_ADD_VP),
             cancel_edit_vp_btn: gr.update(visible=False),
         }
 

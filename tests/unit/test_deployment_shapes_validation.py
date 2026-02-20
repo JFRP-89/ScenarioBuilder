@@ -101,7 +101,7 @@ class TestValidDeploymentShapes:
                 ],
             },
         ]
-        validate_deployment_shapes(shapes, W, H)
+        validate_deployment_shapes(shapes, W, H)  # type: ignore[arg-type]
 
     @pytest.mark.parametrize("border", ["north", "south", "east", "west"])
     def test_all_valid_borders(self, border):
@@ -331,11 +331,11 @@ class TestDeploymentShapesTypeValidation:
 
     def test_non_list_raises(self):
         with pytest.raises(ValidationError, match="(?i)deployment_shapes must be list"):
-            validate_deployment_shapes("not a list", W, H)
+            validate_deployment_shapes("not a list", W, H)  # type: ignore[arg-type]
 
     def test_non_dict_element_raises(self):
         with pytest.raises(ValidationError, match="(?i)deployment_shape must be dict"):
-            validate_deployment_shapes(["not a dict"], W, H)
+            validate_deployment_shapes(["not a dict"], W, H)  # type: ignore[list-item]
 
 
 # =============================================================================

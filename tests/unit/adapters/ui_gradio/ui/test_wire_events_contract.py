@@ -1,21 +1,25 @@
 """Golden-contract tests: ``build_create_page`` ↔ ``wire_events``.
 
-Ensures that every **required** parameter of ``wire_events`` is supplied
-by the create-page namespace (plus the explicit overrides passed
-separately in ``app.py``), and — in strict / CI mode — that the
-namespace carries *no* extra keys that ``wire_events`` silently ignores.
+Ensures that every **required** key declared in ``_REQUIRED_KEYS`` is
+supplied by the create-page namespace (plus the explicit overrides
+passed separately in ``app.py``), and — in strict / CI mode — that the
+namespace carries *no* extra keys outside ``_ACCEPTED_KEYS``.
+
+Since ``wire_events`` uses ``**kwargs`` (to avoid a 134-parameter
+signature), coverage is validated against the exported key-set constants
+rather than via signature introspection.
 """
 
 from __future__ import annotations
 
-import inspect
-import os
-from typing import Callable
-
 import gradio as gr
 import pytest
 from adapters.ui_gradio.ui.pages.create_scenario import build_create_page
-from adapters.ui_gradio.ui.wiring import wire_events
+from adapters.ui_gradio.ui.wiring import (
+    _ACCEPTED_KEYS,
+    _REQUIRED_KEYS,
+    wire_events,
+)
 from adapters.ui_gradio.ui.wiring._kwargs import kwargs_for_call
 
 # ── Constants (must mirror app.py) ────────────────────────────────────
@@ -36,28 +40,6 @@ EXPLICIT_OVERRIDES: frozenset[str] = frozenset(
 NAMESPACE_ONLY: frozenset[str] = frozenset({"container", "back_btn"})
 
 
-# ── Helpers ───────────────────────────────────────────────────────────
-
-
-def _required_kwonly_params(fn: Callable[..., object]) -> set[str]:
-    """Return the names of keyword-only params **without** a default."""
-    return {
-        name
-        for name, p in inspect.signature(fn).parameters.items()
-        if p.kind == inspect.Parameter.KEYWORD_ONLY
-        and p.default is inspect.Parameter.empty
-    }
-
-
-def _accepted_kwonly_params(fn: Callable[..., object]) -> set[str]:
-    """Return **all** keyword-only param names (required + optional)."""
-    return {
-        name
-        for name, p in inspect.signature(fn).parameters.items()
-        if p.kind == inspect.Parameter.KEYWORD_ONLY
-    }
-
-
 @pytest.fixture(scope="module")
 def create_ns():
     """Build the create-page namespace once for the whole module."""
@@ -69,7 +51,7 @@ def create_ns():
 
 
 class TestNoMissingRequired:
-    """All required ``wire_events`` params must be covered."""
+    """All required ``wire_events`` keys must be covered."""
 
     def test_kwargs_for_call_succeeds(self, create_ns):
         """``kwargs_for_call`` must NOT raise ``KwargsContractError``."""
@@ -81,43 +63,26 @@ class TestNoMissingRequired:
             strict_extras=False,
         )
         final_keys = set(filtered) | EXPLICIT_OVERRIDES
-        required = _required_kwonly_params(wire_events)
-        missing = required - final_keys
-        assert not missing, f"Missing required wire_events params: {sorted(missing)}"
+        missing = _REQUIRED_KEYS - final_keys
+        assert not missing, f"Missing required wire_events keys: {sorted(missing)}"
 
-    def test_all_required_present_via_introspection(self, create_ns):
-        """Double-check via direct set arithmetic (no kwargs_for_call)."""
+    def test_all_required_present_via_set_arithmetic(self, create_ns):
+        """Direct set arithmetic (no kwargs_for_call)."""
         source_keys = set(vars(create_ns)) - NAMESPACE_ONLY
-        required = _required_kwonly_params(wire_events)
         covered = source_keys | EXPLICIT_OVERRIDES
-        missing = required - covered
-        assert not missing, f"Missing required wire_events params: {sorted(missing)}"
+        missing = _REQUIRED_KEYS - covered
+        assert not missing, f"Missing required wire_events keys: {sorted(missing)}"
 
 
 # ── Test 2: no extras (strict — CI only) ─────────────────────────────
 
 
-_STRICT = os.environ.get("STRICT_KWARGS_CONTRACT", "").strip() == "1"
-
-
 class TestNoExtrasStrict:
-    """Create namespace must not carry keys that ``wire_events`` ignores.
-
-    Activated only when ``STRICT_KWARGS_CONTRACT=1`` (CI).
-    """
-
-    @pytest.fixture(autouse=True)
-    def _skip_unless_strict(self):
-        if not _STRICT:
-            pytest.skip(
-                "Strict kwargs contract check skipped — "
-                "set STRICT_KWARGS_CONTRACT=1 to enable"
-            )
+    """Create namespace must not carry keys that ``wire_events`` ignores."""
 
     def test_no_extras_via_set_arithmetic(self, create_ns):
         source_keys = set(vars(create_ns)) - NAMESPACE_ONLY
-        accepted = _accepted_kwonly_params(wire_events)
-        extras = source_keys - accepted - EXPLICIT_OVERRIDES
+        extras = source_keys - _ACCEPTED_KEYS - EXPLICIT_OVERRIDES
         assert not extras, (
             f"Create namespace contains extras not accepted "
             f"by wire_events: {sorted(extras)}"

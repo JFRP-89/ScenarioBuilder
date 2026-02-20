@@ -22,7 +22,6 @@ class IdGenerator(Protocol):
         Returns:
             Unique card ID string.
         """
-        ...
 
 
 class SeedGenerator(Protocol):
@@ -34,7 +33,6 @@ class SeedGenerator(Protocol):
         Returns:
             Integer seed >= 0.
         """
-        ...
 
     def calculate_from_config(self, config: dict[str, Any]) -> int:
         """Calculate a deterministic seed from card configuration.
@@ -50,7 +48,6 @@ class SeedGenerator(Protocol):
         Returns:
             Integer seed in range ``[0, 2**31 - 1]``.
         """
-        ...
 
 
 class ScenarioGenerator(Protocol):
@@ -108,4 +105,3 @@ class ScenarioGenerator(Protocol):
             Return type MUST be list[dict], never dict.
             See class docstring for full contract specification.
         """
-        ...

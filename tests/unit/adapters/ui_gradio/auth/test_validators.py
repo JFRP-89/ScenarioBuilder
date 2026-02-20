@@ -63,6 +63,10 @@ class TestValidatePassword:
             "Alice123",
             "my-pass_word",
             "A" * 32,
+            "A" * 64,  # max length
+            "pass word",  # space is printable ASCII
+            "pass@word",  # special char is valid
+            "Str0ng!pw",  # strong with special
         ],
     )
     def test_valid_passwords(self, value: str):
@@ -73,10 +77,9 @@ class TestValidatePassword:
         [
             "",  # empty
             "ab",  # too short
-            "A" * 33,  # too long
-            "pass word",  # space
-            "pass@word",  # special char
-            "p<script>",  # injection
+            "A" * 65,  # too long
+            "pass\x00word",  # null byte
+            "pass\nword",  # newline
         ],
     )
     def test_invalid_passwords(self, value: str):

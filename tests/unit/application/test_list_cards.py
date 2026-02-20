@@ -88,6 +88,25 @@ class FakeCardRepository:
         """Add a card to the repository."""
         self.cards.append(card)
 
+    def save(self, card: Card) -> None:
+        self.cards.append(card)
+
+    def get_by_id(self, card_id: str) -> Optional[Card]:
+        return next((c for c in self.cards if c.card_id == card_id), None)
+
+    def find_by_seed(self, seed: int) -> Optional[Card]:
+        return next((c for c in self.cards if c.seed == seed), None)
+
+    def delete(self, card_id: str) -> bool:
+        for i, c in enumerate(self.cards):
+            if c.card_id == card_id:
+                self.cards.pop(i)
+                return True
+        return False
+
+    def list_for_owner(self, owner_id: str) -> list[Card]:
+        return [c for c in self.cards if c.owner_id == owner_id]
+
 
 # =============================================================================
 # 1) MINE - RETURNS ONLY ACTOR'S OWN CARDS

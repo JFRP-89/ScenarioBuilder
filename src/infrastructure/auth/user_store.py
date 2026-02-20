@@ -169,12 +169,87 @@ def update_user_profile(username: str, name: str, email: str) -> bool:
         return True
 
 
+def change_password(username: str, new_password: str) -> bool:
+    """Change the password for *username*. Return True on success."""
+    with _lock:
+        user = _USERS.get(username)
+        if user is None:
+            return False
+        pw_hash, salt = _hash_password(new_password)
+        user["password_hash"] = pw_hash
+        user["salt"] = salt
+    return True
+
+
 def reset_stores() -> None:
     """Reset all in-memory stores — **for testing only**."""
     with _lock:
         _USERS.clear()
         _LOCKOUT.clear()
     _seed_demo_users()
+
+
+def create_user(
+    username: str,
+    password: str,
+    name: str,
+    email: str,
+) -> bool:
+    """Create a new user with hashed password.
+
+    Stores in the in-memory store and optionally in PostgreSQL.
+
+    Returns True on success, False if the username already exists.
+    """
+    with _lock:
+        if username in _USERS:
+            return False
+        pw_hash, salt = _hash_password(password)
+        _USERS[username] = UserRecord(
+            password_hash=pw_hash,
+            salt=salt,
+            name=name,
+            email=email,
+        )
+
+    # Best-effort persistence to PostgreSQL
+    _persist_user_to_database(username)
+    return True
+
+
+def _persist_user_to_database(username: str) -> None:
+    """Persist a single user to PostgreSQL (best-effort, no-op on failure)."""
+    try:
+        from infrastructure.db.models import UserModel
+        from infrastructure.db.session import SessionLocal
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with _lock:
+            user_rec = _USERS.get(username)
+            if user_rec is None:
+                return
+
+        session = SessionLocal()
+        try:
+            existing = session.query(UserModel).filter_by(username=username).first()
+            if existing is None:
+                model = UserModel(
+                    username=username,
+                    password_hash=user_rec["password_hash"],
+                    salt=user_rec["salt"],
+                    name=user_rec["name"],
+                    email=user_rec["email"],
+                )
+                session.add(model)
+                session.commit()
+        except SQLAlchemyError:
+            session.rollback()
+        finally:
+            session.close()
+    except ImportError:
+        pass
+    except (OSError, RuntimeError):
+        pass
 
 
 def seed_demo_users_to_database() -> None:
@@ -186,6 +261,7 @@ def seed_demo_users_to_database() -> None:
     try:
         from infrastructure.db.models import UserModel
         from infrastructure.db.session import SessionLocal
+        from sqlalchemy.exc import SQLAlchemyError
 
         demo_accounts = {
             "demo-user": {"name": "Demo User", "email": "demo@example.com"},
@@ -210,14 +286,12 @@ def seed_demo_users_to_database() -> None:
                     )
                     session.add(model)
             session.commit()
-        except Exception:
+        except SQLAlchemyError:
             session.rollback()
             raise
         finally:
             session.close()
     except ImportError:
-        # SQLAlchemy not installed or DB not configured — skip
         pass
-    except Exception:
-        # DB connection failed or other error — log and skip
+    except (OSError, RuntimeError):
         pass

@@ -14,6 +14,7 @@ from application.use_cases.list_cards import ListCardsRequest
 from application.use_cases.list_favorites import ListFavoritesRequest
 from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.toggle_favorite import ToggleFavoriteRequest
+from domain.errors import DomainError
 from infrastructure.bootstrap import get_services
 
 
@@ -45,7 +46,7 @@ def list_cards(
                 for c in resp.cards
             ]
         }
-    except Exception as exc:
+    except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
 
 
@@ -75,7 +76,7 @@ def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
             "special_rules": r.special_rules,
             "shapes": r.shapes or {},
         }
-    except Exception as exc:
+    except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
 
 
@@ -90,7 +91,7 @@ def delete_card(actor_id: str, card_id: str) -> dict[str, Any]:
             DeleteCardRequest(actor_id=actor_id, card_id=card_id)
         )
         return {"card_id": r.card_id, "deleted": r.deleted}
-    except Exception as exc:
+    except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
 
 
@@ -105,7 +106,7 @@ def toggle_favorite(actor_id: str, card_id: str) -> dict[str, Any]:
             ToggleFavoriteRequest(actor_id=actor_id, card_id=card_id)
         )
         return {"card_id": r.card_id, "is_favorite": r.is_favorite}
-    except Exception as exc:
+    except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
 
 
@@ -118,7 +119,7 @@ def list_favorites(actor_id: str) -> dict[str, Any]:
         svc = get_services()
         r = svc.list_favorites.execute(ListFavoritesRequest(actor_id=actor_id))
         return {"card_ids": r.card_ids}
-    except Exception as exc:
+    except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
 
 
@@ -137,5 +138,5 @@ def get_card_svg(actor_id: str, card_id: str) -> str:
             RenderMapSvgRequest(actor_id=actor_id, card_id=card_id)
         )
         return str(r.svg)
-    except Exception:
+    except (DomainError, OSError, RuntimeError):
         return placeholder

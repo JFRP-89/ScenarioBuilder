@@ -70,3 +70,8 @@ def build_custom_table_payload(
         return None
 
     return {"width_cm": width_cm, "height_cm": height_cm}
+
+
+def to_mm(value: float, unit: str) -> int:
+    """Convert a user-unit value to integer millimetres."""
+    return int(convert_to_cm(value, unit) * 10)

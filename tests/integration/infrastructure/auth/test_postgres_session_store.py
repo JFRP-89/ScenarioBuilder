@@ -55,7 +55,7 @@ def _deterministic_clock():
 
 
 @pytest.fixture()
-def fake_clock(_deterministic_clock) -> FakeClock:
+def fake_clock(_deterministic_clock: FakeClock) -> FakeClock:
     """Expose the FakeClock for tests that need to manipulate time."""
     return _deterministic_clock
 
@@ -146,14 +146,26 @@ class TestGetSession:
         fake_clock.advance(minutes=15, seconds=1)
         assert store.get_session(rec["session_id"]) is None
 
-    def test_alive_at_exact_max_lifetime_boundary(self, store, fake_clock):
-        """At exactly 12h the comparison is strict (>), so still alive."""
+    def test_alive_at_exact_max_lifetime_boundary(self, store, fake_clock, monkeypatch):
+        """At exactly 12h the comparison is strict (>), so still alive.
+
+        Disable idle-timeout so only the max-lifetime boundary is tested.
+        """
+        import infrastructure.auth.postgres_session_store as pss_mod
+
+        monkeypatch.setattr(pss_mod, "SESSION_IDLE_MINUTES", 999_999)
         rec = store.create_session("alice")
         fake_clock.advance(hours=12)
         assert store.get_session(rec["session_id"]) is not None
 
-    def test_expired_one_second_past_max_lifetime(self, store, fake_clock):
-        """One second past the 12h max lifetime -> expired."""
+    def test_expired_one_second_past_max_lifetime(self, store, fake_clock, monkeypatch):
+        """One second past the 12h max lifetime -> expired.
+
+        Disable idle-timeout so only the max-lifetime comparison fires.
+        """
+        import infrastructure.auth.postgres_session_store as pss_mod
+
+        monkeypatch.setattr(pss_mod, "SESSION_IDLE_MINUTES", 999_999)
         rec = store.create_session("alice")
         fake_clock.advance(hours=12, seconds=1)
         assert store.get_session(rec["session_id"]) is None
