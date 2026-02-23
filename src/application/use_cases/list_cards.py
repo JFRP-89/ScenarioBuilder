@@ -139,6 +139,8 @@ class ListCards:
             name=card.name or "",  # Now from Card domain model
             table_preset=table_preset,
             table_mm=table_mm,
+            created_at=card.created_at.isoformat() if card.created_at else None,
+            updated_at=card.updated_at.isoformat() if card.updated_at else None,
         )
 
 
@@ -154,3 +156,5 @@ class _CardSnapshot:
     name: str
     table_preset: Optional[str]
     table_mm: Optional[dict[str, int]]
+    created_at: Optional[str]
+    updated_at: Optional[str]

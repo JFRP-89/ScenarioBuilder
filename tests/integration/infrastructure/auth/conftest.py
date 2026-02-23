@@ -122,7 +122,7 @@ def restore_database_url_session():
     logger.info("Auth integration tests: DATABASE_URL → %s", url[:40] + "…")
     yield
     os.environ.pop("DATABASE_URL", None)
-    with contextlib.suppress(SQLAlchemyError):  # pragma: no cover
+    with contextlib.suppress(SQLAlchemyError):
         reset_lazy_state()
 
 

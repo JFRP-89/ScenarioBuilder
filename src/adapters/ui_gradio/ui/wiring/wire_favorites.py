@@ -14,6 +14,7 @@ from adapters.ui_gradio.auth import is_session_valid
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components.search_helpers import (
+    DEFAULT_SORT,
     escape_html,
     render_filtered_page,
 )
@@ -63,6 +64,7 @@ def _refresh_cache(
     unit: str = "cm",
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> _CacheResult:
     """Fetch fresh favorites data from API and render first page."""
@@ -83,6 +85,7 @@ def _refresh_cache(
         1,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         count_label="favorites",
         actor_id=actor_id,
     )
@@ -96,6 +99,7 @@ def _render_from_cache(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Render a page from the cached cards/fav_ids."""
@@ -106,6 +110,7 @@ def _render_from_cache(
         page,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         count_label="favorites",
         actor_id=actor_id,
     )
@@ -119,6 +124,7 @@ class FavoritesPageCtx:
     page_containers: list[gr.Column]
     favorites_unit_selector: gr.Radio
     favorites_search_box: gr.Textbox
+    favorites_sort_dropdown: gr.Dropdown
     favorites_per_page_dropdown: gr.Dropdown
     favorites_reload_btn: gr.Button
     favorites_cards_html: gr.HTML
@@ -150,6 +156,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         c.favorites_fav_ids_cache_state,
         c.favorites_search_box,
         c.favorites_per_page_dropdown,
+        c.favorites_sort_dropdown,
     ]
     if c.actor_id_state is not None:
         _cache_inputs.append(c.actor_id_state)
@@ -159,7 +166,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         c.favorites_page_state,
     ]
 
-    # Search / per-page changes → reset to page 1
+    # Search / per-page / sort changes → reset to page 1
     def _cache_reset_page1(
         unit: str,
         _page: int,
@@ -167,13 +174,25 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        sort_by: str = DEFAULT_SORT,
         actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
-            unit, 1, cards_cache, fav_ids_cache, search_raw, per_page_raw, actor_id
+            unit,
+            1,
+            cards_cache,
+            fav_ids_cache,
+            search_raw,
+            per_page_raw,
+            sort_by,
+            actor_id,
         )
 
-    for widget in (c.favorites_search_box, c.favorites_per_page_dropdown):
+    for widget in (
+        c.favorites_search_box,
+        c.favorites_per_page_dropdown,
+        c.favorites_sort_dropdown,
+    ):
         widget.change(
             fn=_cache_reset_page1,
             inputs=_cache_inputs,
@@ -192,6 +211,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         c.favorites_unit_selector,
         c.favorites_search_box,
         c.favorites_per_page_dropdown,
+        c.favorites_sort_dropdown,
     ]
     if c.actor_id_state is not None:
         _refresh_inputs.append(c.actor_id_state)
@@ -217,6 +237,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        sort_by: str = DEFAULT_SORT,
         actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
@@ -226,6 +247,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
             fav_ids_cache,
             search_raw,
             per_page_raw,
+            sort_by,
             actor_id,
         )
 
@@ -236,6 +258,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        sort_by: str = DEFAULT_SORT,
         actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
@@ -245,6 +268,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
             fav_ids_cache,
             search_raw,
             per_page_raw,
+            sort_by,
             actor_id,
         )
 

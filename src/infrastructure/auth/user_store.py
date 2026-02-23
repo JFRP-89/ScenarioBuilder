@@ -168,6 +168,28 @@ def get_user_profile(username: str) -> dict[str, str] | None:
         }
 
 
+def get_display_name(username: str) -> str:
+    """Return the display name for *username*, or *username* itself as fallback."""
+    with _lock:
+        user = _USERS.get(username)
+        if user is None:
+            return username
+        return user["name"] or username
+
+
+def get_display_names(usernames: list[str]) -> dict[str, str]:
+    """Return a mapping ``{username: display_name}`` for each username.
+
+    Unknown users fall back to the username itself.
+    """
+    result: dict[str, str] = {}
+    with _lock:
+        for uname in usernames:
+            user = _USERS.get(uname)
+            result[uname] = user["name"] if user and user["name"] else uname
+    return result
+
+
 def update_user_profile(username: str, name: str, email: str) -> bool:
     """Update display name and email. Return True on success.
 

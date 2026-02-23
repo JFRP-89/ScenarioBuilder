@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import types
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -95,18 +96,18 @@ class TestProdSessionStoreDbUnreachable:
         mod = _reload_bootstrap()
 
         # Stub the imports that build_session_store does lazily
-        fake_session_store_mod = types.ModuleType(
+        fake_session_store_mod: Any = types.ModuleType(
             "infrastructure.auth.postgres_session_store"
         )
-        fake_session_store_mod.PostgresSessionStore = MagicMock  # type: ignore[attr-defined]
+        fake_session_store_mod.PostgresSessionStore = MagicMock
 
-        fake_configure_mod = types.ModuleType("infrastructure.auth.session_store")
-        fake_configure_mod.configure_store = MagicMock()  # type: ignore[attr-defined]
+        fake_configure_mod: Any = types.ModuleType("infrastructure.auth.session_store")
+        fake_configure_mod.configure_store = MagicMock()
 
-        fake_db_session_mod = types.ModuleType("infrastructure.db.session")
+        fake_db_session_mod: Any = types.ModuleType("infrastructure.db.session")
         failing_session = MagicMock()
         failing_session.return_value.execute.side_effect = ConnectionError("refused")
-        fake_db_session_mod.SessionLocal = failing_session  # type: ignore[attr-defined]
+        fake_db_session_mod.SessionLocal = failing_session
 
         with (
             patch.dict(
@@ -157,18 +158,18 @@ class TestDevSessionStoreFallback:
         _set_env(monkeypatch, app_env="dev", db_url=VALID_PG_URL)
         mod = _reload_bootstrap()
 
-        fake_session_store_mod = types.ModuleType(
+        fake_session_store_mod: Any = types.ModuleType(
             "infrastructure.auth.postgres_session_store"
         )
-        fake_session_store_mod.PostgresSessionStore = MagicMock  # type: ignore[attr-defined]
+        fake_session_store_mod.PostgresSessionStore = MagicMock
 
-        fake_configure_mod = types.ModuleType("infrastructure.auth.session_store")
-        fake_configure_mod.configure_store = MagicMock()  # type: ignore[attr-defined]
+        fake_configure_mod: Any = types.ModuleType("infrastructure.auth.session_store")
+        fake_configure_mod.configure_store = MagicMock()
 
-        fake_db_session_mod = types.ModuleType("infrastructure.db.session")
+        fake_db_session_mod: Any = types.ModuleType("infrastructure.db.session")
         failing_session = MagicMock()
         failing_session.return_value.execute.side_effect = ConnectionError("refused")
-        fake_db_session_mod.SessionLocal = failing_session  # type: ignore[attr-defined]
+        fake_db_session_mod.SessionLocal = failing_session
 
         with patch.dict(
             "sys.modules",

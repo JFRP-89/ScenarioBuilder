@@ -7,6 +7,8 @@ Only the minimal contract is tested here; extra hardening is deferred.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from domain.errors import ValidationError
@@ -178,13 +180,15 @@ def test_rect_with_bool_dimension_is_rejected(table: TableSize):
 
 
 def test_shapes_none_is_rejected(table: TableSize):
+    bad_shapes: Any = None
     with pytest.raises(ValidationError):
-        MapSpec(table=table, shapes=None)  # type: ignore[arg-type]
+        MapSpec(table=table, shapes=bad_shapes)
 
 
 def test_shape_not_dict_is_rejected(table: TableSize):
+    bad_shapes: Any = ["not_a_dict"]
     with pytest.raises(ValidationError):
-        MapSpec(table=table, shapes=["not_a_dict"])  # type: ignore[list-item]
+        MapSpec(table=table, shapes=bad_shapes)
 
 
 def test_rect_with_negative_x_or_y_is_rejected(table: TableSize):
@@ -262,11 +266,13 @@ def test_mapspec_rejects_objective_shape_missing_cy(table: TableSize):
 
 def test_mapspec_rejects_objective_shapes_not_list(table: TableSize):
     """MapSpec rejects objective_shapes that is not a list."""
+    bad_obj_shapes: Any = {"cx": 600, "cy": 600}
     with pytest.raises(ValidationError, match="must be list"):
-        MapSpec(table=table, shapes=[], objective_shapes={"cx": 600, "cy": 600})  # type: ignore[arg-type]
+        MapSpec(table=table, shapes=[], objective_shapes=bad_obj_shapes)
 
 
 def test_mapspec_rejects_objective_shape_not_dict(table: TableSize):
     """MapSpec rejects objective_shape that is not a dict."""
+    bad_obj_shapes: Any = ["not_a_dict"]
     with pytest.raises(ValidationError, match="must be dict"):
-        MapSpec(table=table, shapes=[], objective_shapes=["not_a_dict"])  # type: ignore[list-item]
+        MapSpec(table=table, shapes=[], objective_shapes=bad_obj_shapes)

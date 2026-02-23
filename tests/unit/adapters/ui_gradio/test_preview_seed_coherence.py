@@ -11,6 +11,8 @@ Rules (verified logic):
 
 from __future__ import annotations
 
+from typing import Any
+
 from adapters.ui_gradio.services._generate._form_state import FormState
 from adapters.ui_gradio.services.generate import handle_preview
 from application.use_cases._generate._themes import _resolve_full_seed_defaults
@@ -46,7 +48,8 @@ def _make_fs(**overrides: object) -> FormState:
         "vp_state": [],
     }
     defaults.update(overrides)
-    return FormState(**defaults)  # type: ignore[arg-type]
+    typed_defaults: Any = defaults
+    return FormState(**typed_defaults)
 
 
 class TestPreviewSeedCoherence:

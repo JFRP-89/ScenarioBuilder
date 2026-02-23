@@ -6,6 +6,8 @@ This renderer produces SVG strings from table dimensions and shape data.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 # =============================================================================
 # BASIC CONTRACT TESTS
@@ -136,7 +138,8 @@ class TestSvgMapRendererMixedShapes:
         ]
 
         # Act
-        svg = renderer.render(table_mm=table_mm, shapes=shapes)  # type: ignore[arg-type]
+        bad_shapes: Any = shapes
+        svg = renderer.render(table_mm=table_mm, shapes=bad_shapes)
 
         # Assert - all shape types present
         assert "<rect" in svg

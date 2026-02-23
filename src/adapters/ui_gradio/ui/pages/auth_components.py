@@ -26,7 +26,7 @@ def build_auth_gate() -> tuple[gr.Column, gr.Markdown]:
 
 
 def build_top_bar() -> tuple[gr.Row, gr.Markdown, gr.Button, gr.Button]:
-    """Build the top bar with user label, profile and logout buttons.
+    """Build the top bar with user pill, profile and logout buttons.
 
     Returns
     -------
@@ -43,12 +43,16 @@ def build_top_bar() -> tuple[gr.Row, gr.Markdown, gr.Button, gr.Button]:
             variant="secondary",
             size="sm",
             elem_id="profile-btn",
+            scale=0,
+            min_width=100,
         )
         logout_btn = gr.Button(
             "🚪 Logout",
             variant="secondary",
             size="sm",
             elem_id="logout-btn",
+            scale=0,
+            min_width=100,
         )
     return top_bar_row, user_label, profile_btn, logout_btn
 

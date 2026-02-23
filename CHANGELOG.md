@@ -7,9 +7,15 @@ y este proyecto sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 ### Changed
-- Preparacion de release branch `release/0.1.0`.
+- Preparacion de release branch `release/0.1.1`.
 
-## [1.0.0] - 2026-02-23
+## [0.1.1] - 2026-02-23
+### Changed
+- Ajustes de estabilidad en UI Gradio (navegacion, listado, favoritos y componentes).
+- Afinado de flujos de autenticacion y lectura de datos para escenarios.
+- Mejora de pruebas unitarias/integracion y compatibilidad general de la release.
+
+## [0.1.0] - 2026-02-23
 ### Added
 - Arquitectura por capas consolidada (`domain`, `application`, `infrastructure`, `adapters`).
 - Adapters Flask y Gradio con composition root via `infrastructure.bootstrap.build_services()`.

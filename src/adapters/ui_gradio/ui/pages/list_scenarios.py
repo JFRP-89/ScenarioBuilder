@@ -14,6 +14,10 @@ from types import SimpleNamespace
 import gradio as gr
 
 from adapters.ui_gradio.ui.components.control_bar import build_control_bar
+from adapters.ui_gradio.ui.components.search_helpers import (
+    DEFAULT_SORT,
+    SORT_CHOICES,
+)
 
 
 def build_list_page() -> SimpleNamespace:
@@ -56,6 +60,13 @@ def build_list_page() -> SimpleNamespace:
                 scale=3,
                 max_lines=1,
             )
+            sort_dropdown = gr.Dropdown(
+                choices=SORT_CHOICES,
+                value=DEFAULT_SORT,
+                label="Sort by",
+                elem_id="list-sort",
+                scale=1,
+            )
             per_page_dropdown = gr.Dropdown(
                 choices=["5", "10", "20", "50", "100"],
                 value="10",
@@ -92,6 +103,7 @@ def build_list_page() -> SimpleNamespace:
         filter_radio=filter_radio,
         unit_selector=unit_selector,
         search_box=search_box,
+        sort_dropdown=sort_dropdown,
         per_page_dropdown=per_page_dropdown,
         reload_btn=reload_btn,
         cards_html=cards_html,

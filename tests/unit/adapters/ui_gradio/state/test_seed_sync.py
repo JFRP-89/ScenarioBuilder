@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from adapters.ui_gradio._state._seed_sync import (
@@ -209,7 +211,8 @@ class TestApiScenographyToUiState:
             {"type": "rect", "x": 200, "y": 200, "width": 50, "height": 50},
             {"type": "polygon", "points": [[0, 0], [10, 0], [5, 8]]},
         ]
-        result = api_scenography_to_ui_state(shapes)  # type: ignore[arg-type]
+        bad_shapes: Any = shapes
+        result = api_scenography_to_ui_state(bad_shapes)
         ids = [e["id"] for e in result]
         assert len(set(ids)) == 3
 

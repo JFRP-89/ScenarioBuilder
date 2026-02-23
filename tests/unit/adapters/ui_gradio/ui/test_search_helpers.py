@@ -6,13 +6,15 @@ values are correctly neutralised or rejected.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pytest
 
 from adapters.ui_gradio.ui.components.search_helpers import (
     DEFAULT_ITEMS_PER_PAGE,
+    DEFAULT_SORT,
     ITEMS_PER_PAGE_CHOICES,
+    SORT_CHOICES,
     escape_html,
     filter_by_mode_preset,
     filter_cards_by_name,
@@ -20,6 +22,7 @@ from adapters.ui_gradio.ui.components.search_helpers import (
     render_filtered_page,
     render_page,
     sanitize_search_query,
+    sort_cards,
     validate_page,
 )
 
@@ -33,10 +36,12 @@ class TestSanitizeSearchQuery:
         assert sanitize_search_query("") == ""
 
     def test_none_returns_empty(self):
-        assert sanitize_search_query(None) == ""  # type: ignore[arg-type]
+        bad_none: Any = None
+        assert sanitize_search_query(bad_none) == ""
 
     def test_non_string_returns_empty(self):
-        assert sanitize_search_query(42) == ""  # type: ignore[arg-type]
+        bad_int: Any = 42
+        assert sanitize_search_query(bad_int) == ""
 
     def test_strips_whitespace(self):
         assert sanitize_search_query("  hello  ") == "hello"
@@ -140,7 +145,8 @@ class TestParsePerPage:
         assert parse_per_page("abc") == DEFAULT_ITEMS_PER_PAGE
 
     def test_none_returns_default(self):
-        assert parse_per_page(None) == DEFAULT_ITEMS_PER_PAGE  # type: ignore[arg-type]
+        bad_none: Any = None
+        assert parse_per_page(bad_none) == DEFAULT_ITEMS_PER_PAGE
 
     def test_empty_string_returns_default(self):
         assert parse_per_page("") == DEFAULT_ITEMS_PER_PAGE
@@ -244,9 +250,12 @@ class TestEscapeHtml:
         assert escape_html("") == ""
 
     def test_non_string_returns_empty(self):
-        assert escape_html(None) == ""  # type: ignore[arg-type]
-        assert escape_html(42) == ""  # type: ignore[arg-type]
-        assert escape_html([]) == ""  # type: ignore[arg-type]
+        bad_none: Any = None
+        bad_int: Any = 42
+        bad_list: Any = []
+        assert escape_html(bad_none) == ""
+        assert escape_html(bad_int) == ""
+        assert escape_html(bad_list) == ""
 
     def test_plain_text_unchanged(self):
         assert escape_html("Normal text") == "Normal text"
@@ -354,10 +363,12 @@ class TestSanitizeSearchQueryEdgeCases:
         assert sanitize_search_query("<div><span></span></div>") == ""
 
     def test_boolean_input(self):
-        assert sanitize_search_query(True) == ""  # type: ignore[arg-type]
+        bad_bool: Any = True
+        assert sanitize_search_query(bad_bool) == ""
 
     def test_list_input(self):
-        assert sanitize_search_query(["a"]) == ""  # type: ignore[arg-type]
+        bad_list: Any = ["a"]
+        assert sanitize_search_query(bad_list) == ""
 
 
 class TestValidatePage:
@@ -421,10 +432,12 @@ class TestParsePerPageSecurity:
 
     def test_float_valid_value(self):
         # float 10.0 → int 10 → in whitelist
-        assert parse_per_page(10.0) == 10  # type: ignore[arg-type]
+        bad_float: Any = 10.0
+        assert parse_per_page(bad_float) == 10
 
     def test_float_invalid_value(self):
-        assert parse_per_page(10.5) == DEFAULT_ITEMS_PER_PAGE  # type: ignore[arg-type]
+        bad_float: Any = 10.5
+        assert parse_per_page(bad_float) == DEFAULT_ITEMS_PER_PAGE
 
     def test_negative_value(self):
         assert parse_per_page(-10) == DEFAULT_ITEMS_PER_PAGE
@@ -610,3 +623,135 @@ class TestRenderFilteredPage:
         cards = self._make_cards(15)
         _, info, _ = render_filtered_page(cards, [], "cm", 1, per_page_raw="abc")
         assert "Page 1 of 2" in info  # 15 / 10 default = 2 pages
+
+
+# ── sort_cards ───────────────────────────────────────────────────
+
+
+class TestSortCards:
+    """Tests for the sort_cards helper function."""
+
+    CARDS: ClassVar[list[dict]] = [
+        {
+            "card_id": "c1",
+            "name": "Bravo",
+            "mode": "narrative",
+            "owner_name": "Zara",
+            "owner_id": "zara",
+            "created_at": "2024-01-10T00:00:00",
+            "updated_at": "2024-02-15T00:00:00",
+        },
+        {
+            "card_id": "c2",
+            "name": "Alpha",
+            "mode": "casual",
+            "owner_name": "Alice",
+            "owner_id": "alice",
+            "created_at": "2024-03-01T00:00:00",
+            "updated_at": "2024-03-01T00:00:00",
+        },
+        {
+            "card_id": "c3",
+            "name": "Charlie",
+            "mode": "matched",
+            "owner_name": "Mike",
+            "owner_id": "mike",
+            "created_at": "2024-02-20T00:00:00",
+            "updated_at": "2024-04-10T00:00:00",
+        },
+    ]
+
+    def test_empty_list_returns_empty(self):
+        assert sort_cards([], "Name (A-Z)") == []
+
+    def test_name_ascending(self):
+        result = sort_cards(self.CARDS, "Name (A-Z)")
+        assert [c["name"] for c in result] == ["Alpha", "Bravo", "Charlie"]
+
+    def test_name_descending(self):
+        result = sort_cards(self.CARDS, "Name (Z-A)")
+        assert [c["name"] for c in result] == ["Charlie", "Bravo", "Alpha"]
+
+    def test_mode_sort(self):
+        result = sort_cards(self.CARDS, "Mode")
+        assert [c["mode"] for c in result] == ["casual", "matched", "narrative"]
+
+    def test_created_newest(self):
+        result = sort_cards(self.CARDS, "Created (newest)")
+        assert [c["card_id"] for c in result] == ["c2", "c3", "c1"]
+
+    def test_created_oldest(self):
+        result = sort_cards(self.CARDS, "Created (oldest)")
+        assert [c["card_id"] for c in result] == ["c1", "c3", "c2"]
+
+    def test_edited_newest(self):
+        result = sort_cards(self.CARDS, "Edited (newest)")
+        assert [c["card_id"] for c in result] == ["c3", "c2", "c1"]
+
+    def test_edited_oldest(self):
+        result = sort_cards(self.CARDS, "Edited (oldest)")
+        assert [c["card_id"] for c in result] == ["c1", "c2", "c3"]
+
+    def test_author_ascending(self):
+        result = sort_cards(self.CARDS, "Author (A-Z)")
+        assert [c["owner_name"] for c in result] == ["Alice", "Mike", "Zara"]
+
+    def test_author_descending(self):
+        result = sort_cards(self.CARDS, "Author (Z-A)")
+        assert [c["owner_name"] for c in result] == ["Zara", "Mike", "Alice"]
+
+    def test_default_sort_is_created_newest(self):
+        """DEFAULT_SORT should be 'Created (newest)'."""
+        assert DEFAULT_SORT == "Created (newest)"
+        result = sort_cards(self.CARDS, DEFAULT_SORT)
+        assert result == sort_cards(self.CARDS, "Created (newest)")
+
+    def test_unknown_sort_falls_back_to_created_newest(self):
+        result = sort_cards(self.CARDS, "bogus_sort")
+        expected = sort_cards(self.CARDS, "Created (newest)")
+        assert result == expected
+
+    def test_none_dates_sort_last_ascending(self):
+        cards: list[dict[str, Any]] = [
+            {"card_id": "a", "created_at": None},
+            {"card_id": "b", "created_at": "2024-01-01T00:00:00"},
+        ]
+        result = sort_cards(cards, "Created (oldest)")
+        assert result[0]["card_id"] == "b"
+
+    def test_none_name_sort_last_ascending(self):
+        cards: list[dict[str, Any]] = [
+            {"card_id": "a", "name": None},
+            {"card_id": "b", "name": "Zzz"},
+        ]
+        result = sort_cards(cards, "Name (A-Z)")
+        assert result[0]["card_id"] == "b"
+
+    def test_author_falls_back_to_owner_id(self):
+        cards = [
+            {"card_id": "a", "owner_id": "zulu"},
+            {"card_id": "b", "owner_name": "Alpha", "owner_id": "alpha"},
+        ]
+        result = sort_cards(cards, "Author (A-Z)")
+        assert result[0]["card_id"] == "b"
+
+    def test_sort_choices_contains_all_nine(self):
+        assert len(SORT_CHOICES) == 9
+
+    def test_render_filtered_page_uses_sort(self):
+        """render_filtered_page should sort cards before pagination."""
+        cards = [
+            {"card_id": "c1", "name": "Bravo"},
+            {"card_id": "c2", "name": "Alpha"},
+        ]
+        html, _, _ = render_filtered_page(
+            cards,
+            [],
+            "cm",
+            1,
+            sort_by="Name (A-Z)",
+        )
+        # Alpha should appear first in the rendered HTML
+        idx_alpha = html.find("Alpha")
+        idx_bravo = html.find("Bravo")
+        assert idx_alpha < idx_bravo

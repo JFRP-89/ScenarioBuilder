@@ -13,6 +13,7 @@ Limits: min 60.0 cm (600 mm), max 300.0 cm (3000 mm)
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -393,19 +394,23 @@ class TestInvalidInputs:
             TableSize.from_cm(invalid_width, invalid_height)
 
     def test_rejects_none_in_from_in(self):
+        bad_width: Any = None
         with pytest.raises(ValidationError):
-            TableSize.from_in(None, "48")  # type: ignore[arg-type]
+            TableSize.from_in(bad_width, "48")
 
     def test_rejects_none_in_from_ft(self):
+        bad_width: Any = None
         with pytest.raises(ValidationError):
-            TableSize.from_ft(None, "4")  # type: ignore[arg-type]
+            TableSize.from_ft(bad_width, "4")
 
     def test_rejects_float_type(self):
         """Float type should be rejected for precision reasons."""
+        bad_float_w: Any = 100.5
+        bad_float_h: Any = 100.5
         with pytest.raises(ValidationError):
-            TableSize.from_cm(100.5, "100")  # type: ignore[arg-type]
+            TableSize.from_cm(bad_float_w, "100")
         with pytest.raises(ValidationError):
-            TableSize.from_cm("100", 100.5)  # type: ignore[arg-type]
+            TableSize.from_cm("100", bad_float_h)
 
     def test_accepts_decimal_type_directly(self):
         """Decimal type should be accepted directly."""
@@ -421,8 +426,9 @@ class TestInvalidInputs:
 
     def test_rejects_list_type(self):
         """List type should be rejected."""
+        bad_width: Any = [100]
         with pytest.raises(ValidationError):
-            TableSize.from_cm([100], "100")  # type: ignore[arg-type]
+            TableSize.from_cm(bad_width, "100")
 
     def test_accepts_scientific_notation_lowercase_e(self):
         """Scientific notation with lowercase 'e' should work."""

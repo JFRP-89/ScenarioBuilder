@@ -14,6 +14,7 @@ import gradio as gr
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components.search_helpers import (
+    DEFAULT_SORT,
     escape_html,
     filter_by_mode_preset,
     render_filtered_page,
@@ -27,6 +28,7 @@ def load_recent_cards(
     page: int = 1,
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int, list[dict[str, Any]], list[str]]:
     """Fetch cards from Flask and render as HTML with pagination."""
@@ -51,6 +53,7 @@ def load_recent_cards(
         page,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         actor_id=actor_id,
     )
     return html, page_info, new_page, cards, fav_ids
@@ -65,6 +68,7 @@ def render_from_cache(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Re-render from cached cards without hitting the API."""
@@ -76,6 +80,7 @@ def render_from_cache(
         page,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         actor_id=actor_id,
     )
 
@@ -89,6 +94,7 @@ def go_to_previous_page(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the previous page."""
@@ -101,6 +107,7 @@ def go_to_previous_page(
         fav_ids_cache,
         search_raw,
         per_page_raw,
+        sort_by,
         actor_id,
     )
 
@@ -114,6 +121,7 @@ def go_to_next_page(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the next page."""
@@ -126,6 +134,7 @@ def go_to_next_page(
         fav_ids_cache,
         search_raw,
         per_page_raw,
+        sort_by,
         actor_id,
     )
 
@@ -139,6 +148,7 @@ class HomePageCtx:
     home_preset_filter: gr.Radio
     home_unit_selector: gr.Radio
     home_search_box: gr.Textbox
+    home_sort_dropdown: gr.Dropdown
     home_per_page_dropdown: gr.Dropdown
     home_reload_btn: gr.Button
     home_prev_btn: gr.Button
@@ -161,6 +171,7 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         c.home_page_state,
         c.home_search_box,
         c.home_per_page_dropdown,
+        c.home_sort_dropdown,
     ]
     if c.actor_id_state is not None:
         _all_inputs.append(c.actor_id_state)
@@ -173,6 +184,7 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         c.home_fav_ids_cache_state,
         c.home_search_box,
         c.home_per_page_dropdown,
+        c.home_sort_dropdown,
     ]
     if c.actor_id_state is not None:
         _cache_inputs.append(c.actor_id_state)
@@ -198,10 +210,11 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         fav_ids: list[str],
         search: str,
         per_page: str,
+        sort_by: str = DEFAULT_SORT,
         actor_id: str = "",
     ) -> tuple[str, str, int]:
         return render_from_cache(
-            mode, preset, unit, 1, cards, fav_ids, search, per_page, actor_id
+            mode, preset, unit, 1, cards, fav_ids, search, per_page, sort_by, actor_id
         )
 
     for widget in (
@@ -209,6 +222,7 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         c.home_preset_filter,
         c.home_search_box,
         c.home_per_page_dropdown,
+        c.home_sort_dropdown,
     ):
         widget.change(
             fn=_cache_reset_page1,

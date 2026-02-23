@@ -10,6 +10,8 @@ These tests verify the equivalent behavior in the new modules.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 # =============================================================================
 # Tests for build_map_specs_from_state (replaces _parse_map_specs)
@@ -36,7 +38,8 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": False,
             }
         ]
-        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_map_specs_from_state(typed_state)
 
         assert len(result) == 1
         assert result[0]["type"] == "rect"
@@ -57,7 +60,8 @@ class TestBuildMapSpecsFromState:
             }
             for i in range(50)
         ]
-        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_map_specs_from_state(typed_state)
 
         assert len(result) == 50
 
@@ -74,7 +78,8 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": False,
             }
         ]
-        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_map_specs_from_state(typed_state)
         assert result[0]["type"] == "circle"
 
     def test_overlap_elements_sorted_first(self):
@@ -97,7 +102,8 @@ class TestBuildMapSpecsFromState:
                 "allow_overlap": True,
             },
         ]
-        result = build_map_specs_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_map_specs_from_state(typed_state)
 
         assert result[0]["allow_overlap"] is True
         assert result[1]["allow_overlap"] is False
@@ -155,7 +161,8 @@ class TestBuildDeploymentShapesFromState:
                 },
             },
         ]
-        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_deployment_shapes_from_state(typed_state)
 
         assert len(result) == 2
         assert result[0]["type"] == "deployment_zone"
@@ -184,7 +191,8 @@ class TestBuildDeploymentShapesFromState:
                 },
             }
         ]
-        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_deployment_shapes_from_state(typed_state)
 
         assert "depth" not in result[0]
         assert "separation" not in result[0]
@@ -209,7 +217,8 @@ class TestBuildDeploymentShapesFromState:
                 },
             }
         ]
-        result = build_deployment_shapes_from_state(state)  # type: ignore[arg-type]
+        typed_state: Any = state
+        result = build_deployment_shapes_from_state(typed_state)
 
         assert result[0]["type"] == "deployment_zone"
 

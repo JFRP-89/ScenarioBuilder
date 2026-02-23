@@ -7,6 +7,8 @@ and maximum card structures as described in the production schema.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from application.use_cases.generate_scenario_card import (
@@ -353,6 +355,7 @@ class TestObjectivesValidation:
         assert response.objectives["objective"] == "Hold the relic"
 
     def test_invalid_objectives_type_rejected(self, schema_use_case):
+        bad_objectives: Any = 42
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -360,7 +363,7 @@ class TestObjectivesValidation:
             table_preset="standard",
             visibility=None,
             shared_with=None,
-            objectives=42,  # type: ignore[arg-type]
+            objectives=bad_objectives,
         )
         with pytest.raises(
             ValidationError, match="(?i)objectives must be a string or dict"

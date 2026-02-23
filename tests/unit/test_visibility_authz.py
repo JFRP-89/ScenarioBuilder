@@ -14,6 +14,8 @@ Authorization rules:
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from domain.errors import ValidationError
@@ -814,10 +816,11 @@ class TestInvalidInputsParametrized:
 
     def test_can_read_rejects_non_visibility_type(self):
         """can_read should reject non-Visibility values for visibility."""
+        bad_vis: Any = "public"
         with pytest.raises(ValidationError):
             can_read(
                 owner_id="user_a",
-                visibility="public",  # type: ignore[arg-type]
+                visibility=bad_vis,
                 current_user_id="user_b",
                 shared_with=None,
             )

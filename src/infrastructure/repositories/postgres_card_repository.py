@@ -167,4 +167,6 @@ class PostgresCardRepository:
             objectives=model.objectives,  # type: ignore[arg-type]
             initial_priority=model.initial_priority,  # type: ignore[arg-type]
             special_rules=model.special_rules,  # type: ignore[arg-type]
+            created_at=model.created_at,  # type: ignore[arg-type]
+            updated_at=model.updated_at,  # type: ignore[arg-type]
         )
