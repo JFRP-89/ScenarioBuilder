@@ -8,6 +8,8 @@ Tests cover:
 
 from __future__ import annotations
 
+from typing import Any
+
 
 # ---------------------------------------------------------------------------
 # _extract_objectives_text_for_form
@@ -100,7 +102,8 @@ class TestApiSpecialRulesToState:
             _api_special_rules_to_state,
         )
 
-        result = _api_special_rules_to_state(["not a dict", 42])  # type: ignore[list-item]
+        bad_items: Any = ["not a dict", 42]
+        result = _api_special_rules_to_state(bad_items)
         assert result == []
 
 

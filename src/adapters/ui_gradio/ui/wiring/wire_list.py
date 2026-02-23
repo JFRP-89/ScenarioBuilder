@@ -15,6 +15,7 @@ from adapters.ui_gradio.auth import is_session_valid
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components.search_helpers import (
+    DEFAULT_SORT,
     render_filtered_page,
 )
 from adapters.ui_gradio.ui.router import (
@@ -31,6 +32,7 @@ def _refresh_cache(
     unit: str = "cm",
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int, dict[str, list[dict[str, Any]]], list[str], bool]:
     """Fetch cards from API and return rendered first page plus cache."""
@@ -52,6 +54,7 @@ def _refresh_cache(
         1,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         actor_id=actor_id,
     )
     return html, page_info, new_page, cache, fav_ids, True
@@ -65,6 +68,7 @@ def _render_from_cache(
     fav_ids: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Render a page from the in-memory cache."""
@@ -76,6 +80,7 @@ def _render_from_cache(
         page,
         search_raw,
         per_page_raw,
+        sort_by=sort_by,
         actor_id=actor_id,
     )
 
@@ -88,11 +93,20 @@ def _cache_reset_page1(
     fav_ids: list[str],
     search_raw: str,
     per_page_raw: str,
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Re-render from cache starting at page 1."""
     return _render_from_cache(
-        filter_value, unit, 1, cache, fav_ids, search_raw, per_page_raw, actor_id
+        filter_value,
+        unit,
+        1,
+        cache,
+        fav_ids,
+        search_raw,
+        per_page_raw,
+        sort_by,
+        actor_id,
     )
 
 
@@ -104,6 +118,7 @@ def _go_prev(
     fav_ids: list[str],
     search_raw: str,
     per_page_raw: str,
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the previous page."""
@@ -115,6 +130,7 @@ def _go_prev(
         fav_ids,
         search_raw,
         per_page_raw,
+        sort_by,
         actor_id,
     )
 
@@ -127,6 +143,7 @@ def _go_next(
     fav_ids: list[str],
     search_raw: str,
     per_page_raw: str,
+    sort_by: str = DEFAULT_SORT,
     actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the next page."""
@@ -138,6 +155,7 @@ def _go_next(
         fav_ids,
         search_raw,
         per_page_raw,
+        sort_by,
         actor_id,
     )
 
@@ -199,6 +217,7 @@ class ListPageCtx:
     list_filter: gr.Radio
     list_unit_selector: gr.Radio
     list_search_box: gr.Textbox
+    list_sort_dropdown: gr.Dropdown
     list_per_page_dropdown: gr.Dropdown
     list_reload_btn: gr.Button
     list_cards_html: gr.HTML
@@ -231,12 +250,18 @@ def wire_list_page(*, ctx: ListPageCtx) -> Any:
         c.list_fav_ids_cache_state,
         c.list_search_box,
         c.list_per_page_dropdown,
+        c.list_sort_dropdown,
     ]
     if c.actor_id_state is not None:
         _cache_inputs.append(c.actor_id_state)
     _page_outputs = [c.list_cards_html, c.list_page_info, c.list_page_state]
 
-    for widget in (c.list_filter, c.list_search_box, c.list_per_page_dropdown):
+    for widget in (
+        c.list_filter,
+        c.list_search_box,
+        c.list_per_page_dropdown,
+        c.list_sort_dropdown,
+    ):
         widget.change(
             fn=_cache_reset_page1,
             inputs=_cache_inputs,
@@ -259,6 +284,7 @@ def wire_list_page(*, ctx: ListPageCtx) -> Any:
                 c.list_unit_selector,
                 c.list_search_box,
                 c.list_per_page_dropdown,
+                c.list_sort_dropdown,
                 c.actor_id_state,
             ],
         )

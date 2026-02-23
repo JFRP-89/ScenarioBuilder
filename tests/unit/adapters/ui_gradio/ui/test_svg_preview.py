@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from adapters.ui_gradio.ui.components.svg_preview import (
@@ -130,13 +132,15 @@ class TestRenderSvgFromCard:
     # --- fallback to placeholder ---
 
     def test_none_returns_placeholder(self):
-        assert render_svg_from_card(None) == _PLACEHOLDER_HTML  # type: ignore[arg-type]
+        bad_none: Any = None
+        assert render_svg_from_card(bad_none) == _PLACEHOLDER_HTML
 
     def test_empty_dict_returns_placeholder(self):
         assert render_svg_from_card({}) == _PLACEHOLDER_HTML
 
     def test_non_dict_returns_placeholder(self):
-        assert render_svg_from_card("not a dict") == _PLACEHOLDER_HTML  # type: ignore[arg-type]
+        bad_str: Any = "not a dict"
+        assert render_svg_from_card(bad_str) == _PLACEHOLDER_HTML
 
     def test_error_status_returns_placeholder(self):
         card = {"status": "error", "detail": "Something broke"}

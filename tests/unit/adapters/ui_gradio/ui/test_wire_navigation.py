@@ -60,7 +60,8 @@ def _build_nav_kwargs(
         fields["editing_card_id"] = MagicMock(spec=gr.State)
         fields["create_heading_md"] = MagicMock(spec=gr.Markdown)
     fields.update(extra)
-    return NavigationCtx(**fields)  # type: ignore[arg-type]
+    typed_fields: Any = fields
+    return NavigationCtx(**typed_fields)
 
 
 def _click_mock(component: Any) -> Any:
@@ -74,7 +75,7 @@ def _click_mock(component: Any) -> Any:
     return component.click
 
 
-def _extract_click_handler(btn_mock: MagicMock) -> tuple:
+def _extract_click_handler(btn_mock: Any) -> tuple:
     """Extract (fn, inputs, outputs) from the first .click() call."""
     assert btn_mock.click.called, "Button .click() was never called"
     call = btn_mock.click.call_args

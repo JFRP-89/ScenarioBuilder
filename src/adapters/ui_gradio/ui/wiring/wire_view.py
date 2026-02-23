@@ -31,7 +31,7 @@ def wire_view_navigation(
     actor_id_state: gr.State,
     login_panel: gr.Column,
     top_bar_row: gr.Row,
-    login_message: gr.Textbox,
+    login_message: gr.Markdown,
 ) -> Any:
     """Wire the global View button handler with session guard.
 

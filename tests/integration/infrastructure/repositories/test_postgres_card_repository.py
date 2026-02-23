@@ -7,6 +7,8 @@ create a disposable test database and run Alembic migrations.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from domain.cards.card import Card, GameMode
@@ -57,7 +59,8 @@ def _make_card(
         "special_rules": [{"name": "Night Fight", "description": "Reduced visibility"}],
     }
     defaults.update(overrides)
-    return Card(**defaults)  # type: ignore[arg-type]
+    typed_defaults: Any = defaults
+    return Card(**typed_defaults)
 
 
 def _make_repo(session_factory):

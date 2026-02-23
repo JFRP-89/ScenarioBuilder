@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from helpers import seed_test_users
@@ -118,7 +120,8 @@ class TestRegister:
             "newuser@ex.com",
         )
         assert result["ok"] is False
-        assert any("uppercase" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("uppercase" in str(e) for e in errors)
 
     def test_weak_password_missing_digit(self):
         result = auth_service.register(
@@ -129,7 +132,8 @@ class TestRegister:
             "newuser@ex.com",
         )
         assert result["ok"] is False
-        assert any("digit" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("digit" in str(e) for e in errors)
 
     def test_weak_password_missing_special(self):
         result = auth_service.register(
@@ -140,7 +144,8 @@ class TestRegister:
             "newuser@ex.com",
         )
         assert result["ok"] is False
-        assert any("special" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("special" in str(e) for e in errors)
 
     def test_weak_password_too_short(self):
         result = auth_service.register(
@@ -151,7 +156,8 @@ class TestRegister:
             "newuser@ex.com",
         )
         assert result["ok"] is False
-        assert any("8 characters" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("8 characters" in str(e) for e in errors)
 
     def test_password_mismatch(self):
         result = auth_service.register(
@@ -162,7 +168,8 @@ class TestRegister:
             "newuser@ex.com",
         )
         assert result["ok"] is False
-        assert any("match" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("match" in str(e) for e in errors)
 
     def test_duplicate_username(self):
         result = auth_service.register(
@@ -184,7 +191,8 @@ class TestRegister:
             "not-email",
         )
         assert result["ok"] is False
-        assert any("email" in str(e).lower() for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("email" in str(e).lower() for e in errors)
 
     def test_valid_email_accepted(self):
         result = auth_service.register(
@@ -205,7 +213,8 @@ class TestRegister:
             "",
         )
         assert result["ok"] is False
-        assert any("email" in str(e).lower() for e in result["errors"])  # type: ignore[attr-defined]
+        errors: Any = result["errors"]
+        assert any("email" in str(e).lower() for e in errors)
 
     def test_duplicate_email_rejected(self):
         auth_service.register(

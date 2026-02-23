@@ -7,6 +7,7 @@ primary handle, so this module maps between the two worlds.
 
 from __future__ import annotations
 
+import html as _html
 from typing import Any
 
 from infrastructure.auth import auth_service as _infra_svc
@@ -122,10 +123,32 @@ def is_session_valid(session_id: str) -> bool:
 
 
 def get_logged_in_label(actor_id: str) -> str:
-    """Return a human-readable label for the current session."""
+    """Return an HTML user-pill for the current session.
+
+    The pill shows a user icon + display name (truncated via CSS).
+    If no display name is stored, it falls back to the username.
+    """
     if not actor_id:
         return ""
-    return f"Logged in as: {actor_id}"
+    profile = get_user_profile(actor_id)
+    display = profile["name"] if profile and profile.get("name") else actor_id
+    # SVG user icon (Heroicons "user" outline, 18 x 18)
+    icon_svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" '
+        'viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">'
+        '<path stroke-linecap="round" stroke-linejoin="round" '
+        'd="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z'
+        "M4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75"
+        'c-2.676 0-5.216-.584-7.499-1.632Z"/>'
+        "</svg>"
+    )
+    safe_name = _html.escape(display, quote=True)
+    return (
+        f'<span class="sb-userpill" title="{safe_name}">'
+        f'<span class="sb-userpill__icon">{icon_svg}</span>'
+        f'<span class="sb-userpill__name">{safe_name}</span>'
+        f"</span>"
+    )
 
 
 def register(

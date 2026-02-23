@@ -111,7 +111,7 @@ El sistema incluye control de visibilidad granular (privado/compartido/público)
 
 ### Requisitos previos
 
-- Python 3.11+ (tested: 3.11.9)
+- Python 3.11 (tested: 3.11.9)
 - PostgreSQL 14+ (opcional para dev, requerido en producción)
 - Git
 

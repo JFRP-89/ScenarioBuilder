@@ -17,6 +17,20 @@ ITEMS_PER_PAGE_CHOICES: list[int] = [5, 10, 20, 50, 100]
 DEFAULT_ITEMS_PER_PAGE: int = 10
 _ALLOWED_PER_PAGE: frozenset[int] = frozenset(ITEMS_PER_PAGE_CHOICES)
 
+# ── Sort options ─────────────────────────────────────────────────
+SORT_CHOICES: list[str] = [
+    "Name (A-Z)",
+    "Name (Z-A)",
+    "Mode",
+    "Created (newest)",
+    "Created (oldest)",
+    "Edited (newest)",
+    "Edited (oldest)",
+    "Author (A-Z)",
+    "Author (Z-A)",
+]
+DEFAULT_SORT: str = "Created (newest)"
+
 # Regex that strips both complete (<tag>) and incomplete (<tag) HTML fragments.
 _HTML_TAG_RE = re.compile(r"<[^>]*>?")
 
@@ -139,6 +153,83 @@ def filter_by_mode_preset(
     return filtered
 
 
+# ── Sorting ───────────────────────────────────────────────────────
+
+_NONE_LOW = ""  # sorts before any real string
+_NONE_HIGH = "\uffff"  # sorts after any real string
+_NONE_DATE_LOW = "0000"  # sorts before any real ISO date
+_NONE_DATE_HIGH = "9999"  # sorts after any real ISO date
+
+
+def _name_key(c: dict[str, Any]) -> str:
+    return (c.get("name") or _NONE_HIGH).lower()
+
+
+def _name_key_rev(c: dict[str, Any]) -> str:
+    return (c.get("name") or _NONE_LOW).lower()
+
+
+def _mode_key(c: dict[str, Any]) -> str:
+    return (c.get("mode") or _NONE_HIGH).lower()
+
+
+def _created_key_asc(c: dict[str, Any]) -> str:
+    return c.get("created_at") or _NONE_DATE_HIGH
+
+
+def _created_key_desc(c: dict[str, Any]) -> str:
+    return c.get("created_at") or _NONE_DATE_LOW
+
+
+def _updated_key_asc(c: dict[str, Any]) -> str:
+    return c.get("updated_at") or _NONE_DATE_HIGH
+
+
+def _updated_key_desc(c: dict[str, Any]) -> str:
+    return c.get("updated_at") or _NONE_DATE_LOW
+
+
+def _author_key(c: dict[str, Any]) -> str:
+    return (c.get("owner_name") or c.get("owner_id") or _NONE_HIGH).lower()
+
+
+def _author_key_rev(c: dict[str, Any]) -> str:
+    return (c.get("owner_name") or c.get("owner_id") or _NONE_LOW).lower()
+
+
+_SORT_DISPATCH: dict[str, tuple[Any, bool]] = {
+    "Name (A-Z)": (_name_key, False),
+    "Name (Z-A)": (_name_key_rev, True),
+    "Mode": (_mode_key, False),
+    DEFAULT_SORT: (_created_key_desc, True),
+    "Created (oldest)": (_created_key_asc, False),
+    "Edited (newest)": (_updated_key_desc, True),
+    "Edited (oldest)": (_updated_key_asc, False),
+    "Author (A-Z)": (_author_key, False),
+    "Author (Z-A)": (_author_key_rev, True),
+}
+
+
+def sort_cards(
+    cards: list[dict[str, Any]],
+    sort_by: str = DEFAULT_SORT,
+) -> list[dict[str, Any]]:
+    """Sort cards by the chosen criterion.
+
+    Supported values for *sort_by* correspond to :data:`SORT_CHOICES`.
+    Unknown values fall back to ``"Created (newest)"``.
+    ``None`` values sort last (ascending) or first (descending).
+    """
+    if not cards:
+        return cards
+
+    key_func, reverse = _SORT_DISPATCH.get(
+        sort_by,
+        (_created_key_desc, True),
+    )
+    return sorted(cards, key=key_func, reverse=reverse)
+
+
 # ── Per-page parsing ─────────────────────────────────────────────
 
 
@@ -234,22 +325,24 @@ def render_filtered_page(
     search_raw: str = "",
     per_page_raw: str | int = "10",
     *,
+    sort_by: str = DEFAULT_SORT,
     empty_message: str = "No scenarios match the selected filters.",
     count_label: str = "scenarios",
     actor_id: str = "",
 ) -> tuple[str, str, int]:
-    """Sanitise, filter, paginate and render cards in one call.
+    """Sanitise, filter, sort, paginate and render cards in one call.
 
     Composes :func:`sanitize_search_query`, :func:`filter_cards_by_name`,
-    :func:`parse_per_page`, :func:`validate_page` and :func:`render_page`
-    so that wiring modules need a single function call instead of
-    repeating the four-step pipeline.
+    :func:`sort_cards`, :func:`parse_per_page`, :func:`validate_page`
+    and :func:`render_page` so that wiring modules need a single
+    function call instead of repeating the pipeline.
     """
     query = sanitize_search_query(search_raw)
     filtered = filter_cards_by_name(cards, query)
+    sorted_cards = sort_cards(filtered, sort_by)
     per_page = parse_per_page(per_page_raw)
     return render_page(
-        filtered,
+        sorted_cards,
         fav_ids,
         unit,
         validate_page(page),

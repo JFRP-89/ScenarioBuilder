@@ -21,6 +21,17 @@ except ModuleNotFoundError:
     pytest.skip("requests not installed", allow_module_level=True)
 
 
+def _fail_on_request(call_log: list[str]):
+    """Return a callable that logs and raises on any HTTP request."""
+
+    def _trap(url: object = None, **kwargs: object) -> None:
+        _ = url, kwargs  # consume args
+        call_log.append("request called")
+        raise AssertionError("HTTP request intercepted!")
+
+    return _trap
+
+
 # =============================================================================
 # Test: Import does not trigger HTTP calls
 # =============================================================================
@@ -30,23 +41,21 @@ class TestImportDoesNotCallRequests:
     def test_import_gradio_app_does_not_call_requests(self, monkeypatch):
         """Importing adapters.ui_gradio.app should not call requests."""
         call_log: list[str] = []
-
-        def fail_on_request(*args, **kwargs):
-            call_log.append("request called")
-            raise AssertionError("HTTP request made during import!")
+        trap = _fail_on_request(call_log)
 
         # Patch all request methods on the imported module
-        monkeypatch.setattr(requests, "request", fail_on_request)
-        monkeypatch.setattr(requests, "get", fail_on_request)
-        monkeypatch.setattr(requests, "post", fail_on_request)
+        monkeypatch.setattr(requests, "request", trap)
+        monkeypatch.setattr(requests, "get", trap)
+        monkeypatch.setattr(requests, "post", trap)
 
         # Remove from cache to force re-import (including parent module)
         sys.modules.pop("adapters.ui_gradio.app", None)
         sys.modules.pop("adapters.ui_gradio", None)
 
         # Import should not trigger requests
-        import adapters.ui_gradio.app  # noqa: F401
+        import adapters.ui_gradio.app
 
+        assert adapters.ui_gradio.app  # verify module loaded
         assert call_log == [], "HTTP request was made during import"
 
 
@@ -59,14 +68,11 @@ class TestBuildAppReturnsBlocks:
     def test_build_app_returns_gradio_blocks_and_no_http_calls(self, monkeypatch):
         """build_app() should return a gradio.Blocks instance without HTTP calls."""
         call_log: list[str] = []
+        trap = _fail_on_request(call_log)
 
-        def fail_on_request(*args, **kwargs):
-            call_log.append("request called")
-            raise AssertionError("HTTP request made during build_app()!")
-
-        monkeypatch.setattr(requests, "request", fail_on_request)
-        monkeypatch.setattr(requests, "get", fail_on_request)
-        monkeypatch.setattr(requests, "post", fail_on_request)
+        monkeypatch.setattr(requests, "request", trap)
+        monkeypatch.setattr(requests, "get", trap)
+        monkeypatch.setattr(requests, "post", trap)
 
         from adapters.ui_gradio.app import build_app
 

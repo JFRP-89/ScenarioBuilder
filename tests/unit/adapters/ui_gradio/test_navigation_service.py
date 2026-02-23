@@ -50,8 +50,12 @@ def _card_snapshot(
 class TestListCards:
     """list_cards() via direct use-case call."""
 
+    @patch(
+        "adapters.ui_gradio.services.navigation.get_display_names",
+        return_value={"actor1": "Alice"},
+    )
     @patch("adapters.ui_gradio.services.navigation.get_services")
-    def test_success(self, mock_get):
+    def test_success(self, mock_get, _mock_names):
         uc = MagicMock()
         resp = MagicMock()
         resp.cards = [_card_snapshot(card_id="c1")]
@@ -61,6 +65,19 @@ class TestListCards:
         result = list_cards("actor1", "mine")
         assert len(result["cards"]) == 1
         assert result["cards"][0]["card_id"] == "c1"
+        assert result["cards"][0]["owner_name"] == "Alice"
+
+    @patch("adapters.ui_gradio.services.navigation.get_display_names", return_value={})
+    @patch("adapters.ui_gradio.services.navigation.get_services")
+    def test_fallback_owner_name(self, mock_get, _mock_names):
+        uc = MagicMock()
+        resp = MagicMock()
+        resp.cards = [_card_snapshot(card_id="c1", owner_id="unknown_user")]
+        uc.execute.return_value = resp
+        mock_get.return_value = MagicMock(list_cards=uc)
+
+        result = list_cards("actor1", "mine")
+        assert result["cards"][0]["owner_name"] == "unknown_user"
 
     @patch("adapters.ui_gradio.services.navigation.get_services")
     def test_error_status(self, mock_get):
@@ -82,8 +99,11 @@ class TestListCards:
 class TestGetCard:
     """get_card() via direct use-case call."""
 
+    @patch(
+        "adapters.ui_gradio.services.navigation.get_display_name", return_value="Alice"
+    )
     @patch("adapters.ui_gradio.services.navigation.get_services")
-    def test_success(self, mock_get):
+    def test_success(self, mock_get, _mock_name):
         uc = MagicMock()
         resp = MagicMock()
         resp.card_id = "c1"
@@ -107,6 +127,7 @@ class TestGetCard:
 
         result = get_card("actor1", "c1")
         assert result["card_id"] == "c1"
+        assert result["owner_name"] == "Alice"
 
     @patch("adapters.ui_gradio.services.navigation.get_services")
     def test_not_found(self, mock_get):

@@ -47,6 +47,8 @@ class GetCardResponse:
     initial_priority: Optional[str] = None
     special_rules: Optional[list[dict[str, Any]]] = None
     shapes: Optional[dict[str, Any]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 # =============================================================================
@@ -101,6 +103,8 @@ class GetCard:
             initial_priority=card.initial_priority,
             special_rules=card.special_rules,
             shapes=self._extract_shapes(card),
+            created_at=card.created_at.isoformat() if card.created_at else None,
+            updated_at=card.updated_at.isoformat() if card.updated_at else None,
         )
 
     @staticmethod

@@ -8,6 +8,7 @@ config, and other small infrastructure modules end-to-end.
 from __future__ import annotations
 
 import random
+from typing import Any
 
 import pytest
 
@@ -375,7 +376,8 @@ class TestResolveSeededContent:
             "shared_with": None,
         }
         defaults.update(overrides)
-        return GenerateScenarioCardRequest(**defaults)  # type: ignore[arg-type]
+        typed_defaults: Any = defaults
+        return GenerateScenarioCardRequest(**typed_defaults)
 
     def test_zero_seed_returns_request_values(self) -> None:
         req = self._make_request(armies="My Army", deployment="My Deploy")

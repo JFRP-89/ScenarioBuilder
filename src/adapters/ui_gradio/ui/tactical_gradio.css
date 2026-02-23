@@ -757,11 +757,134 @@ label,
 }
 
 /* ── 9. TOP BAR (Gradio in-app) ───────────────────────────────────────── */
+/* Gradio's Row component hides via Svelte-scoped ".hide { display:none }"
+   (specificity 0-2-0).  Because #id selectors (1-0-0) beat class selectors,
+   our display:flex would win and the bar would stay visible.
+   The .hide override below ensures Gradio can actually hide the row. */
 #top-bar {
   background: #111315 !important;
   border-bottom: 1px solid #2a3545 !important;
-  padding: 8px 16px !important;
+  padding: 6px 16px !important;
   border-radius: 0 !important;
+  display: flex;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 48px !important;
+  flex-wrap: nowrap !important;
+}
+#top-bar.hide {
+  display: none !important;
+}
+
+/* Gradio wraps each child in a div — control flex from here.
+   scale=0 on buttons should prevent Gradio stretching them,
+   but we reinforce with !important to override Gradio's styles. */
+#top-bar > div {
+  min-width: 0 !important;
+}
+/* User-label wrapper stretches to fill remaining space */
+#top-bar > div:first-child {
+  flex: 1 1 auto !important;
+}
+/* Button wrappers: Gradio's scale=0 maps to flex-grow:0 but we
+   reinforce to guarantee compact buttons across versions. */
+#top-bar > div:nth-child(2),
+#top-bar > div:nth-child(3) {
+  flex: 0 0 auto !important;
+  max-width: fit-content !important;
+}
+
+/* ── 9a. USER PILL ────────────────────────────────────────────────────── */
+.sb-userpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sb-secondary, #1d2736);
+  border: 1px solid var(--sb-border, #2a3545);
+  border-radius: 999px;
+  padding: 4px 14px 4px 10px;
+  height: 34px;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  max-width: 260px;
+}
+.sb-userpill:hover {
+  background: #243040;
+  border-color: var(--sb-border-hover, #354560);
+}
+.sb-userpill:focus-visible {
+  outline: none;
+  box-shadow: var(--sb-focus-ring);
+}
+
+.sb-userpill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--sb-muted, #92a9c1);
+}
+.sb-userpill__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sb-userpill__name {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text, #e9eef6);
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* ── 9b. TOP BAR — Gradio button overrides ────────────────────────────── */
+#top-bar button {
+  min-width: unset !important;
+  width: auto !important;
+  font-size: 12px !important;
+}
+#profile-btn,
+#logout-btn {
+  height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  width: auto !important;
+  max-width: fit-content !important;
+}
+
+/* Hide the wrapping label/container chrome Gradio adds around Markdown */
+#user-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: unset !important;
+}
+#user-label .prose,
+#user-label .markdown-text {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ── 9c. TOP BAR — Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .sb-userpill__name {
+    max-width: 90px;
+  }
+  #profile-btn span,
+  #logout-btn span {
+    font-size: 11px !important;
+  }
 }
 
 /* ── 10. AUTH GATE ────────────────────────────────────────────────────── */

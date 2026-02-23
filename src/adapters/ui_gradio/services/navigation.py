@@ -15,6 +15,7 @@ from application.use_cases.list_favorites import ListFavoritesRequest
 from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.toggle_favorite import ToggleFavoriteRequest
 from domain.errors import DomainError
+from infrastructure.auth.user_store import get_display_name, get_display_names
 from infrastructure.bootstrap import get_services
 
 
@@ -31,17 +32,22 @@ def list_cards(
         resp = svc.list_cards.execute(
             ListCardsRequest(actor_id=actor_id, filter=filter_value)
         )
+        owner_ids = list({c.owner_id for c in resp.cards})
+        names = get_display_names(owner_ids)
         return {
             "cards": [
                 {
                     "card_id": c.card_id,
                     "owner_id": c.owner_id,
+                    "owner_name": names.get(c.owner_id, c.owner_id),
                     "seed": c.seed,
                     "mode": c.mode,
                     "visibility": c.visibility,
                     "name": c.name,
                     "table_preset": c.table_preset,
                     "table_mm": c.table_mm,
+                    "created_at": c.created_at,
+                    "updated_at": c.updated_at,
                 }
                 for c in resp.cards
             ]
@@ -61,6 +67,7 @@ def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
         return {
             "card_id": r.card_id,
             "owner_id": r.owner_id,
+            "owner_name": get_display_name(r.owner_id),
             "seed": r.seed,
             "mode": r.mode,
             "visibility": r.visibility,
@@ -75,6 +82,8 @@ def get_card(actor_id: str, card_id: str) -> dict[str, Any]:
             "initial_priority": r.initial_priority,
             "special_rules": r.special_rules,
             "shapes": r.shapes or {},
+            "created_at": r.created_at,
+            "updated_at": r.updated_at,
         }
     except (DomainError, OSError, ValueError, KeyError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}

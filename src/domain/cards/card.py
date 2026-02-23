@@ -7,6 +7,7 @@ game mode, and ownership/visibility rules.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any, Collection, Optional, Union
 
@@ -97,6 +98,8 @@ class Card:
     special_rules: Optional[list[dict[str, Any]]] = field(default=None)
     seed_attempt: Optional[int] = None
     generator_version: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""

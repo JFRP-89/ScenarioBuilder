@@ -17,14 +17,26 @@ class TestRenderCardHtml:
             "name": "Test Scenario",
             "mode": "matched",
             "owner_id": "alice",
+            "owner_name": "Alice Wonderland",
             "visibility": "public",
             "seed": 42,
         }
         html = render_card_html(card)
         assert "Test Scenario" in html
         assert "matched" in html
-        assert "alice" in html
+        assert "Alice Wonderland" in html
+        assert "alice" not in html  # username must NOT appear
         assert "42" in html
+
+    def test_owner_name_fallback_to_owner_id(self):
+        card = {
+            "card_id": "x",
+            "name": "N",
+            "mode": "m",
+            "owner_id": "bob",
+        }
+        html = render_card_html(card)
+        assert "bob" in html  # falls back to owner_id when no owner_name
 
     def test_favorite_shows_filled_star(self):
         card = {"card_id": "x", "name": "N", "mode": "m", "owner_id": "o"}

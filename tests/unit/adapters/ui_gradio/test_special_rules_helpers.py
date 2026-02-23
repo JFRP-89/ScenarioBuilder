@@ -10,6 +10,8 @@ After refactoring:
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class TestApplySpecialRules:
     """Tests for builders.payload.apply_special_rules()."""
@@ -37,7 +39,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is None
         assert payload["special_rules"] == [
@@ -58,7 +61,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is None
         assert payload["special_rules"] == [
@@ -80,7 +84,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is None
         assert len(payload["special_rules"]) == 2
@@ -99,7 +104,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is not None
         assert error["status"] == "error"
@@ -112,7 +118,8 @@ class TestApplySpecialRules:
         rules_state = [{"id": "r1", "name": "Name", "rule_type": "", "value": "V"}]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is not None
         assert error["message"] == "Rule 1: Must specify description or source"
@@ -126,7 +133,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is not None
         assert error["message"] == "Rule 1: Must specify description or source"
@@ -140,7 +148,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is not None
         assert error["message"] == "Rule 1: Value cannot be empty"
@@ -160,7 +169,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is not None
         assert "Rule 2:" in error["message"]
@@ -179,7 +189,8 @@ class TestApplySpecialRules:
         ]
 
         payload: dict = {}
-        error = apply_special_rules(payload, rules_state)  # type: ignore[arg-type]
+        typed_rules: Any = rules_state
+        error = apply_special_rules(payload, typed_rules)
 
         assert error is None
         assert payload["special_rules"] == [{"name": "Name", "description": "Value"}]

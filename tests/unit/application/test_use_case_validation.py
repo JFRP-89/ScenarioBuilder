@@ -7,7 +7,7 @@ and load_card_for_write.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -104,24 +104,24 @@ class TestLoadCardForRead:
 
     def test_owner_can_read(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
-        repo = _FakeRepo({"c1": card})
-        assert load_card_for_read(repo, "c1", "user-a") is card  # type: ignore[arg-type]
+        repo: Any = _FakeRepo({"c1": card})
+        assert load_card_for_read(repo, "c1", "user-a") is card
 
     def test_shared_user_can_read(self):
         card = _FakeCard(card_id="c1", owner_id="user-a", readable_by={"user-b"})
-        repo = _FakeRepo({"c1": card})
-        assert load_card_for_read(repo, "c1", "user-b") is card  # type: ignore[arg-type]
+        repo: Any = _FakeRepo({"c1": card})
+        assert load_card_for_read(repo, "c1", "user-b") is card
 
     def test_not_found_raises(self):
-        repo = _FakeRepo()
+        repo: Any = _FakeRepo()
         with pytest.raises(Exception, match="(?i)not found"):
-            load_card_for_read(repo, "missing", "user-a")  # type: ignore[arg-type]
+            load_card_for_read(repo, "missing", "user-a")
 
     def test_forbidden_raises(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
-        repo = _FakeRepo({"c1": card})
+        repo: Any = _FakeRepo({"c1": card})
         with pytest.raises(Exception, match="(?i)forbidden"):
-            load_card_for_read(repo, "c1", "stranger")  # type: ignore[arg-type]
+            load_card_for_read(repo, "c1", "stranger")
 
 
 # ── load_card_for_write ───────────────────────────────────────────
@@ -132,16 +132,16 @@ class TestLoadCardForWrite:
 
     def test_owner_can_write(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
-        repo = _FakeRepo({"c1": card})
-        assert load_card_for_write(repo, "c1", "user-a") is card  # type: ignore[arg-type]
+        repo: Any = _FakeRepo({"c1": card})
+        assert load_card_for_write(repo, "c1", "user-a") is card
 
     def test_non_owner_forbidden(self):
         card = _FakeCard(card_id="c1", owner_id="user-a")
-        repo = _FakeRepo({"c1": card})
+        repo: Any = _FakeRepo({"c1": card})
         with pytest.raises(Exception, match="(?i)forbidden"):
-            load_card_for_write(repo, "c1", "user-b")  # type: ignore[arg-type]
+            load_card_for_write(repo, "c1", "user-b")
 
     def test_not_found_raises(self):
-        repo = _FakeRepo()
+        repo: Any = _FakeRepo()
         with pytest.raises(Exception, match="(?i)not found"):
-            load_card_for_write(repo, "missing", "user-a")  # type: ignore[arg-type]
+            load_card_for_write(repo, "missing", "user-a")

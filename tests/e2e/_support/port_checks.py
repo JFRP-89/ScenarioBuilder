@@ -248,5 +248,5 @@ def check_port_clean(port: int = 8000) -> None:
                 f"{desc}. These will intercept API requests meant for Docker. "
                 f"Kill them with: {hint}"
             )
-    except (OSError, ValueError, subprocess.SubprocessError):  # pragma: no cover
+    except (OSError, ValueError, subprocess.SubprocessError):
         pass  # best-effort: never break on detection failure

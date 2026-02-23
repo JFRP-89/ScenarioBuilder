@@ -140,7 +140,7 @@ class NavigationCtx:
     actor_id_state: gr.State
     login_panel: gr.Column
     top_bar_row: gr.Row
-    login_message: gr.Textbox
+    login_message: gr.Markdown
     create_form_components: list[gr.components.Component] | None = None
     create_dropdown_lists: list[gr.components.Component] | None = None
     editing_card_id: gr.Textbox | None = None

@@ -18,6 +18,8 @@ MVP contract:
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from domain.cards.card import Card, GameMode, parse_game_mode
@@ -113,6 +115,7 @@ def test_card_rejects_invalid_seed(
 # =============================================================================
 def test_card_requires_table_and_mapspec_types(map_spec: MapSpec, owner: str):
     # Reject table as non-TableSize
+    bad_table: Any = {"width_mm": 1200, "height_mm": 1200}
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
@@ -121,12 +124,13 @@ def test_card_requires_table_and_mapspec_types(map_spec: MapSpec, owner: str):
             shared_with=None,
             mode=GameMode.MATCHED,
             seed=123,
-            table={"width_mm": 1200, "height_mm": 1200},  # type: ignore[arg-type]
+            table=bad_table,
             map_spec=map_spec,
         )
 
     # Reject map_spec as non-MapSpec
     table_valid = TableSize.standard()
+    bad_map_spec: Any = {"shapes": []}
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
@@ -136,7 +140,7 @@ def test_card_requires_table_and_mapspec_types(map_spec: MapSpec, owner: str):
             mode=GameMode.MATCHED,
             seed=123,
             table=table_valid,
-            map_spec={"shapes": []},  # type: ignore[arg-type]
+            map_spec=bad_map_spec,
         )
 
 
@@ -261,9 +265,10 @@ def test_parse_game_mode_rejects_unknown_value():
 # 10) INVALID TYPES - IDS, VISIBILITY, MODE
 # =============================================================================
 def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
+    bad_card_id: Any = 123
     with pytest.raises(ValidationError):
         Card(
-            card_id=123,  # type: ignore[arg-type]
+            card_id=bad_card_id,
             owner_id="owner",
             visibility=Visibility.PRIVATE,
             shared_with=None,
@@ -273,10 +278,11 @@ def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
             map_spec=map_spec,
         )
 
+    bad_owner_id: Any = 456
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
-            owner_id=456,  # type: ignore[arg-type]
+            owner_id=bad_owner_id,
             visibility=Visibility.PRIVATE,
             shared_with=None,
             mode=GameMode.MATCHED,
@@ -289,11 +295,12 @@ def test_card_rejects_non_string_ids(table: TableSize, map_spec: MapSpec):
 def test_card_rejects_invalid_visibility_type(
     table: TableSize, map_spec: MapSpec, owner: str
 ):
+    bad_visibility: Any = "private"
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
             owner_id=owner,
-            visibility="private",  # type: ignore[arg-type]
+            visibility=bad_visibility,
             shared_with=None,
             mode=GameMode.MATCHED,
             seed=123,
@@ -305,13 +312,14 @@ def test_card_rejects_invalid_visibility_type(
 def test_card_rejects_invalid_mode_type(
     table: TableSize, map_spec: MapSpec, owner: str
 ):
+    bad_mode: Any = "matched"
     with pytest.raises(ValidationError):
         Card(
             card_id="card-001",
             owner_id=owner,
             visibility=Visibility.PRIVATE,
             shared_with=None,
-            mode="matched",  # type: ignore[arg-type]
+            mode=bad_mode,
             seed=123,
             table=table,
             map_spec=map_spec,

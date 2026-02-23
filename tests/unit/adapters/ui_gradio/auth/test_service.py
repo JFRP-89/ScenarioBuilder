@@ -198,12 +198,33 @@ class TestUpdateProfile:
 # get_logged_in_label()
 # =====================================================================
 class TestGetLoggedInLabel:
-    """Label generation for UI."""
+    """Label generation for UI — returns HTML user pill."""
 
     def test_empty_actor_returns_empty_label(self):
         label = get_logged_in_label("")
         assert label == ""
 
-    def test_regular_user_shows_username(self):
+    def test_regular_user_shows_pill_with_display_name(self):
         label = get_logged_in_label("alice")
-        assert "alice" in label
+        assert "sb-userpill" in label
+        assert "Alice" in label
+        assert "alice" not in label  # raw username must NOT leak
+
+    def test_unknown_user_falls_back_to_username(self):
+        label = get_logged_in_label("unknown_user")
+        assert "sb-userpill" in label
+        assert "unknown_user" in label
+
+    def test_pill_contains_icon(self):
+        label = get_logged_in_label("alice")
+        assert "sb-userpill__icon" in label
+        assert "<svg" in label
+
+    def test_pill_name_is_html_escaped(self):
+        # seed a user with special characters in name
+        from infrastructure.auth.user_store import create_user
+
+        create_user("xss", "pw", '<script>alert("x")</script>', "xss@test.com")
+        label = get_logged_in_label("xss")
+        assert "<script>" not in label
+        assert "&lt;script&gt;" in label

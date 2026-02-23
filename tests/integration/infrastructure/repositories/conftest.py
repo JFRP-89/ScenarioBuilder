@@ -43,7 +43,7 @@ def _import_sqlalchemy():
     """Import SQLAlchemy lazily; skip if not installed."""
     try:
         from sqlalchemy import create_engine, text
-    except ImportError:  # pragma: no cover
+    except ImportError:
         pytest.skip("SQLAlchemy is required for PostgreSQL repository tests.")
     return create_engine, text
 

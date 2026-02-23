@@ -197,7 +197,9 @@ def render_card_html(
     card_id = html.escape(str(card.get("card_id", "???")), quote=True)
     name = html.escape(str(card.get("name", "")), quote=True)
     mode = html.escape(str(card.get("mode", "—")), quote=True)
-    owner = html.escape(str(card.get("owner_id", "—")), quote=True)
+    owner = html.escape(
+        str(card.get("owner_name") or card.get("owner_id", "—")), quote=True
+    )
     visibility = html.escape(str(card.get("visibility", "private")), quote=True)
     seed = html.escape(str(card.get("seed", "—")), quote=True)
 
