@@ -7,6 +7,7 @@ Tests that:
 """
 
 import pytest
+
 from application.use_cases._shape_normalization import (
     normalize_shapes_for_map_spec,
 )
@@ -22,14 +23,13 @@ from domain.security.authz import Visibility
 from infrastructure.bootstrap import build_services
 
 
-@pytest.fixture
-def services():
-    """Build all services for integration testing."""
-    return build_services()
-
-
 class TestNoAutoScenography:
     """Verify that scenography is never auto-generated."""
+
+    @pytest.fixture
+    def services(self):
+        """Build all services for integration testing."""
+        return build_services()
 
     def test_create_without_shapes_saves_empty_scenography(self, services):
         """Creating scenario without explicit shapes → DB has no shapes."""

@@ -6,4 +6,10 @@ from typing import Protocol
 class MapRenderer(Protocol):
     def render_svg(self, map_spec: dict) -> str: ...
 
-    def render(self, table_mm: dict, shapes: list[dict]) -> str: ...
+    def render(
+        self,
+        table_mm: dict,
+        shapes: list[dict],
+        render_mode: str = "full",
+        display_units: str = "cm",
+    ) -> str: ...

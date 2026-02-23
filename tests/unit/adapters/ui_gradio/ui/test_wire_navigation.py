@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.router import PAGE_CREATE, PAGE_HOME
 from adapters.ui_gradio.ui.wiring.wire_navigation import (
     NavigationCtx,
@@ -216,8 +217,8 @@ class TestWireNavigationWithFormReset:
         assert result_list[form_start + 1]["value"] == "casual"
         # Index 2 → is_replicable → gr.update(value=True)
         assert result_list[form_start + 2]["value"] is True
-        # Index 9 → visibility → gr.update(value="public")
-        assert result_list[form_start + 9]["value"] == "public"
+        # Index 9 → visibility → gr.update(value="private")
+        assert result_list[form_start + 9]["value"] == "private"
 
     @patch("adapters.ui_gradio.ui.wiring.wire_navigation.is_session_valid")
     def test_state_resets_are_empty_lists(self, mock_valid):

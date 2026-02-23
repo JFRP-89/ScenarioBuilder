@@ -34,6 +34,10 @@ concurrency:
 env:
   PYTHON_VERSION: "3.11"
   RUFF_VERSION: "0.5.6"
+  POSTGRES_USER: scenario
+  POSTGRES_PASSWORD: scenario
+  POSTGRES_DB: scenario
+  POSTGRES_DB_TEST: scenario_test
 
 jobs:
   lint:
@@ -127,9 +131,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: scenario
-          POSTGRES_PASSWORD: scenario
-          POSTGRES_DB: scenario
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         options: >-
           --health-cmd "pg_isready -U scenario -d scenario"
           --health-interval 5s
@@ -140,12 +144,15 @@ jobs:
           - 5432:5432
 
     env:
-      DATABASE_URL: postgresql://scenario:scenario@localhost:5432/scenario
-      DATABASE_URL_TEST: postgresql://scenario:scenario@localhost:5432/scenario_test
       APP_ENV: dev
       RUN_DB_TESTS: "1"
 
     steps:
+      - name: Set database URLs
+        run: |
+          echo "DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+          echo "DATABASE_URL_TEST=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB_TEST}" >> "$GITHUB_ENV"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -167,12 +174,12 @@ jobs:
 
       - name: Wait for Postgres to be ready
         env:
-          PGPASSWORD: scenario
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Waiting for Postgres (max 60s)..."
           for i in $(seq 1 30); do
-            if pg_isready -h localhost -U scenario -d scenario -q; then
+            if pg_isready -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -q; then
               echo "Postgres is ready (attempt $i)"
               exit 0
             fi
@@ -183,14 +190,14 @@ jobs:
 
       - name: Create test database (scenario_test)
         env:
-          PGPASSWORD: scenario
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
-          psql -h localhost -U scenario -d scenario -c "SELECT 1;"
-          psql -h localhost -U scenario -d scenario -tc \
-            "SELECT 1 FROM pg_database WHERE datname='scenario_test'" \
+          psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;"
+          psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tc \
+            "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB_TEST}'" \
             | grep -q 1 \
-            || psql -h localhost -U scenario -d scenario -c "CREATE DATABASE scenario_test;"
+            || psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE ${POSTGRES_DB_TEST};"
 
       - name: Run database migrations (scenario + scenario_test)
         run: |

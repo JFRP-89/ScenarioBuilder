@@ -23,11 +23,11 @@ def _field_row(label: str, value: str) -> str:
     safe_label = escape_html(label)
     safe_value = escape_html(value)
     return (
-        f'<div style="display:flex;gap:8px;padding:6px 0;'
-        f'border-bottom:1px solid #f0f0f0;">'
-        f'<span style="font-weight:600;color:#555;min-width:150px;'
-        f'flex-shrink:0;">{safe_label}:</span>'
-        f'<span style="color:#333;">{safe_value}</span>'
+        f'<div style="display:flex;gap:8px;padding:8px 0;'
+        f'border-bottom:1px solid #2a3545;">'
+        f'<span style="font-weight:600;color:#92a9c1;min-width:150px;'
+        f'flex-shrink:0;font-size:0.85rem;">{safe_label}:</span>'
+        f'<span style="color:#e9eef6;">{safe_value}</span>'
         f"</div>"
     )
 
@@ -36,9 +36,9 @@ def _section_title(title: str) -> str:
     """Render a section title."""
     safe_title = escape_html(title)
     return (
-        f'<div style="font-size:16px;font-weight:700;color:#222;'
+        f'<div style="font-size:1rem;font-weight:700;color:#e9eef6;'
         f"margin-top:20px;margin-bottom:8px;padding-bottom:4px;"
-        f'border-bottom:2px solid #e0e0e0;">{safe_title}</div>'
+        f'border-bottom:2px solid rgba(246,212,28,.15);">{safe_title}</div>'
     )
 
 
@@ -52,7 +52,7 @@ def _render_shared_with(shared_list: list[str]) -> str:
     if not shared_list:
         return ""
     items = "".join(
-        f'<li style="padding:2px 0;color:#333;">{escape_html(user)}</li>'
+        f'<li style="padding:2px 0;color:#e9eef6;">{escape_html(user)}</li>'
         for user in shared_list
     )
     return (
@@ -67,13 +67,13 @@ def _render_victory_points(vp_list: list[str]) -> str:
     if not vp_list:
         return ""
     items = "".join(
-        f'<li style="padding:3px 0;color:#333;font-size:14px;">'
+        f'<li style="padding:3px 0;color:#e9eef6;font-size:14px;">'
         f"{escape_html(str(vp))}</li>"
         for vp in vp_list
     )
     return (
         f'<div style="margin-top:8px;">'
-        f'<span style="font-weight:600;color:#555;">Victory Points:</span>'
+        f'<span style="font-weight:600;color:#92a9c1;">Victory Points:</span>'
         f'<ul style="margin:4px 0 0 16px;padding:0;'
         f'list-style:disc;">{items}</ul>'
         f"</div>"
@@ -108,7 +108,7 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
             for r in source_only
         )
         html_parts.append(
-            f'<div style="padding:6px 0;color:#333;font-size:14px;">'
+            f'<div style="padding:6px 0;color:#e9eef6;font-size:14px;">'
             f"{names_html}</div>"
         )
 
@@ -118,7 +118,7 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
             name = escape_html(rule.get("name", _UNKNOWN_RULE))
             desc = escape_html(rule.get("description", ""))
             html_parts.append(
-                f'<div style="padding:4px 0;color:#333;font-size:14px;">'
+                f'<div style="padding:4px 0;color:#e9eef6;font-size:14px;">'
                 f"<strong>{name}</strong>: {desc}</div>"
             )
 
@@ -126,15 +126,15 @@ def _render_special_rules(rules: list[dict[str, Any]]) -> str:
     rules_with_source = [r for r in rules if r.get("source")]
     if rules_with_source:
         source_items = "".join(
-            f'<div style="padding:3px 0;font-size:13px;color:#555;">'
+            f'<div style="padding:3px 0;font-size:13px;color:#92a9c1;">'
             f'<strong>{escape_html(r.get("name", _UNKNOWN_RULE))}</strong>: '
             f'{escape_html(r.get("source", ""))}</div>'
             for r in rules_with_source
         )
         html_parts.append(
-            f'<details style="margin-top:8px;border:1px solid #e0e0e0;'
-            f'border-radius:6px;padding:8px;">'
-            f'<summary style="cursor:pointer;font-weight:600;color:#555;'
+            f'<details style="margin-top:8px;border:1px solid #2a3545;'
+            f'border-radius:10px;padding:8px;background:#111315;">'
+            f'<summary style="cursor:pointer;font-weight:600;color:#92a9c1;'
             f'font-size:14px;">Sources</summary>'
             f'<div style="margin-top:8px;">{source_items}</div>'
             f"</details>"
@@ -218,7 +218,8 @@ def _render_detail_content(card_data: dict[str, Any]) -> str:
     """Render the full detail content HTML for a card."""
     parts: list[str] = [
         '<div style="max-width:700px;margin:0 auto;padding:16px;'
-        'font-family:system-ui,-apple-system,sans-serif;">'
+        "font-family:'Inter',system-ui,-apple-system,sans-serif;"
+        'color:#e9eef6;">'
     ]
 
     parts.extend(_render_mandatory_fields(card_data))
@@ -255,8 +256,9 @@ def _wrap_svg(svg_html: str) -> str:
     if "<svg" in svg_html.lower():
         return (
             '<div style="display:flex;justify-content:center;'
-            "align-items:center;padding:16px;background:#fafafa;"
-            'border:1px solid #e0e0e0;border-radius:8px;">'
+            "align-items:center;padding:16px;background:#111315;"
+            "border:1px solid #2a3545;border-radius:14px;"
+            'box-shadow:0 0 20px rgba(246,212,28,.06);">'
             f"{svg_html}</div>"
         )
     return svg_html

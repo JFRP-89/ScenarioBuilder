@@ -11,6 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._deployment._zone_builder import (
     ZoneFormInput,
     build_zone_data,

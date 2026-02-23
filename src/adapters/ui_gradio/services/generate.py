@@ -273,6 +273,7 @@ def _build_preview_dict(
         "armies": fs.armies_val.strip() if fs.armies_val else "",
         "table_preset": preset,
         "table_mm": table_mm,
+        "display_units": "cm",
         "deployment": fs.depl.strip() if fs.depl else "",
         "layout": fs.lay.strip() if fs.lay else "",
         "objectives": payload.get("objectives") or (fs.obj.strip() if fs.obj else ""),
@@ -312,6 +313,22 @@ def handle_preview(fs: FormState) -> dict[str, Any]:
             table_mm = _build_table_mm_from_cm(_table_cm_from_preset(preset))
 
         shapes = prepared["shapes"]
+
+        # -- Validate shapes fit inside the (possibly custom) table ------
+        from adapters.ui_gradio._state._table_validation import (
+            check_all_shapes_fit_table,
+        )
+
+        fit_err = check_all_shapes_fit_table(
+            deployment_zones=fs.deployment_zones_state_val,
+            objective_points=fs.objective_points_state_val,
+            scenography=fs.scenography_state_val,
+            table_width_mm=table_mm["width_mm"],
+            table_height_mm=table_mm["height_mm"],
+        )
+        if fit_err:
+            return {"status": "error", "message": fit_err}
+
         seed_config = _build_seed_config(fs, payload, preset, table_mm, shapes)
         seed = _compute_preview_seed(fs, seed_config)
 
@@ -398,6 +415,18 @@ def handle_generate(fs: FormState) -> dict[str, Any]:
             "Unexpected error in handle_generate: %s", exc
         )
         return {"status": "error", "message": "An unexpected error occurred."}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_UNIT_MAP = {"cm": "cm", "inches": "in", "in": "in", "ft": "ft"}
+
+
+def _normalise_unit(raw: str) -> str:
+    """Map Gradio unit label to internal short code (``cm|in|ft``)."""
+    return _UNIT_MAP.get(raw.strip().lower(), "cm") if raw else "cm"
 
 
 def _get_default_actor_id() -> str:

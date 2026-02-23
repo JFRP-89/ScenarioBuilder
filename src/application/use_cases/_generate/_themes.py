@@ -878,10 +878,25 @@ def resolve_seed_preview(seed: int) -> dict[str, str]:
 # =============================================================================
 
 _MODES = ["casual", "narrative", "matched"]
-_TABLE_PRESETS = [
-    ("standard", 1200, 1200),
-    ("massive", 1800, 1200),
-]
+_TABLE_PRESET_NAMES = ["standard", "massive", "custom"]
+
+
+def _resolve_table_dims(rng: random.Random, preset_name: str) -> tuple[int, int]:
+    """Return (width_mm, height_mm) for a table preset.
+
+    For *custom*, dimensions are randomly generated within the domain
+    limits (``MIN_MM`` .. ``MAX_MM``) in whole-cm steps (multiples of 10 mm).
+    """
+    from domain.maps.table_size import MAX_MM, MIN_MM
+
+    if preset_name == "standard":
+        return 1200, 1200
+    if preset_name == "massive":
+        return 1800, 1200
+    # custom — random dimensions within domain limits, whole-cm steps
+    tw = rng.randrange(MIN_MM, MAX_MM + 1, 10)
+    th = rng.randrange(MIN_MM, MAX_MM + 1, 10)
+    return tw, th
 
 
 def _resolve_full_seed_defaults(seed: int) -> dict[str, Any]:
@@ -904,7 +919,8 @@ def _resolve_full_seed_defaults(seed: int) -> dict[str, Any]:
     rng = random.Random(f"defaults-{seed}")  # nosec B311
 
     mode = rng.choice(_MODES)
-    preset_name, tw, th = rng.choice(_TABLE_PRESETS)
+    preset_name = rng.choice(_TABLE_PRESET_NAMES)
+    tw, th = _resolve_table_dims(rng, preset_name)
 
     text = _resolve_seed_from_themes(seed)
     shapes = _generate_seeded_shapes(seed, tw, th)

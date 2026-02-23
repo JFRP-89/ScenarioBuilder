@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.components.svg_preview import (
     _PLACEHOLDER_HTML,
     build_svg_preview,
@@ -124,7 +125,7 @@ class TestRenderSvgFromCard:
         }
         result = render_svg_from_card(card)
         assert "<circle" in result
-        assert 'fill="black"' in result
+        assert 'fill="#101820"' in result
 
     # --- fallback to placeholder ---
 
@@ -195,7 +196,7 @@ class TestRenderSvgFromCard:
         result = render_svg_from_card(card)
         assert "<svg" in result
         assert "<circle" in result
-        assert 'fill="black"' in result
+        assert 'fill="#101820"' in result
 
     def test_shapes_as_dict_with_scenography(self):
         card = {

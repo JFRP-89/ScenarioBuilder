@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from adapters.ui_gradio._state._seed_sync import (
     api_deployment_to_ui_state,
     api_objectives_to_ui_state,
@@ -95,8 +97,8 @@ class TestApiObjectivesToUiState:
         assert len(result) == 1
         pt = result[0]
         assert "id" in pt
-        assert pt["cx"] == 600.0
-        assert pt["cy"] == 600.0
+        assert pt["cx"] == pytest.approx(600.0)
+        assert pt["cy"] == pytest.approx(600.0)
         assert pt["description"] == "Center objective"
         # Flat format: no "data" wrapper
         assert "data" not in pt

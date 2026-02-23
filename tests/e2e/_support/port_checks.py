@@ -13,6 +13,7 @@ permissions, the check is silently skipped.
 from __future__ import annotations
 
 import platform
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -39,15 +40,6 @@ _PYTHON_NAMES = frozenset(
     }
 )
 
-_RUN_KWARGS = {
-    "capture_output": True,
-    "text": True,
-    "encoding": "utf-8",
-    "errors": "replace",
-    "timeout": 5,
-    "check": False,
-}
-
 
 @dataclass(frozen=True)
 class Listener:
@@ -55,6 +47,22 @@ class Listener:
 
     pid: int
     name: str
+
+
+# ── Shared subprocess runner ────────────────────────────────────────
+
+
+def _run_cmd(args: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run a command, best-effort (never raises on non-zero exit)."""
+    return subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=5,
+        check=False,
+    )
 
 
 # ── Discovery backends ──────────────────────────────────────────────
@@ -66,7 +74,14 @@ def _discover_psutil(port: int) -> list[Listener]:
         return []
     listeners: list[Listener] = []
     for conn in psutil.net_connections(kind="tcp"):
-        if conn.status == "LISTEN" and conn.laddr.port == port:
+        laddr = conn.laddr
+        if (
+            conn.status == "LISTEN"
+            and isinstance(laddr, tuple)
+            and len(laddr) >= 2
+            and laddr[1] == port
+            and conn.pid is not None
+        ):
             try:
                 proc = psutil.Process(conn.pid)
                 listeners.append(Listener(pid=conn.pid, name=proc.name()))
@@ -75,44 +90,45 @@ def _discover_psutil(port: int) -> list[Listener]:
     return listeners
 
 
-def _discover_windows(port: int) -> list[Listener]:
-    """Windows fallback: ``netstat -ano`` + ``tasklist``."""
-    result = subprocess.run(["netstat", "-ano"], **_RUN_KWARGS)  # type: ignore[call-overload]
-    if result.returncode != 0:
-        return []
-
+def _parse_netstat_pids(output: str, port: int) -> set[int]:
+    """Extract PIDs of processes listening on *port* from ``netstat`` output."""
     pids: set[int] = set()
-    for line in result.stdout.splitlines():
+    for line in output.splitlines():
         if f":{port}" in line and "LISTENING" in line:
             parts = line.split()
             pid_str = parts[-1] if parts else ""
             if pid_str.isdigit():
                 pids.add(int(pid_str))
+    return pids
 
-    listeners: list[Listener] = []
-    for pid in pids:
-        proc = subprocess.run(
-            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
-            **_RUN_KWARGS,  # type: ignore[call-overload]
-        )
-        name = "unknown"
-        for csv_line in proc.stdout.splitlines():
-            stripped = csv_line.strip().strip('"')
-            if stripped and stripped[0] != "I":  # skip header
-                name = stripped.split('"')[0]
-                break
-        listeners.append(Listener(pid=pid, name=name))
-    return listeners
+
+def _resolve_windows_pid(pid: int) -> Listener:
+    """Lookup process name by PID via ``tasklist``."""
+    proc = _run_cmd(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"])
+    name = "unknown"
+    for csv_line in proc.stdout.splitlines():
+        stripped = csv_line.strip().strip('"')
+        if stripped and stripped[0] != "I":  # skip header
+            name = stripped.split('"')[0]
+            break
+    return Listener(pid=pid, name=name)
+
+
+def _discover_windows(port: int) -> list[Listener]:
+    """Windows fallback: ``netstat -ano`` + ``tasklist``."""
+    result = _run_cmd(["netstat", "-ano"])
+    if result.returncode != 0:
+        return []
+
+    pids = _parse_netstat_pids(result.stdout, port)
+    return [_resolve_windows_pid(pid) for pid in pids]
 
 
 def _discover_macos(port: int) -> list[Listener]:
     """macOS fallback: ``lsof``."""
     if not shutil.which("lsof"):
         return []
-    result = subprocess.run(
-        ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-        **_RUN_KWARGS,  # type: ignore[call-overload]
-    )
+    result = _run_cmd(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"])
     if result.returncode != 0:
         return []
 
@@ -138,7 +154,7 @@ def _discover_linux(port: int) -> list[Listener]:
     if not cmd:
         return []
 
-    result = subprocess.run(cmd, **_RUN_KWARGS)  # type: ignore[call-overload]
+    result = _run_cmd(cmd)
     if result.returncode != 0:
         return []
 
@@ -147,8 +163,6 @@ def _discover_linux(port: int) -> list[Listener]:
 
 def _parse_linux_output(output: str, port: int) -> list[Listener]:
     """Parse ``ss`` or ``netstat`` output for listeners on *port*."""
-    import re
-
     listeners: list[Listener] = []
     seen: set[int] = set()
     for line in output.splitlines():
@@ -234,5 +248,5 @@ def check_port_clean(port: int = 8000) -> None:
                 f"{desc}. These will intercept API requests meant for Docker. "
                 f"Kill them with: {hint}"
             )
-    except Exception:  # pragma: no cover
+    except (OSError, ValueError, subprocess.SubprocessError):  # pragma: no cover
         pass  # best-effort: never break on detection failure

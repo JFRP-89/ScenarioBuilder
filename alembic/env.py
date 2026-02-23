@@ -155,7 +155,7 @@ elif _built_url:
 else:
     _src = "sqlite fallback"
 _safe_url = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL
-print(f"  [alembic/env] URL source: {_src}  →  …@{_safe_url}")
+print(f"  [alembic/env] URL source: {_src}  -> ...@{_safe_url}")
 
 # Create the database if it doesn't exist yet
 _ensure_database_exists(DATABASE_URL)

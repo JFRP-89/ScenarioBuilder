@@ -85,3 +85,25 @@ def dump_debug_artifacts(page: Page, name: str) -> None:
     screenshot_path = artifacts_dir / f"{name}.png"
     page.screenshot(path=str(screenshot_path))
     print(f"  📸 Screenshot guardado: {screenshot_path}")
+
+
+def fill_required_text_fields(
+    page: Page,
+    scenario_name: str = "E2E Test Scenario",
+) -> None:
+    """Fill required form fields so the API accepts the request.
+
+    Shared by UI-based E2E tests (smoke test, generate-card test).
+    """
+    fields = {
+        "scenario-name-input": scenario_name,
+        "armies-input": "Test armies",
+        "deployment": "Standard",
+        "layout": "Open Field",
+        "objectives": "Hold Ground",
+        "initial_priority": "None",
+    }
+    for elem_id, value in fields.items():
+        locator = page.locator(f"#{elem_id} input, #{elem_id} textarea")
+        if locator.count() > 0:
+            locator.first.fill(value)

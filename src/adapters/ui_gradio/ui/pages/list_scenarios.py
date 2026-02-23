@@ -2,6 +2,7 @@
 
 Shows:
 - Filter radio (mine / shared_with_me)
+- CONTROL BAR with filter / unit selectors + circular refresh
 - Card list (HTML rendered)
 - Back to Home button
 """
@@ -11,6 +12,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import gradio as gr
+
+from adapters.ui_gradio.ui.components.control_bar import build_control_bar
 
 
 def build_list_page() -> SimpleNamespace:
@@ -34,27 +37,15 @@ def build_list_page() -> SimpleNamespace:
             )
             gr.Markdown("## Your Scenarios", elem_id="list-title")
 
-        with gr.Row():
-            filter_radio = gr.Radio(
-                choices=["mine", "shared_with_me"],
-                value="mine",
-                label="Filter",
-                elem_id="list-filter",
-                interactive=True,
-            )
-            unit_selector = gr.Radio(
-                choices=["cm", "in", "ft"],
-                value="cm",
-                label="Units",
-                elem_id="list-unit-selector",
-                scale=0,
-            )
-            reload_btn = gr.Button(
-                "Refresh",
-                variant="secondary",
-                size="sm",
-                elem_id="list-reload-btn",
-            )
+        # ── CONTROL BAR (filter + units + refresh) ───────────────────
+        cb = build_control_bar(
+            page_prefix="list",
+            filter_choices=["mine", "shared_with_me"],
+            filter_default="mine",
+        )
+        filter_radio = cb.filter_radio
+        unit_selector = cb.unit_selector
+        reload_btn = cb.reload_btn
 
         with gr.Row():
             search_box = gr.Textbox(
@@ -75,7 +66,8 @@ def build_list_page() -> SimpleNamespace:
 
         cards_html = gr.HTML(
             value=(
-                '<div style="text-align:center;color:#999;padding:40px 0;">'
+                '<div style="text-align:center;color:#5a7090;padding:40px 0;">'
+                '<div style="font-size:2.5rem;margin-bottom:12px;opacity:.4;">\U0001f4cb</div>'
                 "Select a filter to load scenarios.</div>"
             ),
             elem_id="list-cards",
@@ -85,7 +77,7 @@ def build_list_page() -> SimpleNamespace:
         with gr.Row():
             prev_btn = gr.Button("← Previous", scale=1, size="sm")
             page_info = gr.HTML(
-                value='<div style="text-align:center;padding:10px 0;">Page 1</div>',
+                value='<div style="text-align:center;padding:10px 0;color:#92a9c1;">Page 1</div>',
                 elem_id="list-page-info",
             )
             next_btn = gr.Button("Next →", scale=1, size="sm")

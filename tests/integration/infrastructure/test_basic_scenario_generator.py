@@ -7,6 +7,7 @@ This generator produces random shapes for scenario maps.
 from __future__ import annotations
 
 import pytest
+
 from domain.cards.card import GameMode
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize

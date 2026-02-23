@@ -58,53 +58,41 @@ Reducir complejidad y líneas, eliminar legacy y mejorar legibilidad **SIN cambi
 - Renderers → `_render.py`
 - Builders → `_builder.py`, `_zone_builder.py` (never-raise pattern)
 
-## Casos de Uso Completados (Feb 2026)
+## Casos de Uso Completados (Feb 2026 — Estado Actual: 3064+ tests, branch ui/alpha.0.10)
 
-### PR Series: Anti-God-Module Refactor
+### PR Series: Anti-God-Module Refactor (Todos completados)
 
 #### 1. wire_detail → _detail/ (2 módulos)
 - **Antes**: 400+ líneas, rendering + conversión mezclados
 - **Después**: 350 líneas facade + `_render.py` + `_converters.py`
 - **Tests**: +45 unit tests
-- **Resultado**: 1236 tests passing
+- **Status**: ✅ Completado
 
 #### 2. wire_deployment_zones → _deployment/ (4 módulos)
 - **Antes**: 713 líneas, geometría + UI + estado
 - **Después**: 426 líneas facade + 4 módulos internos
-- **Extracción**:
-  - `_form_state.py`: Defaults, selected state
-  - `_geometry.py`: Cálculos puros (intersections, areas)
-  - `_ui_updates.py`: gr.update() builders
-  - `_zone_builder.py`: Domain builder (never-raise)
-- **Tests**: +83 unit tests (14 + 69)
-- **Resultado**: 1325 tests passing
+- **Tests**: +83 unit tests
+- **Status**: ✅ Completado
 
 #### 3. wire_scenography → _scenography/ (4 módulos)
 - **Antes**: 713 líneas, parsing + conversiones + builders
 - **Después**: 426 líneas facade + 4 módulos internos
-- **Extracción**:
-  - `_form_state.py`: Estado por defecto
-  - `_polygon.py`: Parse/conversion coordenadas (noqa: C901)
-  - `_ui_updates.py`: Visibility helpers
-  - `_builder.py`: Never-raise builder (noqa: C901)
 - **Tests**: +71 unit tests
-- **Resultado**: 1473 tests passing
+- **Status**: ✅ Completado
 
 #### 4. wire_generate → _generate/ (4 módulos)
 - **Antes**: 349 líneas, preview + validación + create + resets
 - **Después**: 280 líneas facade + 4 módulos internos
-- **Extracción**:
-  - `_preview.py`: Delegation a services
-  - `_create_logic.py`: Validación pura
-  - `_resets.py`: Form/dropdown/extra reset builders
-  - `_outputs.py`: Stay-on-page tuple builder
 - **Tests**: +44 unit tests
-- **Resultado**: 1517 tests passing
+- **Status**: ✅ Completado
+- **Wiring total**: 243 tests ✅
 
-### Otros Refactors Previos
-- payload.py split (444→48 líneas, +77 tests → 1402 passing)
+### Otros Refactors Completados
+- payload.py split (+77 tests)
 - handlers.py split (+6 tests)
 - state_helpers.py, svg_map_renderer.py, generate.py splits
+
+**Total tests actual**: 3064+ (1972 unit + 1000+ integration + 100+ e2e)
 
 ## Métricas de Éxito
 
@@ -119,9 +107,9 @@ Reducir complejidad y líneas, eliminar legacy y mejorar legibilidad **SIN cambi
 ## Checklist de Calidad
 
 ### Pre-Refactor
-- [ ] Baseline confirmado: `pytest -q` green
+- [ ] Baseline confirmado: `pytest -q` green (actualmente 1972+ unit tests)
 - [ ] `ruff check` green
-- [ ] Número de tests passing anotado (ej: 1473)
+- [ ] Número de tests passing anotado (ej: línea base actual 3064+ total con DB)
 
 ### Durante Refactor
 - [ ] 1 módulo interno a la vez (no extraer todo de golpe)

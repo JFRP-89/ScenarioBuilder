@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._scenography._builder import (
     ScenographyFormInput,
     build_scenography_data,

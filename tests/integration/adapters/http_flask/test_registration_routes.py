@@ -9,41 +9,33 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
-from adapters.http_flask.app import create_app
-from infrastructure.auth import session_store, user_store
+from helpers import confirm_credential_key, credential_key
+from helpers.flask_helpers import (
+    COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    do_flask_login,
+)
 
-_COOKIE_NAME = "sb_session"
-_CSRF_COOKIE_NAME = "sb_csrf"
-
-
-@pytest.fixture()
-def app():
-    """Create a Flask test app and reset auth stores."""
-    session_store.reset_sessions()
-    user_store.reset_stores()
-    application = create_app()
-    application.config["TESTING"] = True
-    yield application
-    session_store.reset_sessions()
-    user_store.reset_stores()
+_STRONG_SECRET = "Str0ng!pw"
 
 
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-
-def _register(client, **overrides):
+def _register(
+    client,
+    *,
+    username="newuser",
+    secret=_STRONG_SECRET,
+    confirm=None,
+    name="New User",
+    email="new@example.com",
+):
     """Helper: POST /auth/register with default valid payload."""
     payload = {
-        "username": "newuser",
-        "password": "Str0ng!pw",
-        "confirm_password": "Str0ng!pw",
-        "name": "New User",
-        "email": "new@example.com",
+        "username": username,
+        credential_key(): secret,
+        confirm_credential_key(): confirm if confirm is not None else secret,
+        "name": name,
+        "email": email,
     }
-    payload.update(overrides)
     return client.post("/auth/register", json=payload)
 
 
@@ -83,32 +75,29 @@ class TestRegisterRoute:
         # Check Set-Cookie headers in response
         set_cookies = resp.headers.getlist("Set-Cookie")
         cookie_names = [c.split("=")[0] for c in set_cookies]
-        assert _COOKIE_NAME in cookie_names
-        assert _CSRF_COOKIE_NAME in cookie_names
+        assert COOKIE_NAME in cookie_names
+        assert CSRF_COOKIE_NAME in cookie_names
 
     def test_user_can_login_after_registration(self, client):
         _register(client)
         # Login with new credentials (cookies from registration still set)
-        client.delete_cookie(_COOKIE_NAME)
-        client.delete_cookie(_CSRF_COOKIE_NAME)
-        resp = client.post(
-            "/auth/login",
-            json={"username": "newuser", "password": "Str0ng!pw"},
-        )
+        client.delete_cookie(COOKIE_NAME)
+        client.delete_cookie(CSRF_COOKIE_NAME)
+        resp = do_flask_login(client, "newuser", secret=_STRONG_SECRET)
         data = resp.get_json()
         assert data["ok"] is True
 
     def test_duplicate_username_returns_400(self, client):
         _register(client)
-        client.delete_cookie(_COOKIE_NAME)
-        client.delete_cookie(_CSRF_COOKIE_NAME)
+        client.delete_cookie(COOKIE_NAME)
+        client.delete_cookie(CSRF_COOKIE_NAME)
         resp = _register(client)  # same username
         assert resp.status_code == 400
         data = resp.get_json()
         assert data["ok"] is False
         assert "taken" in data["message"]
 
-    def test_demo_user_cannot_be_registered(self, client):
+    def test_existing_user_cannot_be_registered(self, client):
         resp = _register(client, username="alice")
         assert resp.status_code == 400
         data = resp.get_json()
@@ -116,14 +105,14 @@ class TestRegisterRoute:
         assert "taken" in data["message"]
 
     def test_weak_password_returns_400(self, client):
-        resp = _register(client, password="weak", confirm_password="weak")
+        resp = _register(client, secret="weak")
         assert resp.status_code == 400
         data = resp.get_json()
         assert data["ok"] is False
         assert "errors" in data
 
     def test_password_mismatch_returns_400(self, client):
-        resp = _register(client, confirm_password="Differ3nt!")
+        resp = _register(client, confirm="Differ3nt!")
         assert resp.status_code == 400
         data = resp.get_json()
         assert data["ok"] is False
@@ -141,9 +130,12 @@ class TestRegisterRoute:
         data = resp.get_json()
         assert data["ok"] is False
 
-    def test_empty_email_accepted(self, client):
+    def test_empty_email_rejected(self, client):
         resp = _register(client, email="")
-        assert resp.status_code == 201
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data["ok"] is False
+        assert "email" in str(data["message"]).lower()
 
     def test_no_cache_headers(self, client):
         resp = _register(client)
@@ -192,9 +184,17 @@ class TestCheckUsernameRoute:
 # ── Login page link ──────────────────────────────────────────────────────────
 
 
-class TestLoginPageLink:
+class TestLoginPageRegistrationLink:
+    """Verify login page contains a link to the registration form."""
+
     def test_login_page_has_register_link(self, client):
         resp = client.get("/login")
         assert resp.status_code == 200
         assert b"/register" in resp.data
         assert b"Create account" in resp.data
+
+    def test_register_page_has_login_link(self, client):
+        """Symmetry: registration page should link back to login."""
+        resp = client.get("/register")
+        assert resp.status_code == 200
+        assert b"/login" in resp.data

@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 
 from flask import Blueprint, jsonify, make_response, request
+
 from infrastructure.auth import auth_service
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")

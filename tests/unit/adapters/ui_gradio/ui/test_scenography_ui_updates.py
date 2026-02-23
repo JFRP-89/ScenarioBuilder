@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from adapters.ui_gradio.ui.wiring._scenography._ui_updates import (
     convert_scenography_coordinates,
     scenography_type_visibility,
@@ -38,8 +40,8 @@ class TestConvertScenographyCoordinates:
         result = convert_scenography_coordinates(
             25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, None, "cm", "in"
         )
-        assert result[0] == 10.0
-        assert result[1] == 10.0
+        assert result[0] == pytest.approx(10.0)
+        assert result[1] == pytest.approx(10.0)
         assert result[-1] == "in"
 
     def test_returns_new_unit_in_last_position(self):
@@ -51,8 +53,8 @@ class TestConvertScenographyCoordinates:
         result = convert_scenography_coordinates(0, 0, 0, 0, 0, 0, 0, poly, "cm", "in")
         converted_poly = result[7]
         assert len(converted_poly) == 2
-        assert converted_poly[0][0] == 10.0
-        assert converted_poly[0][1] == 20.0
+        assert converted_poly[0][0] == pytest.approx(10.0)
+        assert converted_poly[0][1] == pytest.approx(20.0)
 
     def test_polygon_none_preserved(self):
         result = convert_scenography_coordinates(0, 0, 0, 0, 0, 0, 0, None, "cm", "in")

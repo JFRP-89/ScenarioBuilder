@@ -23,10 +23,11 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Callable, TypedDict
 
+from sqlalchemy.orm import Session
+
 from application.ports.clock import Clock
 from infrastructure.clock import SystemClock
 from infrastructure.db.models import SessionModel
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

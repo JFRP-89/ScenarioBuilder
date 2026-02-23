@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.builders._payload._required_fields import (
     ValidationInput,
     validate_required_fields,

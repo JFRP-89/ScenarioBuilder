@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from adapters.ui_gradio import handlers
 
 
@@ -13,7 +15,7 @@ class TestOnTablePresetChange:
         table_standard = (120, 120)
         table_massive = (180, 120)
 
-        def convert_from_cm(value, unit):
+        def convert_from_cm(value, _unit):
             return value
 
         visibility, width, height = handlers.on_table_preset_change(
@@ -21,15 +23,15 @@ class TestOnTablePresetChange:
         )
 
         assert visibility["visible"] is True
-        assert width == 120.0
-        assert height == 120.0
+        assert width == pytest.approx(120.0)
+        assert height == pytest.approx(120.0)
 
     def test_standard_preset_returns_hidden_and_standard_dimensions_cm(self):
         """Standard preset returns 120x120 cm."""
         table_standard = (120, 120)
         table_massive = (180, 120)
 
-        def convert_from_cm(value, unit):
+        def convert_from_cm(value, _unit):
             return value
 
         visibility, width, height = handlers.on_table_preset_change(
@@ -37,15 +39,15 @@ class TestOnTablePresetChange:
         )
 
         assert visibility["visible"] is False
-        assert width == 120.0
-        assert height == 120.0
+        assert width == pytest.approx(120.0)
+        assert height == pytest.approx(120.0)
 
     def test_massive_preset_returns_hidden_and_massive_dimensions_cm(self):
         """Massive preset returns 180x120 cm."""
         table_standard = (120, 120)
         table_massive = (180, 120)
 
-        def convert_from_cm(value, unit):
+        def convert_from_cm(value, _unit):
             return value
 
         visibility, width, height = handlers.on_table_preset_change(
@@ -53,8 +55,8 @@ class TestOnTablePresetChange:
         )
 
         assert visibility["visible"] is False
-        assert width == 180.0
-        assert height == 120.0
+        assert width == pytest.approx(180.0)
+        assert height == pytest.approx(120.0)
 
     def test_standard_preset_converts_to_inches(self):
         """Standard preset converts cm to inches."""
@@ -71,8 +73,8 @@ class TestOnTablePresetChange:
         )
 
         assert visibility["visible"] is False
-        assert width == 48.0
-        assert height == 48.0
+        assert width == pytest.approx(48.0)
+        assert height == pytest.approx(48.0)
 
 
 class TestOnTableUnitChange:
@@ -82,15 +84,15 @@ class TestOnTableUnitChange:
         """No conversion when new unit equals previous unit."""
         unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
-        def convert_unit_to_unit(value, from_unit, to_unit):
+        def convert_unit_to_unit(value, _from_unit, _to_unit):
             return value
 
         new_w, new_h, new_unit = handlers.on_table_unit_change(
             "cm", 120.0, 120.0, "cm", unit_limits, convert_unit_to_unit
         )
 
-        assert new_w == 120.0
-        assert new_h == 120.0
+        assert new_w == pytest.approx(120.0)
+        assert new_h == pytest.approx(120.0)
         assert new_unit == "cm"
 
     def test_cm_to_inches_converts_values(self):
@@ -106,38 +108,38 @@ class TestOnTableUnitChange:
             "in", 120.0, 60.0, "cm", unit_limits, convert_unit_to_unit
         )
 
-        assert new_w == 48.0
-        assert new_h == 24.0
+        assert new_w == pytest.approx(48.0)
+        assert new_h == pytest.approx(24.0)
         assert new_unit == "in"
 
     def test_clamps_below_min(self):
         """Values below minimum are clamped to min."""
         unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
-        def convert_unit_to_unit(value, from_unit, to_unit):
+        def convert_unit_to_unit(value, _from_unit, _to_unit):
             return value * 0.5  # Simulate conversion that goes below min
 
         new_w, new_h, new_unit = handlers.on_table_unit_change(
             "cm", 100.0, 100.0, "in", unit_limits, convert_unit_to_unit
         )
 
-        assert new_w == 60.0
-        assert new_h == 60.0
+        assert new_w == pytest.approx(60.0)
+        assert new_h == pytest.approx(60.0)
         assert new_unit == "cm"
 
     def test_clamps_above_max(self):
         """Values above maximum are clamped to max."""
         unit_limits = {"cm": {"min": 60.0, "max": 300.0}}
 
-        def convert_unit_to_unit(value, from_unit, to_unit):
+        def convert_unit_to_unit(value, _from_unit, _to_unit):
             return value * 10  # Simulate conversion that goes above max
 
         new_w, new_h, new_unit = handlers.on_table_unit_change(
             "cm", 100.0, 100.0, "in", unit_limits, convert_unit_to_unit
         )
 
-        assert new_w == 300.0
-        assert new_h == 300.0
+        assert new_w == pytest.approx(300.0)
+        assert new_h == pytest.approx(300.0)
         assert new_unit == "cm"
 
 
@@ -147,28 +149,28 @@ class TestUpdateObjectiveDefaults:
     def test_calculates_center_in_mm(self):
         """Calculates table center point in millimeters."""
 
-        def convert_to_cm(value, unit):
+        def convert_to_cm(value, _unit):
             return value  # Assume already in cm
 
         center_x, center_y = handlers.update_objective_defaults(
             120.0, 120.0, "cm", convert_to_cm
         )
 
-        assert center_x == 600.0  # 120cm = 1200mm / 2
-        assert center_y == 600.0
+        assert center_x == pytest.approx(600.0)  # 120cm = 1200mm / 2
+        assert center_y == pytest.approx(600.0)
 
     def test_handles_different_dimensions(self):
         """Handles rectangular tables."""
 
-        def convert_to_cm(value, unit):
+        def convert_to_cm(value, _unit):
             return value
 
         center_x, center_y = handlers.update_objective_defaults(
             180.0, 120.0, "cm", convert_to_cm
         )
 
-        assert center_x == 900.0  # 180cm = 1800mm / 2
-        assert center_y == 600.0  # 120cm = 1200mm / 2
+        assert center_x == pytest.approx(900.0)  # 180cm = 1800mm / 2
+        assert center_y == pytest.approx(600.0)  # 120cm = 1200mm / 2
 
     def test_converts_from_inches(self):
         """Converts from inches to cm before calculating center."""
@@ -182,8 +184,8 @@ class TestUpdateObjectiveDefaults:
             48.0, 48.0, "in", convert_to_cm
         )
 
-        assert center_x == 600.0  # 48in = 120cm = 1200mm / 2
-        assert center_y == 600.0
+        assert center_x == pytest.approx(600.0)  # 48in = 120cm = 1200mm / 2
+        assert center_y == pytest.approx(600.0)
 
 
 class TestToggleSection:
@@ -345,8 +347,8 @@ class TestOnZoneBorderOrFillChange:
             "north", True, 1200, 1200
         )
 
-        assert width == 1200.0
-        assert height == 200.0
+        assert width == pytest.approx(1200.0)
+        assert height == pytest.approx(200.0)
 
     def test_south_border_with_fill_returns_full_width(self):
         """South border with fill_side returns table width."""
@@ -354,22 +356,22 @@ class TestOnZoneBorderOrFillChange:
             "south", True, 1800, 1200
         )
 
-        assert width == 1800.0
-        assert height == 200.0
+        assert width == pytest.approx(1800.0)
+        assert height == pytest.approx(200.0)
 
     def test_east_border_with_fill_returns_full_height(self):
         """East border with fill_side returns table height."""
         width, height = handlers.on_zone_border_or_fill_change("east", True, 1200, 1200)
 
-        assert width == 200.0
-        assert height == 1200.0
+        assert width == pytest.approx(200.0)
+        assert height == pytest.approx(1200.0)
 
     def test_west_border_with_fill_returns_full_height(self):
         """West border with fill_side returns table height."""
         width, height = handlers.on_zone_border_or_fill_change("west", True, 1200, 1800)
 
-        assert width == 200.0
-        assert height == 1800.0
+        assert width == pytest.approx(200.0)
+        assert height == pytest.approx(1800.0)
 
     def test_north_border_without_fill_returns_defaults(self):
         """North border without fill_side returns default dimensions."""
@@ -377,8 +379,8 @@ class TestOnZoneBorderOrFillChange:
             "north", False, 1200, 1200
         )
 
-        assert width == 1200.0
-        assert height == 200.0
+        assert width == pytest.approx(1200.0)
+        assert height == pytest.approx(200.0)
 
     def test_east_border_without_fill_returns_defaults(self):
         """East border without fill_side returns default dimensions."""
@@ -386,5 +388,5 @@ class TestOnZoneBorderOrFillChange:
             "east", False, 1200, 1200
         )
 
-        assert width == 200.0
-        assert height == 1200.0
+        assert width == pytest.approx(200.0)
+        assert height == pytest.approx(1200.0)

@@ -12,10 +12,17 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
+
 from domain.cards.card import Card, GameMode, Visibility
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
+from tests.unit.application.conftest import (
+    FakeCardRepository,
+    FakeIdGenerator,
+    FakeSeedGenerator,
+    SpyScenarioGenerator,
+)
 
 
 # =============================================================================
@@ -48,111 +55,6 @@ def make_valid_card(
         table=table,
         map_spec=map_spec,
     )
-
-
-# =============================================================================
-# FAKE REPOSITORIES AND GENERATORS
-# =============================================================================
-class FakeCardRepository:
-    """In-memory card repository for testing."""
-
-    def __init__(self) -> None:
-        self._cards: dict[str, Card] = {}
-        self.save_calls: list[Card] = []
-
-    def add(self, card: Card) -> None:
-        """Pre-populate repository with a card."""
-        self._cards[card.card_id] = card
-
-    def get_by_id(self, card_id: str) -> Optional[Card]:
-        """Get card by id."""
-        return self._cards.get(card_id)
-
-    def save(self, card: Card) -> None:
-        """Save card to repository."""
-        self.save_calls.append(card)
-        self._cards[card.card_id] = card
-
-    def find_by_seed(self, seed: int) -> Optional[Card]:
-        return next((c for c in self._cards.values() if c.seed == seed), None)
-
-    def delete(self, card_id: str) -> bool:
-        return self._cards.pop(card_id, None) is not None
-
-    def list_all(self) -> list[Card]:
-        return list(self._cards.values())
-
-    def list_for_owner(self, owner_id: str) -> list[Card]:
-        return [c for c in self._cards.values() if c.owner_id == owner_id]
-
-
-class FakeIdGenerator:
-    """Fake id generator that returns predictable ids."""
-
-    def __init__(self, card_id: str = "card-variant-001") -> None:
-        self._card_id = card_id
-
-    def generate_card_id(self) -> str:
-        """Generate a card id."""
-        return self._card_id
-
-
-class FakeSeedGenerator:
-    """Fake seed generator with call tracking."""
-
-    def __init__(self, seed: int = 999) -> None:
-        self._seed = seed
-        self.calls = 0
-
-    def generate_seed(self) -> int:
-        """Generate a seed."""
-        self.calls += 1
-        return self._seed
-
-    def calculate_from_config(self, config: dict) -> int:
-        return self._seed
-
-
-class SpyScenarioGenerator:
-    """Spy scenario generator that tracks calls and returns configurable shapes."""
-
-    def __init__(self, shapes: Optional[list[dict]] = None) -> None:
-        self._shapes = shapes if shapes is not None else make_valid_shapes()
-        self.calls: list[tuple[int, TableSize, GameMode]] = []
-
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
-        """Generate shapes and record the call."""
-        self.calls.append((seed, table, mode))
-        return self._shapes
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def repo() -> FakeCardRepository:
-    """Provide empty card repository."""
-    return FakeCardRepository()
-
-
-@pytest.fixture
-def id_gen() -> FakeIdGenerator:
-    """Provide fake id generator."""
-    return FakeIdGenerator("card-variant-001")
-
-
-@pytest.fixture
-def seed_gen() -> FakeSeedGenerator:
-    """Provide fake seed generator."""
-    return FakeSeedGenerator(999)
-
-
-@pytest.fixture
-def scenario_gen() -> SpyScenarioGenerator:
-    """Provide spy scenario generator with valid shapes."""
-    return SpyScenarioGenerator()
 
 
 # =============================================================================
@@ -573,7 +475,7 @@ class TestCreateVariantInvalidShapes:
         invalid_shapes = [
             {"type": "rect", "x": 2000, "y": 2000, "width": 200, "height": 200}
         ]
-        scenario_gen = SpyScenarioGenerator(shapes=invalid_shapes)
+        bad_scenario_gen = SpyScenarioGenerator(shapes=invalid_shapes)
 
         base = make_valid_card(card_id="card-base-001", owner_id="u1")
         repo.add(base)
@@ -588,7 +490,7 @@ class TestCreateVariantInvalidShapes:
             repository=repo,
             id_generator=id_gen,
             seed_generator=seed_gen,
-            scenario_generator=scenario_gen,
+            scenario_generator=bad_scenario_gen,
         )
 
         # Act & Assert

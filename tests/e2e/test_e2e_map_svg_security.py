@@ -4,14 +4,13 @@ from typing import Any
 
 import pytest
 import requests
-
-from tests.e2e._support import get_api_base_url
+from e2e._support import get_api_base_url
+from e2e._support.api_helpers import get_map_svg
 
 
 @pytest.mark.e2e
-def test_map_svg_content_type_and_security_headers(
-    e2e_services, wait_for_health, generated_card_id
-):
+@pytest.mark.usefixtures("e2e_services")
+def test_map_svg_content_type_and_security_headers(wait_for_health, generated_card_id):
     """
     E2E API: Verificar que /cards/<id>/map.svg devuelve SVG seguro.
 
@@ -38,11 +37,7 @@ def test_map_svg_content_type_and_security_headers(
     headers = {"X-Actor-Id": "u1"}
 
     # 2) GET /cards/{card_id}/map.svg
-    svg_response = requests.get(
-        f"{api_url}/cards/{card_id}/map.svg",
-        headers=headers,
-        timeout=30,
-    )
+    svg_response = get_map_svg(api_url, card_id, headers)
 
     # 3) Validar status y Content-Type
     assert (
@@ -117,7 +112,8 @@ def _assert_no_dangerous_svg_content(svg_body: str) -> None:
 
 
 @pytest.mark.e2e
-def test_map_svg_missing_actor_header(e2e_services, wait_for_health, generated_card_id):
+@pytest.mark.usefixtures("e2e_services")
+def test_map_svg_missing_actor_header(wait_for_health, generated_card_id):
     """
     E2E API: Validar deny-by-default en GET /cards/<id>/map.svg.
 

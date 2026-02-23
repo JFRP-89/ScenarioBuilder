@@ -3,6 +3,7 @@
 venv/
 venv311/
 tests_legacy/
+slides/
 scripts/
 reports/
 docs/legacy_/

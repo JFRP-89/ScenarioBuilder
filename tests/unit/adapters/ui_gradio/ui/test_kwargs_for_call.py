@@ -3,29 +3,43 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._kwargs import KwargsContractError, kwargs_for_call
 
 # ─── Dummy target functions ────────────────────────────────────────────
 
 
-def _fn_no_varkw(*, a: int, b: str, c: float, page_state: object = None) -> None:
-    """Keyword-only, NO **kwargs."""
+def _fn_no_varkw(
+    *,
+    a: int,
+    b: str,
+    c: float,
+    page_state: object = None,
+) -> None:
+    """Keyword-only, NO **kwargs — signature stub for introspection."""
+    _ = a, b, c, page_state
 
 
 def _fn_with_varkw(
-    *, a: int, b: str, page_state: object = None, **_extra: object
+    *,
+    a: int,
+    b: str,
+    page_state: object = None,
+    **_extra: object,
 ) -> None:
-    """Keyword-only WITH **kwargs."""
+    """Keyword-only WITH **kwargs — signature stub for introspection."""
+    _ = a, b, page_state
 
 
 def _fn_all_required(*, x: int, y: int) -> None:
-    """All params required, no defaults."""
+    """All params required, no defaults — signature stub for introspection."""
+    _ = x, y
 
 
 # ─── Happy path ────────────────────────────────────────────────────────
 
 
-class TestFiltersExtrasAndReturnsRequired:
+class TestHappyPath:
     """When fn has no **kwargs, extra keys should be silently dropped."""
 
     def test_filters_extras(self):
@@ -38,11 +52,8 @@ class TestFiltersExtrasAndReturnsRequired:
         result = kwargs_for_call(payload, _fn_no_varkw)
         assert result["page_state"] == "ps"
 
-
-class TestVarKwPassesEverything:
-    """When fn accepts **kwargs, all non-override keys pass through."""
-
-    def test_passes_extras(self):
+    def test_varkw_passes_extras(self):
+        """When fn accepts **kwargs, all non-override keys pass through."""
         payload = {"a": 1, "b": "hi", "extra_key": "kept"}
         result = kwargs_for_call(payload, _fn_with_varkw)
         assert result == {"a": 1, "b": "hi", "extra_key": "kept"}

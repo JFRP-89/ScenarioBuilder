@@ -16,10 +16,12 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
+
 from domain.cards.card import Card, GameMode, Visibility
 from domain.errors import ForbiddenError, ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
+from tests.unit.application.conftest import FakeCardRepository, FakeFavoritesRepository
 
 
 # =============================================================================
@@ -55,48 +57,8 @@ def make_valid_card(
 
 
 # =============================================================================
-# FAKE REPOSITORY
+# TEST CLASSES
 # =============================================================================
-class FakeCardRepository:
-    """In-memory card repository for testing."""
-
-    def __init__(self) -> None:
-        self._cards: dict[str, Card] = {}
-        self.delete_calls: list[str] = []
-
-    def add(self, card: Card) -> None:
-        """Pre-populate repository with a card."""
-        self._cards[card.card_id] = card
-
-    def get_by_id(self, card_id: str) -> Optional[Card]:
-        """Get card by id."""
-        return self._cards.get(card_id)
-
-    def delete(self, card_id: str) -> bool:
-        """Delete card from repository."""
-        self.delete_calls.append(card_id)
-        return self._cards.pop(card_id, None) is not None
-
-    def save(self, card: Card) -> None:
-        self._cards[card.card_id] = card
-
-    def find_by_seed(self, seed: int) -> Optional[Card]:
-        return next((c for c in self._cards.values() if c.seed == seed), None)
-
-    def list_all(self) -> list[Card]:
-        return list(self._cards.values())
-
-    def list_for_owner(self, owner_id: str) -> list[Card]:
-        return [c for c in self._cards.values() if c.owner_id == owner_id]
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def repo() -> FakeCardRepository:
-    """Provide empty card repository."""
-    return FakeCardRepository()
 
 
 # =============================================================================
@@ -248,34 +210,6 @@ class TestDeleteCardForbidden:
             use_case.execute(request)
 
         assert len(repo.delete_calls) == 0
-
-
-# =============================================================================
-# FAKE FAVORITES REPOSITORY
-# =============================================================================
-class FakeFavoritesRepository:
-    """In-memory fake favorites repository for testing."""
-
-    def __init__(self) -> None:
-        self._favorites: set[tuple[str, str]] = set()
-        self.remove_all_calls: list[str] = []
-
-    def is_favorite(self, actor_id: str, card_id: str) -> bool:
-        return (actor_id, card_id) in self._favorites
-
-    def set_favorite(self, actor_id: str, card_id: str, value: bool) -> None:
-        key = (actor_id, card_id)
-        if value:
-            self._favorites.add(key)
-        else:
-            self._favorites.discard(key)
-
-    def list_favorites(self, actor_id: str) -> list[str]:
-        return [c for a, c in self._favorites if a == actor_id]
-
-    def remove_all_for_card(self, card_id: str) -> None:
-        self.remove_all_calls.append(card_id)
-        self._favorites = {(a, c) for a, c in self._favorites if c != card_id}
 
 
 # =============================================================================

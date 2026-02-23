@@ -19,11 +19,11 @@ import os
 
 import pytest
 import requests
+from e2e._support import get_api_base_url
+from e2e._support.api_helpers import post_card
+from e2e.utils import dump_debug_artifacts
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
-
-from tests.e2e._support import get_api_base_url
-from tests.e2e.utils import dump_debug_artifacts
 
 # =====================================================================
 # Helpers
@@ -46,12 +46,7 @@ def _create_public_card(api_url: str, owner: str, name: str = "") -> str:
         "objectives": "Hold Ground",
         "initial_priority": "None",
     }
-    resp = requests.post(
-        f"{api_url}/cards",
-        headers=headers,
-        json=payload,
-        timeout=30,
-    )
+    resp = post_card(api_url, headers, payload)
     assert (
         resp.status_code == 201
     ), f"Failed to create test card: {resp.status_code} — {resp.text}"
@@ -117,6 +112,21 @@ def _navigate_to_detail(page: Page, card_id: str) -> None:
     page.wait_for_timeout(5000)
 
 
+def _card_id_in_detail(
+    detail_locator,
+    page: Page,
+    card_id: str,
+    timeout_ms: int,
+) -> bool:
+    """Check if card_id appears in the detail HTML, with one retry."""
+    detail_html = detail_locator.inner_html(timeout=timeout_ms)
+    if card_id in detail_html:
+        return True
+    page.wait_for_timeout(800)
+    detail_html = detail_locator.inner_html(timeout=timeout_ms)
+    return card_id in detail_html
+
+
 def _wait_for_detail_page(
     page: Page,
     *,
@@ -143,7 +153,7 @@ def _wait_for_detail_page(
 
     detail_locator = None
     for selector in detail_selectors:
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(PlaywrightError):
             locator = page.locator(selector).first
             locator.wait_for(state="attached", timeout=3000)
             detail_locator = locator
@@ -155,7 +165,7 @@ def _wait_for_detail_page(
     # Get content text and check for errors
     try:
         content_text = detail_locator.inner_text(timeout=timeout_ms)
-    except Exception:
+    except PlaywrightError:
         return False
 
     # Check for error markers (case-insensitive)
@@ -172,13 +182,8 @@ def _wait_for_detail_page(
 
     # If card_id provided, verify it appears in the detail area
     if card_id:
-        with contextlib.suppress(Exception):
-            detail_html = detail_locator.inner_html(timeout=timeout_ms)
-            if card_id in detail_html:
-                return True
-            page.wait_for_timeout(800)
-            detail_html = detail_locator.inner_html(timeout=timeout_ms)
-            return card_id in detail_html
+        with contextlib.suppress(PlaywrightError):
+            return _card_id_in_detail(detail_locator, page, card_id, timeout_ms)
         return True
 
     # No error markers and content is not empty
@@ -215,11 +220,11 @@ def _expect_visible(
         # Gather diagnostics
         count = page.locator(locator_selector).count()
         classes_str = "(unable to retrieve)"
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(PlaywrightError):
             classes_str = locator.get_attribute("class") or "(no class)"
 
         detail_snippet = "(unable to retrieve)"
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(PlaywrightError):
             detail_elem = page.locator("#detail-content-html").first
             detail_text = detail_elem.inner_text(timeout=2000)
             detail_snippet = detail_text[:200] if detail_text else "(empty)"
@@ -240,12 +245,11 @@ def _expect_visible(
 
 
 @pytest.mark.e2e
+@pytest.mark.usefixtures("e2e_services")
 class TestEditButtonOwnershipSecurity:
     """Edit button must only appear for the card owner."""
 
-    def test_edit_button_hidden_for_non_owner(
-        self, e2e_services, wait_for_health, page
-    ):
+    def test_edit_button_hidden_for_non_owner(self, wait_for_health, page):
         """Non-owner viewing a public card must NOT see the Edit button."""
         wait_for_health()
 
@@ -277,7 +281,7 @@ class TestEditButtonOwnershipSecurity:
             dump_debug_artifacts(page, "edit_btn_non_owner")
             raise
 
-    def test_edit_button_visible_for_owner(self, e2e_services, wait_for_health, page):
+    def test_edit_button_visible_for_owner(self, wait_for_health, page):
         """Owner viewing their own card SHOULD see the Edit button."""
         wait_for_health()
 
@@ -335,9 +339,7 @@ class TestEditButtonOwnershipSecurity:
             dump_debug_artifacts(page, "edit_btn_owner")
             raise
 
-    def test_edit_button_starts_hidden_before_load(
-        self, e2e_services, wait_for_health, page
-    ):
+    def test_edit_button_starts_hidden_before_load(self, wait_for_health, page):
         """Edit button must be hidden on initial page load (no flash)."""
         wait_for_health()
 

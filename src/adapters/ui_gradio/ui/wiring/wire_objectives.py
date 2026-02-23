@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio import handlers
 from adapters.ui_gradio.state_helpers import (
     add_objective_point,

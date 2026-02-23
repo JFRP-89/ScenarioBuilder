@@ -1,5 +1,6 @@
 """Integration tests for smart objective label positioning in SVG."""
 
+from infrastructure.maps._renderer._geometry import estimate_text_width
 from infrastructure.maps.svg_map_renderer import SvgMapRenderer
 
 
@@ -78,16 +79,10 @@ class TestObjectiveLabelPositioning:
 
         svg = renderer.render(table_mm=table_mm, shapes=shapes)
 
-        # Should move right: x = 30 + 50 = 80
-        # Y would be original (no offset needed vertically for this scenario)
-        # Since up would fail (too close to north isn't an issue, but let's check)
-        # Actually, let me think: The logic tries up first, then down, then right, then left
-        # At cx=30, cy=600:
-        # - up: (30, 550) - should fit vertically
-        # - but let's check what the code actually does
-        # The code checks if text_x + width/2 <= table_width
-        # At x=30, "Shrine" is ~22-26mm, so 30 - 13 = 17, which is >= 0, so it should work
-        # Let me verify the SVG output
+        # At cx=30, cy=600 with a 1200x1200 table the algorithm
+        # tries up first.  "Shrine" is narrow enough to fit at x=30,
+        # so the label may end up above or to the right depending on
+        # the exact text-width heuristic.
         assert "Shrine" in svg
 
     def test_objective_label_at_east_stays_right(self):
@@ -142,12 +137,10 @@ class TestObjectiveLabelPositioning:
 
     def test_objective_text_width_estimation(self):
         """Text width should be estimated based on length and font size."""
-        renderer = SvgMapRenderer()
-
         # Short text
-        width_short = renderer._estimate_text_width("AB", font_size_px=14)
+        width_short = estimate_text_width("AB", font_size_px=14)
         # Long text
-        width_long = renderer._estimate_text_width(
+        width_long = estimate_text_width(
             "This is a very long description text", font_size_px=14
         )
 
@@ -273,7 +266,7 @@ class TestObjectiveLabelPositioning:
 
         svg = renderer.render(table_mm=table_mm, shapes=shapes)
 
-        # Should prefer up position (y = 1100 - 50 = 1050) since there's much more space above
+        # Should prefer up: y = 1100 - 50 = 1050 (more space above)
         assert '<text x="600" y="1050"' in svg
         assert "Treasure" in svg
         # Make sure it's not wrapped in a rotated group
@@ -318,8 +311,8 @@ class TestObjectiveLabelPositioning:
 
         # Should be positioned intelligently and legibly
         assert "TopRight" in svg
-        # Should NOT have diagonal rotation
-        assert "rotate(45" not in svg
+        # Label should NOT use diagonal text rotation
+        assert '<g transform="rotate(45 ' not in svg
 
     def test_objective_label_intelligent_position_at_bottom_left_corner(self):
         """Label at bottom-left corner should prefer up, then right."""
@@ -339,8 +332,8 @@ class TestObjectiveLabelPositioning:
         # Should be positioned up from corner (away from bottom edge)
         # y position should be roughly 1170 - 50 = 1120
         assert "BottomLeft" in svg
-        # Should NOT have diagonal rotation
-        assert "rotate(-45" not in svg
+        # Label should NOT use diagonal text rotation
+        assert '<g transform="rotate(-45 ' not in svg
 
     def test_objective_label_intelligent_position_at_bottom_right_corner(self):
         """Label at bottom-right corner should prefer up, then left."""

@@ -7,46 +7,12 @@ Verifies that API routes (``/cards``, ``/favorites``, ``/maps``,
 
 from __future__ import annotations
 
-import pytest
-from adapters.http_flask.app import create_app
-from infrastructure.auth import session_store, user_store
-
-_COOKIE_NAME = "sb_session"
-_CSRF_COOKIE_NAME = "sb_csrf"
-
-
-@pytest.fixture()
-def app():
-    session_store.reset_sessions()
-    user_store.reset_stores()
-    application = create_app()
-    application.config["TESTING"] = True
-    yield application
-    session_store.reset_sessions()
-    user_store.reset_stores()
-
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-
-def _login(client, username="alice", password="alice"):
-    return client.post(
-        "/auth/login",
-        json={"username": username, "password": password},
-    )
-
-
-def _get_csrf_cookie(response):
-    for header_name, header_value in response.headers:
-        if header_name.lower() == "set-cookie" and _CSRF_COOKIE_NAME in header_value:
-            for part in header_value.split(";"):
-                kv = part.strip()
-                if kv.startswith(f"{_CSRF_COOKIE_NAME}="):
-                    return kv.split("=", 1)[1]
-    return None
-
+from helpers.flask_helpers import (
+    COOKIE_NAME,
+    do_flask_login,
+    get_csrf_cookie,
+)
+from infrastructure.auth import session_store
 
 # ── Public routes remain accessible ──────────────────────────────────────────
 
@@ -62,7 +28,7 @@ class TestPublicRoutes:
         assert b"login" in resp.data.lower()
 
     def test_auth_login_post_no_prior_session(self, client):
-        resp = _login(client)
+        resp = do_flask_login(client)
         assert resp.status_code == 200
         assert resp.get_json()["ok"] is True
 
@@ -101,7 +67,7 @@ class TestApiAuthGate:
         assert resp.status_code == 401
 
     def test_cards_accessible_with_session(self, client):
-        _login(client)
+        do_flask_login(client)
         resp = client.get("/cards/")
         # Should not be 401 — may be 200 or 400 depending on query params
         assert resp.status_code != 401
@@ -113,14 +79,14 @@ class TestApiAuthGate:
 class TestCsrfOnApiRoutes:
     def test_post_cards_requires_csrf(self, client):
         """Authenticated POST without CSRF token → 403."""
-        _login(client)
+        do_flask_login(client)
         resp = client.post("/cards/", json={"test": True})
         assert resp.status_code == 403
 
     def test_post_cards_with_csrf_passes(self, client):
         """Authenticated POST with correct CSRF token passes middleware."""
-        login_resp = _login(client)
-        csrf = _get_csrf_cookie(login_resp)
+        login_resp = do_flask_login(client)
+        csrf = get_csrf_cookie(login_resp)
         resp = client.post(
             "/cards/",
             json={"test": True},
@@ -135,7 +101,7 @@ class TestCsrfOnApiRoutes:
 
 class TestLoginPageRedirect:
     def test_login_page_redirects_when_authenticated(self, client):
-        _login(client)
+        do_flask_login(client)
         resp = client.get("/login")
         assert resp.status_code == 302
         assert "/sb" in resp.headers.get("Location", "")
@@ -152,17 +118,17 @@ class TestLoginPageRedirect:
 class TestSessionCreation:
     def test_login_creates_session_in_store(self, client):
         """After login, the session exists in the session store."""
-        resp = _login(client)
+        resp = do_flask_login(client)
         data = resp.get_json()
         assert data["ok"] is True
 
         # Extract session cookie
         session_id = None
         for header_name, header_value in resp.headers:
-            if header_name.lower() == "set-cookie" and _COOKIE_NAME in header_value:
+            if header_name.lower() == "set-cookie" and COOKIE_NAME in header_value:
                 for part in header_value.split(";"):
                     kv = part.strip()
-                    if kv.startswith(f"{_COOKIE_NAME}="):
+                    if kv.startswith(f"{COOKIE_NAME}="):
                         session_id = kv.split("=", 1)[1]
         assert session_id is not None
 
@@ -173,16 +139,16 @@ class TestSessionCreation:
 
     def test_logout_revokes_session_in_store(self, client):
         """After logout, the session is no longer valid."""
-        login_resp = _login(client)
-        csrf = _get_csrf_cookie(login_resp)
+        login_resp = do_flask_login(client)
+        csrf = get_csrf_cookie(login_resp)
 
         # Extract the session_id
         session_id = None
         for header_name, header_value in login_resp.headers:
-            if header_name.lower() == "set-cookie" and _COOKIE_NAME in header_value:
+            if header_name.lower() == "set-cookie" and COOKIE_NAME in header_value:
                 for part in header_value.split(";"):
                     kv = part.strip()
-                    if kv.startswith(f"{_COOKIE_NAME}="):
+                    if kv.startswith(f"{COOKIE_NAME}="):
                         session_id = kv.split("=", 1)[1]
 
         # Logout

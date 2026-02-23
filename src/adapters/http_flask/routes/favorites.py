@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from flask import Blueprint, jsonify
+
 from adapters.http_flask.constants import KEY_CARD_ID, KEY_CARD_IDS, KEY_IS_FAVORITE
 from adapters.http_flask.context import get_actor_id, get_services
 from application.use_cases.list_favorites import ListFavoritesRequest
 from application.use_cases.toggle_favorite import ToggleFavoriteRequest
-from flask import Blueprint, jsonify
 
 favorites_bp = Blueprint("favorites", __name__)
 

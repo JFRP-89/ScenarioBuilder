@@ -7,64 +7,12 @@ and maximum card structures as described in the production schema.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
+
 from application.use_cases.generate_scenario_card import (
-    GenerateScenarioCard,
     GenerateScenarioCardRequest,
 )
-from domain.cards.card import GameMode
 from domain.errors import ValidationError
-from domain.maps.table_size import TableSize
-
-
-# =============================================================================
-# TEST DOUBLES
-# =============================================================================
-class FakeIdGenerator:
-    def __init__(self, card_id: str = "test-card-001") -> None:
-        self._card_id = card_id
-
-    def generate_card_id(self) -> str:
-        return self._card_id
-
-
-class FakeSeedGenerator:
-    def __init__(self, seed: int = 999) -> None:
-        self._seed = seed
-
-    def generate_seed(self) -> int:
-        return self._seed
-
-    def calculate_from_config(self, config: dict) -> int:
-        from infrastructure.generators.deterministic_seed_generator import (
-            calculate_seed_from_config,
-        )
-
-        return calculate_seed_from_config(config)
-
-
-@dataclass
-class StubScenarioGenerator:
-    shapes: list[dict]
-
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
-        return self.shapes
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def use_case():
-    return GenerateScenarioCard(
-        id_generator=FakeIdGenerator(),
-        seed_generator=FakeSeedGenerator(),
-        scenario_generator=StubScenarioGenerator(shapes=[]),
-    )
 
 
 # =============================================================================
@@ -73,7 +21,7 @@ def use_case():
 class TestMinimumJsonSchema:
     """The minimum valid card should be accepted."""
 
-    def test_minimum_card_accepted(self, use_case):
+    def test_minimum_card_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="demo-user",
             mode="casual",
@@ -91,9 +39,9 @@ class TestMinimumJsonSchema:
             is_replicable=True,  # Use deterministic seed
         )
 
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
 
-        assert response.card_id == "test-card-001"
+        assert response.card_id == "card-001"
         assert response.seed > 0  # Deterministic seed
         assert response.owner_id == "demo-user"
         assert response.name == "a"
@@ -109,7 +57,7 @@ class TestMinimumJsonSchema:
         assert response.shared_with == []
         assert response.objectives == "a"
 
-    def test_minimum_card_with_defaults(self, use_case):
+    def test_minimum_card_with_defaults(self, schema_use_case):
         """Minimum with only required fields — defaults applied."""
         request = GenerateScenarioCardRequest(
             actor_id="demo-user",
@@ -120,7 +68,7 @@ class TestMinimumJsonSchema:
             shared_with=None,
         )
 
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert response.visibility == "private"
         assert response.name == "Battle Scenario"
 
@@ -131,7 +79,7 @@ class TestMinimumJsonSchema:
 class TestMaximumJsonSchema:
     """A fully-loaded card with all features should be accepted."""
 
-    def test_maximum_card_accepted(self, use_case):
+    def test_maximum_card_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="demo-user",
             mode="casual",
@@ -223,7 +171,7 @@ class TestMaximumJsonSchema:
             ],
         )
 
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
 
         # Core fields
         assert response.owner_id == "demo-user"
@@ -265,7 +213,7 @@ class TestMaximumJsonSchema:
 class TestDeploymentShapesLimits:
     """Deployment shapes: max 4, border XOR corner."""
 
-    def test_five_deployment_shapes_rejected(self, use_case):
+    def test_five_deployment_shapes_rejected(self, schema_use_case):
         shapes = [
             {
                 "type": "rect",
@@ -287,9 +235,11 @@ class TestDeploymentShapesLimits:
             deployment_shapes=shapes,
         )
         with pytest.raises(ValidationError, match="(?i)too many deployment"):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
-    def test_deployment_shape_with_both_border_and_corner_rejected(self, use_case):
+    def test_deployment_shape_with_both_border_and_corner_rejected(
+        self, schema_use_case
+    ):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -310,9 +260,9 @@ class TestDeploymentShapesLimits:
             ],
         )
         with pytest.raises(ValidationError, match="(?i)not both"):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
-    def test_deployment_shape_without_border_or_corner_rejected(self, use_case):
+    def test_deployment_shape_without_border_or_corner_rejected(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -331,7 +281,7 @@ class TestDeploymentShapesLimits:
             ],
         )
         with pytest.raises(ValidationError, match="(?i)either.*border.*corner"):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
 
 # =============================================================================
@@ -340,7 +290,7 @@ class TestDeploymentShapesLimits:
 class TestObjectiveShapesLimit:
     """Objective shapes: max 10."""
 
-    def test_ten_objective_shapes_accepted(self, use_case):
+    def test_ten_objective_shapes_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -350,10 +300,10 @@ class TestObjectiveShapesLimit:
             shared_with=None,
             objective_shapes=[{"cx": 100 + i * 50, "cy": 100} for i in range(10)],
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert len(response.shapes["objective_shapes"]) == 10
 
-    def test_eleven_objective_shapes_rejected(self, use_case):
+    def test_eleven_objective_shapes_rejected(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -364,7 +314,7 @@ class TestObjectiveShapesLimit:
             objective_shapes=[{"cx": 100 + i * 50, "cy": 100} for i in range(11)],
         )
         with pytest.raises(ValidationError, match="(?i)too many objective"):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
 
 # =============================================================================
@@ -373,7 +323,7 @@ class TestObjectiveShapesLimit:
 class TestObjectivesValidation:
     """Objectives validated in the use case."""
 
-    def test_objectives_as_string_accepted(self, use_case):
+    def test_objectives_as_string_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -383,10 +333,10 @@ class TestObjectivesValidation:
             shared_with=None,
             objectives="Destroy the enemy",
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert response.objectives == "Destroy the enemy"
 
-    def test_objectives_as_dict_accepted(self, use_case):
+    def test_objectives_as_dict_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -399,10 +349,10 @@ class TestObjectivesValidation:
                 "victory_points": ["1 VP for wound", "3 VP for kill"],
             },
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert response.objectives["objective"] == "Hold the relic"
 
-    def test_invalid_objectives_type_rejected(self, use_case):
+    def test_invalid_objectives_type_rejected(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -415,7 +365,7 @@ class TestObjectivesValidation:
         with pytest.raises(
             ValidationError, match="(?i)objectives must be a string or dict"
         ):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
 
 # =============================================================================
@@ -424,7 +374,7 @@ class TestObjectivesValidation:
 class TestSpecialRulesValidation:
     """Special rules validated in the use case."""
 
-    def test_special_rules_as_list_of_dicts_accepted(self, use_case):
+    def test_special_rules_as_list_of_dicts_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -436,11 +386,11 @@ class TestSpecialRulesValidation:
                 {"name": "Heavy Rain", "description": "Range halved"},
             ],
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert len(response.special_rules) == 1
         assert response.special_rules[0]["name"] == "Heavy Rain"
 
-    def test_special_rules_missing_name_rejected(self, use_case):
+    def test_special_rules_missing_name_rejected(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -451,7 +401,7 @@ class TestSpecialRulesValidation:
             special_rules=[{"description": "No name provided"}],
         )
         with pytest.raises(ValidationError, match="(?i)must have.*name"):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
 
 # =============================================================================
@@ -460,7 +410,7 @@ class TestSpecialRulesValidation:
 class TestSharedWithVisibilityCoherence:
     """shared_with requires visibility='shared'."""
 
-    def test_shared_with_and_shared_visibility_accepted(self, use_case):
+    def test_shared_with_and_shared_visibility_accepted(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -469,11 +419,11 @@ class TestSharedWithVisibilityCoherence:
             visibility="shared",
             shared_with=["user2", "user3"],
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert response.visibility == "shared"
         assert response.shared_with == ["user2", "user3"]
 
-    def test_shared_with_and_private_visibility_rejected(self, use_case):
+    def test_shared_with_and_private_visibility_rejected(self, schema_use_case):
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
             mode="casual",
@@ -486,9 +436,9 @@ class TestSharedWithVisibilityCoherence:
             ValidationError,
             match="(?i)shared_with requires visibility to be.*shared",
         ):
-            use_case.execute(request)
+            schema_use_case.execute(request)
 
-    def test_empty_shared_with_and_private_visibility_accepted(self, use_case):
+    def test_empty_shared_with_and_private_visibility_accepted(self, schema_use_case):
         """Empty shared_with should not force shared visibility."""
         request = GenerateScenarioCardRequest(
             actor_id="user-1",
@@ -498,5 +448,5 @@ class TestSharedWithVisibilityCoherence:
             visibility="private",
             shared_with=[],
         )
-        response = use_case.execute(request)
+        response = schema_use_case.execute(request)
         assert response.visibility == "private"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from domain.errors import ValidationError
 from domain.seed import MAX_SEED, derive_attempt_seed, normalize_seed
 

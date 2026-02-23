@@ -51,7 +51,7 @@ class TestLoadRecentCards:
         assert "c1" in html
 
     @patch("adapters.ui_gradio.ui.wiring.wire_home.nav_svc")
-    def test_wire_home_page_registers_app_load(self, mock_nav):
+    def test_wire_home_page_registers_app_load(self, _mock_nav):
         """wire_home_page should call app.load with the right outputs."""
         from adapters.ui_gradio.ui.wiring.wire_home import HomePageCtx, wire_home_page
 

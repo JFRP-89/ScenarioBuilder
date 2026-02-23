@@ -7,6 +7,7 @@ the correct page and auth state are shown immediately.
 from __future__ import annotations
 
 import gradio as gr
+
 from adapters.ui_gradio.auth._check_logic import (
     parse_referer_routing,
     validate_session_cookie,

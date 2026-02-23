@@ -69,7 +69,7 @@ def update_profile(
     If *new_password* and *confirm_new_password* are both non-empty,
     validates and changes the password as well.
     """
-    from infrastructure.auth.user_store import update_user_profile
+    from infrastructure.auth.user_store import email_exists, update_user_profile
     from infrastructure.auth.validators import validate_registration_password
 
     name = name.strip()
@@ -83,6 +83,10 @@ def update_profile(
 
     if not validate_email(email):
         return {"ok": False, "message": "Invalid email format."}
+
+    # ── Email uniqueness (exclude current user) ──────────────────
+    if email_exists(email, exclude_username=actor_id):
+        return {"ok": False, "message": "Email is already registered."}
 
     # ── Optional password change ─────────────────────────────────
     wants_pw_change = bool(new_password or confirm_new_password)
@@ -129,7 +133,7 @@ def register(
     password: str,
     confirm_password: str,
     name: str = "",
-    email: str = "",
+    email: str = "",  # Empty will be rejected by auth_service validation
 ) -> dict[str, object]:
     """Register a new user — delegates to infrastructure auth service.
 

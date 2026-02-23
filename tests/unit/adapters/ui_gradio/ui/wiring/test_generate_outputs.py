@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._generate._outputs import build_stay_outputs
 
 
@@ -12,7 +13,7 @@ class TestBuildStayOutputsTupleLength:
     @pytest.mark.parametrize(
         ("n_nav", "n_form", "n_dropdowns", "n_extra", "expected_len"),
         [
-            # total = n_nav + n_form + n_dropdowns + n_extra + 1 (status)
+            # Length: n_nav + n_form + n_dropdowns + n_extra + 1 (status)
             (3, 18, 0, 0, 22),
             (3, 18, 6, 0, 28),
             (3, 18, 6, 2, 30),

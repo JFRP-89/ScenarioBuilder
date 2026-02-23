@@ -8,35 +8,10 @@ Only the minimal contract is tested here; extra hardening is deferred.
 from __future__ import annotations
 
 import pytest
+
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def table() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def circle_ok() -> dict:
-    return {"type": "circle", "cx": 600, "cy": 600, "r": 100}
-
-
-@pytest.fixture
-def rect_ok() -> dict:
-    return {"type": "rect", "x": 100, "y": 200, "width": 300, "height": 400}
-
-
-@pytest.fixture
-def poly_ok() -> dict:
-    return {
-        "type": "polygon",
-        "points": [{"x": 0, "y": 0}, {"x": 200, "y": 0}, {"x": 200, "y": 200}],
-    }
 
 
 # =============================================================================
@@ -94,8 +69,8 @@ def test_rejects_more_than_100_shapes(table: TableSize):
 
 
 def test_rejects_polygon_with_more_than_200_points(table: TableSize):
-    W, H = 1200, 1200
-    points = [{"x": (i * 7) % W, "y": (i * 11) % H} for i in range(201)]
+    table_w, table_h = 1200, 1200
+    points = [{"x": (i * 7) % table_w, "y": (i * 11) % table_h} for i in range(201)]
     poly = {"type": "polygon", "points": points}
     with pytest.raises(ValidationError):
         MapSpec(table=table, shapes=[poly])
@@ -125,9 +100,6 @@ def test_rejects_unknown_shape_type(table: TableSize):
 def test_rejects_non_int_coordinates_or_sizes(table: TableSize, shape: dict):
     with pytest.raises(ValidationError):
         MapSpec(table=table, shapes=[shape])
-
-
-# TODO(hardening): añadir tests de missing fields, payload shape strictness y edge cases adicionales.
 
 
 # =============================================================================

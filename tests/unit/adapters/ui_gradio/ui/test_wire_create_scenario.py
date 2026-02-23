@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.router import ALL_PAGES, PAGE_HOME
 from adapters.ui_gradio.ui.wiring.wire_generate import (
     _CreateScenarioCtx,
@@ -28,17 +29,23 @@ class _FakeComponent:
     """Minimal stub to capture .click() calls."""
 
     def __init__(self):
-        self._click_fn = None
-        self._then_fn = None
-        self._then_outputs = None
+        self.click_fn = None
+        self.click_inputs = None
+        self.click_outputs = None
+        self.then_fn = None
+        self.then_inputs = None
+        self.then_outputs = None
 
     def click(self, *, fn, inputs, outputs):
-        self._click_fn = fn
+        self.click_fn = fn
+        self.click_inputs = inputs
+        self.click_outputs = outputs
         return self  # support .then() chaining
 
     def then(self, *, fn, inputs, outputs):
-        self._then_fn = fn
-        self._then_outputs = outputs
+        self.then_fn = fn
+        self.then_inputs = inputs
+        self.then_outputs = outputs
         return self
 
 
@@ -123,7 +130,7 @@ class TestOnCreateScenario:
                 home_fav_ids_cache_state=_FakeComponent(),
             )
         )
-        return btn._click_fn
+        return btn.click_fn
 
     @staticmethod
     def _status(result):
@@ -159,7 +166,7 @@ class TestOnCreateScenario:
 
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.load_recent_cards")
     @patch("adapters.ui_gradio.ui.wiring.wire_generate.handle_create_scenario")
-    def test_create_success(self, mock_create, mock_load):
+    def test_create_success(self, mock_create, _mock_load):
         mock_create.return_value = {
             "card_id": "abc-123",
             "mode": "matched",
@@ -212,7 +219,7 @@ class TestOnCreateScenario:
             "_payload": {"name": "Test"},
             "_actor_id": "actor-1",
         }
-        result = handler(preview)  # noqa: F841
+        handler(preview)
         # load_recent_cards is NOT called inline by the handler;
         # it is invoked by the .then() chain wired in _wire_create_scenario.
         mock_load.assert_not_called()

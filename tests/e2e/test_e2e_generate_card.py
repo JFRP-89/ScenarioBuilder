@@ -4,10 +4,9 @@ import contextlib
 import re
 
 import pytest
+from e2e.utils import dump_debug_artifacts, fill_required_text_fields
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator
-
-from tests.e2e.utils import dump_debug_artifacts
 
 ACTOR_LABELS = ["actor", "x-actor-id", "actor id"]
 MODE_LABELS = ["mode"]
@@ -17,7 +16,8 @@ VISIBILITY_LABELS = ["visibility"]
 
 
 @pytest.mark.e2e
-def test_generate_card_happy_path(e2e_services, wait_for_health, page):
+@pytest.mark.usefixtures("e2e_services")
+def test_generate_card_happy_path(wait_for_health, page):
     """Simula usuario generando card desde Gradio y valida que aparece card_id."""
     wait_for_health()
 
@@ -29,7 +29,7 @@ def test_generate_card_happy_path(e2e_services, wait_for_health, page):
         _fill_actor_id(page)
         _fill_mode(page)
         _fill_seed(page)
-        _fill_required_text_fields(page)
+        fill_required_text_fields(page)
         _fill_table_preset_if_present(page)
         _fill_visibility_if_present(page)
 
@@ -107,22 +107,6 @@ def _fill_table_preset_if_present(page) -> None:
         _select_first_available_option(locator, ["standard", "massive"])
 
 
-def _fill_required_text_fields(page) -> None:
-    """Fill required text fields so the API accepts the request."""
-    _fields = {
-        "scenario-name-input": "E2E Test Scenario",
-        "armies-input": "Test armies",
-        "deployment": "Standard",
-        "layout": "Open Field",
-        "objectives": "Hold Ground",
-        "initial_priority": "None",
-    }
-    for elem_id, value in _fields.items():
-        locator = page.locator(f"#{elem_id} input, #{elem_id} textarea")
-        if locator.count() > 0:
-            locator.first.fill(value)
-
-
 def _fill_visibility_if_present(page) -> None:
     locator = _find_by_labels_or_placeholder(page, VISIBILITY_LABELS)
     if locator is None:
@@ -187,11 +171,11 @@ def _navigate_to_create_page(page) -> None:
 
 
 def _extract_card_id(html: str) -> str:
-    match = re.search(r"card_id\"?\s*[:=]\s*\"?([a-zA-Z0-9_-]+)", html, re.I)
+    match = re.search(r"card_id\"?\s*[:=]\s*\"?([a-z0-9_-]+)", html, re.I)
     if match:
         return match.group(1)
 
-    match = re.search(r"(card-[a-zA-Z0-9_-]+)", html, re.I)
+    match = re.search(r"(card-[a-z0-9_-]+)", html, re.I)
     if match:
         return match.group(1)
 

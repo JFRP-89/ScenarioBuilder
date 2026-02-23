@@ -8,9 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+from adapters.ui_gradio.ui.wiring._scenography._polygon import (
+    parse_polygon_points,
+)
 from adapters.ui_gradio.units import to_mm
-
-from ._polygon import parse_polygon_points
 
 # ── Per-type builders ───────────────────────────────────────────────────
 

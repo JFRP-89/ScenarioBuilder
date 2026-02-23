@@ -42,7 +42,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src"]
+known-first-party = ["src", "infrastructure", "domain", "application", "adapters", "helpers"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/adapters/http_flask/routes/maps.py" = ["I001"]
@@ -59,19 +59,22 @@ disable = [
     "line-too-long",  # Handled by ruff/black
     "missing-docstring",  # Optional; enable for stricter mode
     "too-many-arguments",  # Informational only
+    "wrong-import-order",  # Handled by ruff isort (I001) with known-first-party
 ]
 
 [tool.pylint.design]
 max-locals = 15
 max-branches = 12
 max-statements = 50
+max-attributes = 20
 
 [tool.pylint.typecheck]
 generated-members = ["alembic.op.*", "alembic.context.*"]
 
 [tool.pylint.main]
 ignore-paths = ["^alembic[/\\\\]"]
-
+init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'tests')"
+source-roots = ["src", "tests"]
 [tool.radon]
 exclude = ".git,__pycache__,.venv,venv,build,dist,tests"
 ignore-nosec = false
@@ -80,6 +83,10 @@ ignore-nosec = false
 paths = ["src"]
 exclude = [".venv", "venv", "build", "dist", "tests"]
 min_confidence = 80
+
+[tool.pyright]
+pythonVersion = "3.11"
+extraPaths = ["src", "tests"]
 
 [tool.mypy]
 python_version = "3.11"

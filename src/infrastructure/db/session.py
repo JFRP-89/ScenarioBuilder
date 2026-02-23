@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _escape_password_in_url(url_str: str) -> str:
+def escape_password_in_url(url_str: str) -> str:
     """Escape special characters in PostgreSQL URL password."""
     if "://" not in url_str or "@" not in url_str:
         return url_str
@@ -52,7 +52,7 @@ def _build_engine() -> Engine | None:
     raw_url = os.environ.get("DATABASE_URL", "")
     if not raw_url:
         return None
-    url = _escape_password_in_url(raw_url)
+    url = escape_password_in_url(raw_url)
     return create_engine(
         url,
         echo=os.environ.get("SQL_ECHO", "false").lower() == "true",
@@ -167,3 +167,15 @@ def init_db() -> None:
     if eng is None:
         raise RuntimeError("DATABASE_URL is not set — cannot initialise the database.")
     Base.metadata.create_all(bind=eng)
+
+
+def reset_lazy_state() -> None:
+    """Reset the lazily-initialised engine and session factory.
+
+    Used by test teardown to dispose of stale connections and prevent
+    them from leaking into subsequent test modules.
+    """
+    if _LazyState.engine is not None:
+        _LazyState.engine.dispose()
+    _LazyState.engine = None
+    _LazyState.session_local = None

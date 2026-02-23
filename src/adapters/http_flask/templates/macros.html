@@ -1,0 +1,126 @@
+{# ── Reusable Jinja macros for ScenarioBuilder "tactical dark" design ── #}
+
+{# ── Button ── #}
+{% macro sb_btn(text, variant="primary", size="", type="submit", id="", classes="", disabled=False, block=False) %}
+<button
+  type="{{ type }}"
+  {% if id %}id="{{ id }}"{% endif %}
+  class="sb-btn sb-btn--{{ variant }}{% if size %} sb-btn--{{ size }}{% endif %}{% if block %} sb-btn--block{% endif %}{% if classes %} {{ classes }}{% endif %}"
+  {% if disabled %}disabled{% endif %}
+>{{ text }}</button>
+{% endmacro %}
+
+{# ── Link styled as button ── #}
+{% macro sb_btn_link(text, href, variant="primary", size="", classes="") %}
+<a href="{{ href }}" class="sb-btn sb-btn--{{ variant }}{% if size %} sb-btn--{{ size }}{% endif %}{% if classes %} {{ classes }}{% endif %}">{{ text }}</a>
+{% endmacro %}
+
+{# ── Input field ── #}
+{% macro sb_input(name, label="", type="text", placeholder="", id="", required=False, autofocus=False, classes="", value="") %}
+<div class="sb-field">
+  {% if label %}<label class="sb-label" for="{{ id or name }}">{{ label }}</label>{% endif %}
+  <input
+    id="{{ id or name }}"
+    name="{{ name }}"
+    type="{{ type }}"
+    placeholder="{{ placeholder }}"
+    value="{{ value }}"
+    class="sb-input{% if classes %} {{ classes }}{% endif %}"
+    {% if required %}required{% endif %}
+    {% if autofocus %}autofocus{% endif %}
+    autocomplete="off"
+  >
+</div>
+{% endmacro %}
+
+{# ── Input with hint ── #}
+{% macro sb_input_hinted(name, label="", type="text", placeholder="", id="", hint_id="", required=False, classes="") %}
+{% set field_id = id or (name ~ '_hinted') %}
+<div class="sb-field">
+  {% if label %}<label class="sb-label" for="{{ field_id }}">{{ label }}</label>{% endif %}
+  <input
+    id="{{ field_id }}"
+    name="{{ name }}"
+    type="{{ type }}"
+    placeholder="{{ placeholder }}"
+    class="sb-input{% if classes %} {{ classes }}{% endif %}"
+    {% if required %}required{% endif %}
+    autocomplete="off"
+  >
+  <div class="sb-field-hint sb-field-hint--neutral" id="{{ hint_id }}">&nbsp;</div>
+</div>
+{% endmacro %}
+
+{# ── Chip / Badge ── #}
+{% macro sb_chip(text, variant="") %}
+<span class="sb-chip{% if variant %} sb-chip--{{ variant }}{% endif %}">{{ text }}</span>
+{% endmacro %}
+
+{% macro sb_badge(text) %}
+<span class="sb-badge">{{ text }}</span>
+{% endmacro %}
+
+{# ── Card ── #}
+{% macro sb_card(classes="", id="") %}
+<div class="sb-card{% if classes %} {{ classes }}{% endif %}" {% if id %}id="{{ id }}"{% endif %}>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
+{# ── Panel ── #}
+{% macro sb_panel(classes="", id="") %}
+<div class="sb-panel{% if classes %} {{ classes }}{% endif %}" {% if id %}id="{{ id }}"{% endif %}>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
+{# ── Empty state ── #}
+{% macro sb_empty(icon="📭", title="Nothing here yet", desc="") %}
+<div class="sb-empty">
+  <div class="sb-empty__icon">{{ icon }}</div>
+  <div class="sb-empty__title">{{ title }}</div>
+  {% if desc %}<div class="sb-empty__desc">{{ desc }}</div>{% endif %}
+  {{ caller() if caller is defined else '' }}
+</div>
+{% endmacro %}
+
+{# ── Modal confirm ── #}
+{% macro sb_modal(id, title, body_text, confirm_text="Confirm", cancel_text="Cancel", danger=False) %}
+<div class="sb-modal-overlay" id="{{ id }}">
+  <div class="sb-modal">
+    <div class="sb-modal__title">{{ title }}</div>
+    <div class="sb-modal__body">{{ body_text }}</div>
+    <div class="sb-modal__actions">
+      <button class="sb-btn sb-btn--ghost sb-btn--sm" onclick="SB.closeModal('{{ id }}')">{{ cancel_text }}</button>
+      <button class="sb-btn sb-btn--{{ 'danger' if danger else 'primary' }} sb-btn--sm" data-modal-confirm="{{ id }}">{{ confirm_text }}</button>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{# ── Pagination ── #}
+{% macro sb_pagination(prev_id="", next_id="", info_id="", info_text="Page 1") %}
+<div class="sb-pagination">
+  <button class="sb-btn sb-btn--ghost sb-btn--sm" {% if prev_id %}id="{{ prev_id }}"{% endif %}>← Previous</button>
+  <span class="sb-pagination__info" {% if info_id %}id="{{ info_id }}"{% endif %}>{{ info_text }}</span>
+  <button class="sb-btn sb-btn--ghost sb-btn--sm" {% if next_id %}id="{{ next_id }}"{% endif %}>Next →</button>
+</div>
+{% endmacro %}
+
+{# ── SVG preview frame ── #}
+{% macro sb_svg_frame(content="", size="md", classes="") %}
+<div class="sb-svg-frame{% if classes %} {{ classes }}{% endif %}">
+  <div class="sb-svg-preview">
+    {% if content %}{{ content|safe }}{% else %}
+    <div class="sb-svg-placeholder sb-svg-placeholder--{{ size }}">
+      Map preview will appear here
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{# ── Seed display with copy ── #}
+{% macro sb_seed_display(seed) %}
+<button type="button" class="sb-seed" title="Click to copy" onclick="SB.copySeed(this)">{{ seed }}</button>
+{% endmacro %}

@@ -27,25 +27,6 @@ from domain.security.authz import Visibility
 
 
 # =============================================================================
-# FIXTURES - Valid domain objects
-# =============================================================================
-@pytest.fixture
-def table() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def valid_shapes() -> list[dict]:
-    """Shapes valid for standard table (1200x1200 mm)."""
-    return [{"type": "rect", "x": 100, "y": 100, "width": 200, "height": 200}]
-
-
-@pytest.fixture
-def map_spec(table: TableSize, valid_shapes: list[dict]) -> MapSpec:
-    return MapSpec(table=table, shapes=valid_shapes)
-
-
-# =============================================================================
 # CARD FACTORIES
 # =============================================================================
 def make_card(
@@ -296,8 +277,6 @@ class TestListCardsInvalidActorId:
     )
     def test_invalid_actor_id_raises_error(
         self,
-        table: TableSize,
-        map_spec: MapSpec,
         invalid_actor_id: Optional[str],
     ):
         from application.use_cases.list_cards import ListCards, ListCardsRequest
@@ -324,8 +303,6 @@ class TestListCardsInvalidFilter:
     )
     def test_invalid_filter_raises_error(
         self,
-        table: TableSize,
-        map_spec: MapSpec,
         invalid_filter: Optional[str],
     ):
         from application.use_cases.list_cards import ListCards, ListCardsRequest
@@ -337,13 +314,3 @@ class TestListCardsInvalidFilter:
 
         with pytest.raises(ValidationError, match="(?i)filter"):
             use_case.execute(request)
-
-
-# =============================================================================
-# TODO(future): Additional tests for hardening phase:
-# - Test pagination
-# - Test sorting
-# - Test empty results
-# - Test large datasets
-# - Test response includes table_mm and shapes
-# =============================================================================

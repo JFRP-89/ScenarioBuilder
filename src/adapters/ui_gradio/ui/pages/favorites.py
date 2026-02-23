@@ -1,6 +1,7 @@
 """Favorites page — shows cards the user has favorited.
 
 Similar to the list page, but filtered to favorites only.
+Uses the shared CONTROL BAR component for units + refresh.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import gradio as gr
+
+from adapters.ui_gradio.ui.components.control_bar import build_control_bar
 
 
 def build_favorites_page() -> SimpleNamespace:
@@ -30,19 +33,11 @@ def build_favorites_page() -> SimpleNamespace:
                 elem_id="favorites-back-btn",
             )
             gr.Markdown("## ⭐ My Favorites")
-            unit_selector = gr.Radio(
-                choices=["cm", "in", "ft"],
-                value="cm",
-                label="Units",
-                elem_id="favorites-unit-selector",
-                scale=0,
-            )
-            reload_btn = gr.Button(
-                "Refresh",
-                variant="secondary",
-                size="sm",
-                elem_id="favorites-reload-btn",
-            )
+
+        # ── CONTROL BAR (units + refresh only) ───────────────────────
+        cb = build_control_bar(page_prefix="favorites")
+        unit_selector = cb.unit_selector
+        reload_btn = cb.reload_btn
 
         with gr.Row():
             search_box = gr.Textbox(
@@ -63,7 +58,7 @@ def build_favorites_page() -> SimpleNamespace:
 
         cards_html = gr.HTML(
             value=(
-                '<div style="text-align:center;color:#999;padding:40px 0;">'
+                '<div style="text-align:center;color:#5a7090;padding:40px 0;">'
                 "Loading favorites…</div>"
             ),
             elem_id="favorites-cards",

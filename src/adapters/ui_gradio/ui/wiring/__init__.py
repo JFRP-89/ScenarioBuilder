@@ -192,6 +192,7 @@ _OPTIONAL_KEYS: frozenset[str] = frozenset(
         "home_fav_ids_cache_state",
         "editing_card_id",
         "create_heading_md",
+        "map_units_radio",
     }
 )
 
@@ -386,5 +387,6 @@ def wire_events(**kwargs: Any) -> None:
             home_fav_ids_cache_state=kwargs.get("home_fav_ids_cache_state"),
             editing_card_id=kwargs.get("editing_card_id"),
             create_heading_md=kwargs.get("create_heading_md"),
+            map_units_radio=kwargs.get("map_units_radio"),
         ),
     )

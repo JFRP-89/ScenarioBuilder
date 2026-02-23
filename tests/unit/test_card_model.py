@@ -19,6 +19,7 @@ MVP contract:
 from __future__ import annotations
 
 import pytest
+
 from domain.cards.card import Card, GameMode, parse_game_mode
 from domain.cards.generator import _pick
 from domain.errors import ValidationError
@@ -26,34 +27,6 @@ from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
 from domain.seed import get_rng
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def table() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def shapes() -> list[dict]:
-    return [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
-
-
-@pytest.fixture
-def map_spec(table: TableSize, shapes: list[dict]) -> MapSpec:
-    return MapSpec(table=table, shapes=shapes)
-
-
-@pytest.fixture
-def owner() -> str:
-    return "user_a"
-
-
-@pytest.fixture
-def other() -> str:
-    return "user_b"
 
 
 # =============================================================================
@@ -343,12 +316,6 @@ def test_card_rejects_invalid_mode_type(
             table=table,
             map_spec=map_spec,
         )
-
-
-# =============================================================================
-# TODO(hardening): Add parse_game_mode(), shared_with hardening, and advanced
-# table coherence/relaxation tests in a separate hardening PR.
-# =============================================================================
 
 
 # =============================================================================

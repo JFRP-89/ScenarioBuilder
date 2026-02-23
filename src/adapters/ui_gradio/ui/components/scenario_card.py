@@ -81,24 +81,45 @@ def make_square_placeholder(size_px: int = 100) -> str:
         HTML string with a placeholder icon.
     """
     return (
-        f'<div style="width:{size_px}px;height:{size_px}px;'
-        "display:flex;align-items:center;justify-content:center;"
-        'border:2px solid #ddd;border-radius:8px;background:#f5f5f5;">'
-        '<span style="font-size:48px;color:#999;font-weight:300;">?</span>'
+        f'<div class="sb-thumb" style="width:{size_px}px;height:{size_px}px;">'
+        '<span class="sb-thumb__placeholder">?</span>'
         "</div>"
+    )
+
+
+def make_thumb_frame(svg_content: str, size_px: int = 100) -> str:
+    """Wrap an SVG string in a fixed-size thumbnail frame.
+
+    The SVG is scaled to fit within the square while preserving aspect ratio.
+
+    Args:
+        svg_content: Raw SVG markup to embed.
+        size_px: Side length (px) for the square container.
+
+    Returns:
+        HTML string with the SVG embedded in a dark frame.
+    """
+    if not svg_content or not svg_content.strip():
+        return make_square_placeholder(size_px)
+    return (
+        f'<div class="sb-thumb" style="width:{size_px}px;height:{size_px}px;">'
+        f'<div class="sb-thumb__inner">'
+        f"{svg_content}"
+        "</div></div>"
     )
 
 
 # ============================================================================
 # Card HTML helpers (extracted to reduce cognitive complexity)
 # ============================================================================
-def _build_actions_html(card_id: str, fav_icon: str, fav_color: str) -> str:
+def _build_actions_html(card_id: str, fav_icon: str) -> str:
     """Build the View + Favorite action buttons HTML for a card."""
+    fav_class = "sb-card__fav--active" if fav_icon == "★" else "sb-card__fav--inactive"
     toggle_js = (
         "(function(btn){"
         "var isFav=btn.textContent.trim()==='★';"
-        "if(isFav){btn.textContent='☆';btn.style.color='#999';}"
-        "else{btn.textContent='★';btn.style.color='#f5a623';}"
+        "if(isFav){btn.textContent='☆';btn.className='sb-card__fav sb-card__fav--inactive';}"
+        "else{btn.textContent='★';btn.className='sb-card__fav sb-card__fav--active';}"
         "var favPage=document.getElementById('page-favorites');"
         "if(favPage && favPage.contains(btn)){"
         "var style=window.getComputedStyle(favPage);"
@@ -113,10 +134,9 @@ def _build_actions_html(card_id: str, fav_icon: str, fav_color: str) -> str:
         "})(this)"
     )
     return (
-        '<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">'
-        f'<button class="card-view-btn" data-card-id="{card_id}" '
-        'style="padding:4px 10px;font-size:12px;cursor:pointer;'
-        'border:1px solid #ccc;border-radius:4px;background:#fff;" '
+        '<div class="sb-card__actions">'
+        f'<button class="sb-btn sb-btn--secondary sb-btn--sm card-view-btn" '
+        f'data-card-id="{card_id}" '
         'onclick="(function(btn){'
         "var inp=document.querySelector('#view-card-id textarea,#view-card-id input');"
         "if(inp){inp.value=btn.getAttribute('data-card-id')||'';"
@@ -125,9 +145,7 @@ def _build_actions_html(card_id: str, fav_icon: str, fav_color: str) -> str:
         "if(btn2)btn2.click();},0);"
         '})(this)">'
         "View</button>"
-        f'<span class="card-fav-btn" data-card-id="{card_id}" '
-        f'style="font-size:18px;cursor:pointer;color:{fav_color};'
-        f'user-select:none;" '
+        f'<span class="sb-card__fav {fav_class}" data-card-id="{card_id}" '
         f'title="Toggle favorite" '
         f'onclick="{toggle_js}">{fav_icon}</span>'
         "</div>"
@@ -189,27 +207,22 @@ def render_card_html(
     )
 
     fav_icon = "★" if is_favorite else "☆"
-    fav_color = "#f5a623" if is_favorite else "#999"
 
     preview_html = svg_preview or make_square_placeholder(100)
-    actions_html = (
-        _build_actions_html(card_id, fav_icon, fav_color) if show_actions else ""
-    )
+    actions_html = _build_actions_html(card_id, fav_icon) if show_actions else ""
     display_name = _build_display_name(name, mode, seed)
 
     return (
-        f'<div data-card-id="{card_id}" style="display:flex;gap:12px;padding:10px;'
-        "border:1px solid #e0e0e0;border-radius:6px;margin-bottom:8px;"
-        'background:#fff;">'
+        f'<div data-card-id="{card_id}" class="sb-card">'
         f"{preview_html}"
-        '<div style="flex:1;min-width:0;">'
-        f'<div style="font-weight:600;font-size:14px;margin-bottom:4px;">'
-        f"{display_name}</div>"
-        f'<div style="font-size:12px;color:#666;">'
-        f"Mode: {mode} · Seed: {seed}"
+        '<div class="sb-card__body">'
+        f'<div class="sb-card__title">{display_name}</div>'
+        f'<div class="sb-card__meta">'
+        f"Mode: {mode} · Seed: "
+        f'<span class="sb-card__seed">{seed}</span>'
         + (f" · Table: {table_info}" if table_info else "")
         + "</div>"
-        + f'<div style="font-size:11px;color:#999;">'
+        + f'<div class="sb-card__sub">'
         f"Owner: {owner} · {visibility}</div>"
         f"{actions_html}"
         "</div>"
@@ -222,6 +235,7 @@ def render_card_list_html(
     *,
     favorite_ids: set[str] | None = None,
     unit: str = "cm",
+    actor_id: str = "",
 ) -> str:
     """Render a list of scenario cards as HTML.
 
@@ -229,24 +243,35 @@ def render_card_list_html(
         cards: List of card dicts.
         favorite_ids: Set of card IDs that are favorites.
         unit: Unit for displaying dimensions ('cm', 'in', 'ft').
+        actor_id: Actor ID for SVG thumbnail rendering.
 
     Returns:
         Combined HTML for all cards, or an empty-state message.
     """
     if not cards:
         return (
-            '<div style="text-align:center;color:#999;padding:40px 0;">'
+            '<div class="sb-empty">'
+            '<div class="sb-empty__icon">📭</div>'
             "No scenarios found.</div>"
         )
     fav_ids = favorite_ids or set()
-    # No longer using SVG previews - use placeholder instead
+
+    # Lazy-import to avoid circular dependency at module level
+    from adapters.ui_gradio.services.navigation import get_card_svg_thumb
+
     fragments: list[str] = []
     for card in cards:
         cid = card.get("card_id", "")
+        # Generate SVG thumbnail (falls back to placeholder on error)
+        if actor_id and cid:
+            svg_raw = get_card_svg_thumb(actor_id, cid)
+            thumb = make_thumb_frame(svg_raw, 100)
+        else:
+            thumb = make_square_placeholder(100)
         fragments.append(
             render_card_html(
                 card,
-                svg_preview=make_square_placeholder(100),
+                svg_preview=thumb,
                 is_favorite=cid in fav_ids,
                 unit=unit,
             )

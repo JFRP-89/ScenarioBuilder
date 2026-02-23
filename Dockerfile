@@ -1,5 +1,9 @@
 # =============================================================================
-# Multi-stage Dockerfile for ScenarioBuilder
+# Multi-stage Dockerfile for ScenarioBuilder — Production Image
+# =============================================================================
+# Target: Cloud-ready ASGI application (Uvicorn)
+# Size optimization: slim base, multi-stage build, production deps only
+# Security: non-root user, minimal surface area
 # =============================================================================
 FROM python:3.11-slim AS base
 
@@ -28,7 +32,7 @@ RUN python -m pip install --upgrade pip && \
     python -m pip install --no-cache-dir -r requirements.txt
 
 # =============================================================================
-# Final stage (production — cloud-ready)
+# Final stage: Production runtime (ASGI + migrations — fail-fast)
 # =============================================================================
 FROM base AS final
 
@@ -41,23 +45,28 @@ COPY src/ /app/src/
 COPY content/ /app/content/
 COPY alembic/ /app/alembic/
 COPY alembic.ini /app/
-COPY pytest.ini /app/
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Create non-root user for security
-RUN useradd -m -u 1000 -s /bin/bash appuser && \
+RUN chmod +x /app/docker-entrypoint.sh && \
+    useradd -m -u 1000 -s /bin/bash appuser && \
     chown -R appuser:appuser /app
 
 USER appuser
 
 # PORT is configurable via env var (PaaS like Railway, Render, Fly.io set it)
 ENV HOST=0.0.0.0 \
-    PORT=8000
+    PORT=8000 \
+    LOG_LEVEL=info
 
-EXPOSE ${PORT}
+EXPOSE 8000
 
 # Healthcheck for orchestrators (Docker Swarm, K8s liveness, ECS, etc.)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run migrations then start Uvicorn ASGI server on configurable host:port
-CMD sh -c "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host ${HOST} --port ${PORT}"
+# Run migrations then start Uvicorn ASGI server (exec form)
+# Production: Migrations fail-fast on startup, fails entire container (correct behavior)
+ENTRYPOINT ["./docker-entrypoint.sh"]

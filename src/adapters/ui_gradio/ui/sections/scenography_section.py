@@ -3,6 +3,7 @@
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.components import build_unit_selector
 
 # Scenography types

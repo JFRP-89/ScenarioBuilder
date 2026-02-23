@@ -20,6 +20,7 @@ from infrastructure.auth.user_store import (
     change_password,
     clear_failed_attempts,
     create_user,
+    email_exists,
     get_user_profile,
     is_locked,
     record_failed_attempt,
@@ -43,6 +44,7 @@ _ACCOUNT_LOCKED_TPL = "Account locked until {until}."
 _SESSION_EXPIRED = "Session expired."
 _REAUTH_REQUIRED = "Re-authentication required."
 _USERNAME_TAKEN = "Username is already taken."
+_EMAIL_TAKEN = "Email is already registered."
 _TIME_FMT = "%H:%M:%S UTC"
 
 
@@ -73,7 +75,7 @@ def _validate_registration_fields(
         errors.append("Passwords do not match.")
 
     email = email.strip()
-    if email and not validate_email(email):
+    if not validate_email(email):
         errors.append("Invalid email format.")
 
     name = name.strip()
@@ -118,11 +120,17 @@ def register(
             "errors": [_USERNAME_TAKEN],
         }
 
-    # ── Create user ──────────────────────────────────────────────
+    # ── Email availability ───────────────────────────────────────
+    if email_exists(email):
+        return {
+            "ok": False,
+            "message": _EMAIL_TAKEN,
+            "errors": [_EMAIL_TAKEN],
+        }
+
+    # ── Create user ──────────────────────────────────────────
     if not name:
         name = username
-    if not email:
-        email = ""
 
     created = create_user(username, password, name, email)
     if not created:
@@ -329,6 +337,11 @@ def update_profile(
     if not validate_email(email):
         return {"ok": False, "message": "Invalid email format."}
 
+    # ── Email uniqueness (exclude current user) ──────────────────
+    actor_id = session["actor_id"]
+    if email_exists(email, exclude_username=actor_id):
+        return {"ok": False, "message": _EMAIL_TAKEN}
+
     # ── Optional password change ─────────────────────────────────
     wants_pw_change = bool(new_password or confirm_new_password)
     if wants_pw_change:
@@ -338,11 +351,11 @@ def update_profile(
         if not pw_ok:
             return {"ok": False, "message": pw_errors[0]}
 
-    if not update_user_profile(session["actor_id"], name, email):
+    if not update_user_profile(actor_id, name, email):
         return {"ok": False, "message": "User not found."}
 
     if wants_pw_change:
-        change_password(session["actor_id"], new_password)
+        change_password(actor_id, new_password)
         return {"ok": True, "message": "Profile and password updated."}
 
     return {"ok": True, "message": "Profile updated."}

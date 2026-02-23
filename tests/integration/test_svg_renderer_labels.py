@@ -8,6 +8,24 @@ Covers uncovered branches in svg_map_renderer.py:
 
 from __future__ import annotations
 
+from infrastructure.maps._renderer._geometry import (
+    calculate_circle_center,
+    calculate_polygon_center,
+    calculate_rect_center,
+    estimate_text_width,
+    find_best_objective_position,
+    get_position_preference_order,
+    text_fits_in_bounds,
+)
+from infrastructure.maps._renderer._primitives import (
+    circle_svg,
+    objective_point_svg,
+    polygon_svg,
+    rect_svg,
+    shape_svg,
+    svg_header,
+    text_label_svg,
+)
 from infrastructure.maps.svg_map_renderer import SvgMapRenderer
 
 
@@ -94,7 +112,8 @@ class TestRenderWithLabels:
         r = self._renderer()
         shapes = [{"type": "rect", "x": 10, "y": 10, "width": 50, "height": 50}]
         svg = r.render(self._table(), shapes)
-        assert "<text" not in svg
+        # No shape labels (overlay dimension labels may still exist)
+        assert 'class="sb-label' not in svg
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -123,87 +142,66 @@ class TestRenderSvgLegacy:
 # ═════════════════════════════════════════════════════════════════════════════
 class TestRendererDelegates:
     def test_calculate_rect_center(self) -> None:
-        r = SvgMapRenderer()
-        cx, cy = r._calculate_rect_center(
+        cx, cy = calculate_rect_center(
             {"x": 100, "y": 100, "width": 200, "height": 100}
         )
         assert cx == 200
         assert cy == 150
 
     def test_calculate_circle_center(self) -> None:
-        r = SvgMapRenderer()
-        cx, cy = r._calculate_circle_center({"cx": 300, "cy": 400})
+        cx, cy = calculate_circle_center({"cx": 300, "cy": 400})
         assert (cx, cy) == (300, 400)
 
     def test_calculate_polygon_center(self) -> None:
-        r = SvgMapRenderer()
         pts = [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}]
-        cx, cy = r._calculate_polygon_center({"points": pts})
+        cx, _ = calculate_polygon_center({"points": pts})
         assert cx == 50
 
     def test_estimate_text_width(self) -> None:
-        r = SvgMapRenderer()
-        w = r._estimate_text_width("Hello")
+        w = estimate_text_width("Hello")
         assert w > 0
 
     def test_text_fits_in_bounds(self) -> None:
-        r = SvgMapRenderer()
-        r.table_width_mm = 1000
-        r.table_height_mm = 1000
-        assert r._text_fits_in_bounds("Hi", 500, 500) is True
+        assert text_fits_in_bounds("Hi", 500, 500, 1000, 1000) is True
 
     def test_get_position_preference_order(self) -> None:
-        r = SvgMapRenderer()
-        r.table_width_mm = 1200
-        r.table_height_mm = 800
-        positions = r._get_position_preference_order(600, 400)
+        positions = get_position_preference_order(600, 400, 1200, 800)
         assert len(positions) == 4
 
     def test_find_best_objective_position(self) -> None:
-        r = SvgMapRenderer()
-        r.table_width_mm = 1200
-        r.table_height_mm = 800
-        x, y, d = r._find_best_objective_position(600, 400, "Test")
+        _, _, d = find_best_objective_position(600, 400, "Test", 1200, 800)
         assert d in ("up", "down", "left", "right")
 
     def test_svg_header(self) -> None:
-        r = SvgMapRenderer()
-        h = r._svg_header(100, 200)
+        h = svg_header(100, 200)
         assert "<svg" in h
 
     def test_rect_svg(self) -> None:
-        r = SvgMapRenderer()
-        s = r._rect_svg({"x": 0, "y": 0, "width": 50, "height": 50})
+        s = rect_svg({"x": 0, "y": 0, "width": 50, "height": 50})
         assert "<rect" in s
 
     def test_circle_svg(self) -> None:
-        r = SvgMapRenderer()
-        s = r._circle_svg({"cx": 50, "cy": 50, "r": 25})
+        s = circle_svg({"cx": 50, "cy": 50, "r": 25})
         assert "<circle" in s
 
     def test_polygon_svg(self) -> None:
-        r = SvgMapRenderer()
-        s = r._polygon_svg(
+        s = polygon_svg(
             {"points": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 5, "y": 10}]}
         )
         assert "<polygon" in s
 
     def test_objective_point_svg(self) -> None:
-        r = SvgMapRenderer()
-        s = r._objective_point_svg({"cx": 50, "cy": 50, "r": 25})
+        s = objective_point_svg({"cx": 50, "cy": 50, "r": 25})
         assert "circle" in s.lower() or "<" in s
 
     def test_shape_svg_rect(self) -> None:
-        r = SvgMapRenderer()
-        s = r._shape_svg({"type": "rect", "x": 0, "y": 0, "width": 10, "height": 10})
+        s = shape_svg({"type": "rect", "x": 0, "y": 0, "width": 10, "height": 10})
         assert s is not None
 
     def test_shape_svg_unknown(self) -> None:
-        r = SvgMapRenderer()
-        s = r._shape_svg({"type": "unknown"})
+        s = shape_svg({"type": "unknown"})
         assert s is None
 
     def test_text_label_svg(self) -> None:
-        r = SvgMapRenderer()
-        s = r._text_label_svg(100, 200, "Hello")
+        s = text_label_svg(100, 200, "Hello")
         assert "Hello" in s

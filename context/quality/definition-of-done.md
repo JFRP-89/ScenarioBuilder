@@ -4,21 +4,19 @@ Para dar algo por "hecho" en cualquier PR/feature:
 
 ## Tests
 - [ ] Tests target en verde (unit/integration según alcance)
-- [ ] Suite completa pasa (`pytest tests/unit tests/integration -q`)
-- [ ] Todos los tests E2E pasan (si aplica): `pytest tests/e2e -q`
-- [ ] Cobertura cumple policy:
-  - domain/ → 100%
-  - application/ + infrastructure/ → 80%
-  - adapters/ → best-effort (60%+)
+- [ ] Suite completa pasa: `pytest tests/unit tests/integration -q` (1972+ unit tests)
+- [ ] Todos los tests E2E pasan (si aplica): `pytest tests/e2e -q` (100+ tests)
+- [ ] Cobertura cumple policy **obligatorio en toda PR**:
+  - domain/ → **100%** (738+ statements) REQUIRED
+  - application/ → ≥**80%** (820+ statements) REQUIRED
+  - infrastructure/adapters/ → best-effort (pragmatic)
 
-## Código
-- [ ] Lint pasa: `ruff check src/ tests/`
-- [ ] No imports `src.` nuevos (imports absolutos desde paquete)
-- [ ] No lógica de negocio en adapters (solo wiring/mapping)
-- [ ] Facades <450 líneas (ideal <350)
-- [ ] Módulos internos (_*/) tienen tests dedicados (1:1)
-- [ ] # noqa solo cuando es inevitable + comentario justificando
-- [ ] Sin warnings de pytest (deprecations, etc.)
+## Code Quality Gates (REQUIRED — 0 tolerance)
+- [ ] Lint limpio: `ruff check src/ tests/` → 0 errors
+- [ ] Formato compliant: `black --check src/ tests/` → all files compliant
+- [ ] Type safety: `mypy src/ --ignore-missing-imports` → 0 issues (205+ src files)
+- [ ] Security SAST: `bandit -r src/domain -q` → 0 issues in domain REQUIRED
+- [ ] Type checking on tests: `mypy tests/ --ignore-missing-imports` → 0 issues (160+ test files)
 
 ## Arquitectura
 - [ ] Respeta capas (ver `context/architecture/layers.md`)
@@ -52,17 +50,23 @@ Para dar algo por "hecho" en cualquier PR/feature:
 ## Checklist Rápido PR-Ready
 
 ```bash
-# 1. Tests
-pytest tests/unit tests/integration -q
+# 1. Quality gates (REQUIRED — must all pass)
+ruff check src/ tests/                          # 0 errors
+black --check src/ tests/                       # all compliant
+mypy src/ --ignore-missing-imports              # 0 issues
+mypy tests/ --ignore-missing-imports            # 0 issues
+bandit -r src/domain -q                         # 0 issues required
 
-# 2. Lint
-ruff check src/ tests/
+# 2. Tests (REQUIRED)
+pytest tests/unit tests/integration -q          # all passing
 
-# 3. Cobertura (opcional local)
-pytest --cov=src --cov-report=term-missing
+# 3. Coverage gates (REQUIRED)
+pytest --cov=src/domain --cov-fail-under=100   # domain: 100%
+pytest --cov=src/application --cov-fail-under=80  # application: ≥80%
 
-# 4. Baseline check
-# Confirmar que el número de tests pass >= baseline esperado
+# 4. DB tests (optional local, required in CI)
+export RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql://...
+pytest tests/unit tests/integration -q          # 3064+ tests
 ```
 
 ## Ejemplos de "Done"
@@ -70,19 +74,22 @@ pytest --cov=src --cov-report=term-missing
 ### Caso 1: Nuevo use case
 - ✅ Tests unit para DTO + execute()
 - ✅ Tests integration con repo in-memory
-- ✅ Tests E2E con Flask client
-- ✅ Cobertura domain 100%, application 80%
-- ✅ ruff clean
+- ✅ Tests E2E con Flask client (si aplica)
+- ✅ Cobertura domain 100% (gate), application ≥80% (gate)
+- ✅ **ruff clean** (0 errors)
+- ✅ **black compliant** (all files)
+- ✅ **mypy clean** (src/ + tests/, 0 issues)
+- ✅ **bandit clean** (domain, 0 issues)
 - ✅ CHANGELOG con entry
 
 ### Caso 2: Refactor facade (god-module split)
-- ✅ Baseline tests pass (ej: 1473)
+- ✅ Baseline tests pass (ej: 1972 actual)
 - ✅ Nuevos tests unit para internos (ej: +44)
-- ✅ Total tests pass (ej: 1517)
-- ✅ Facade <450 líneas
-- ✅ ruff clean (fix I001/F401)
-- ✅ Backward compatible (firma sin cambios)
-- ✅ AGENTS.md actualizado con nuevo estado
+- ✅ Facade sigue <450 líneas
+- ✅ Módulos internos 80%+ cobertura cada uno
+- ✅ Backward compatible (firma pública sin cambios)
+- ✅ Todas las quality gates passing (ruff, black, mypy, bandit)
+- ✅ Total tests pass (3064+ con database habilitada)
 
 ### Caso 3: Fix bug
 - ✅ Test que reproduce el bug (RED)

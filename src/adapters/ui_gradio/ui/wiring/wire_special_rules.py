@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio import handlers
 from adapters.ui_gradio.state_helpers import (
     get_special_rules_choices,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.components.svg_preview import _PLACEHOLDER_HTML
 
 
@@ -25,7 +26,7 @@ def build_form_resets() -> list[Any]:
         gr.update(value=""),  # layout
         gr.update(value=""),  # objectives
         gr.update(value=""),  # initial_priority
-        gr.update(value="public"),  # visibility
+        gr.update(value="private"),  # visibility
         gr.update(value=""),  # shared_with
         [],  # special_rules_state
         gr.update(value=False),  # objectives_with_vp_toggle

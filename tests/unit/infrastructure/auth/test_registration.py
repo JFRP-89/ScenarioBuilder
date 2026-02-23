@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import pytest
+
+from helpers import seed_test_users
 from infrastructure.auth import auth_service, session_store, user_store
 
 
 @pytest.fixture(autouse=True)
 def _clean():
-    """Reset all stores before each test."""
+    """Reset all stores before each test and seed test users."""
     session_store.reset_sessions()
     user_store.reset_stores()
+    seed_test_users()
     yield
     session_store.reset_sessions()
     user_store.reset_stores()
@@ -46,11 +49,24 @@ class TestCreateUser:
         assert profile["name"] == "New User"
         assert profile["email"] == "new@ex.com"
 
-    def test_cannot_overwrite_demo_user(self):
+    def test_cannot_overwrite_existing_user(self):
         ok = user_store.create_user("alice", "Str0ng!pw", "Fake", "fake@ex.com")
         assert ok is False
-        # Original demo user should still work
+        # Original user should still work
         assert user_store.verify_credentials("alice", "alice") is True
+
+    def test_create_duplicate_email_returns_false(self):
+        user_store.create_user("user-a", "Str0ng!pw", "A", "shared@ex.com")
+        ok = user_store.create_user("user-b", "Str0ng!pw", "B", "shared@ex.com")
+        assert ok is False
+
+    def test_create_empty_email_allowed_in_store(self):
+        """Store-level create_user does not validate format.
+
+        Format validation is the responsibility of auth_service.
+        """
+        ok = user_store.create_user("user-a", "Str0ng!pw", "A", "")
+        assert ok is True
 
 
 # ── register (auth_service) ─────────────────────────────────────────────────
@@ -76,7 +92,7 @@ class TestRegister:
             "Str0ng!pw",
             "Str0ng!pw",
             "",
-            "",
+            "newuser@ex.com",
         )
         session = session_store.get_session(str(result["session_id"]))
         assert session is not None
@@ -88,7 +104,7 @@ class TestRegister:
             "Str0ng!pw",
             "Str0ng!pw",
             "",
-            "",
+            "ab@ex.com",
         )
         assert result["ok"] is False
         assert "errors" in result
@@ -99,7 +115,7 @@ class TestRegister:
             "weak1234!",
             "weak1234!",
             "",
-            "",
+            "newuser@ex.com",
         )
         assert result["ok"] is False
         assert any("uppercase" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
@@ -110,7 +126,7 @@ class TestRegister:
             "Weakpass!",
             "Weakpass!",
             "",
-            "",
+            "newuser@ex.com",
         )
         assert result["ok"] is False
         assert any("digit" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
@@ -121,7 +137,7 @@ class TestRegister:
             "Weakpass1",
             "Weakpass1",
             "",
-            "",
+            "newuser@ex.com",
         )
         assert result["ok"] is False
         assert any("special" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
@@ -132,7 +148,7 @@ class TestRegister:
             "Ab1!",
             "Ab1!",
             "",
-            "",
+            "newuser@ex.com",
         )
         assert result["ok"] is False
         assert any("8 characters" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
@@ -143,7 +159,7 @@ class TestRegister:
             "Str0ng!pw",
             "Different1!",
             "",
-            "",
+            "newuser@ex.com",
         )
         assert result["ok"] is False
         assert any("match" in str(e) for e in result["errors"])  # type: ignore[attr-defined]
@@ -154,7 +170,7 @@ class TestRegister:
             "Str0ng!pw",
             "Str0ng!pw",
             "",
-            "",
+            "unique@ex.com",
         )
         assert result["ok"] is False
         assert "taken" in str(result["message"])
@@ -180,7 +196,7 @@ class TestRegister:
         )
         assert result["ok"] is True
 
-    def test_empty_email_accepted(self):
+    def test_empty_email_rejected(self):
         result = auth_service.register(
             "newuser",
             "Str0ng!pw",
@@ -188,10 +204,32 @@ class TestRegister:
             "",
             "",
         )
-        assert result["ok"] is True
+        assert result["ok"] is False
+        assert any("email" in str(e).lower() for e in result["errors"])  # type: ignore[attr-defined]
+
+    def test_duplicate_email_rejected(self):
+        auth_service.register(
+            "user-a", "Str0ng!pw", "Str0ng!pw", "A", "taken@example.com"
+        )
+        result = auth_service.register(
+            "user-b", "Str0ng!pw", "Str0ng!pw", "B", "taken@example.com"
+        )
+        assert result["ok"] is False
+        assert "email" in str(result["message"]).lower()
+
+    def test_duplicate_email_with_existing_user_rejected(self):
+        """Cannot register with an email already used by an existing user."""
+        existing_profile = user_store.get_user_profile("alice")
+        assert existing_profile is not None
+        demo_email = existing_profile["email"]
+        result = auth_service.register(
+            "newuser", "Str0ng!pw", "Str0ng!pw", "New", demo_email
+        )
+        assert result["ok"] is False
+        assert "email" in str(result["message"]).lower()
 
     def test_name_defaults_to_username(self):
-        auth_service.register("newuser", "Str0ng!pw", "Str0ng!pw", "", "")
+        auth_service.register("newuser", "Str0ng!pw", "Str0ng!pw", "", "newuser@ex.com")
         profile = user_store.get_user_profile("newuser")
         assert profile is not None
         assert profile["name"] == "newuser"
@@ -202,7 +240,7 @@ class TestRegister:
             "Str0ng!pw",
             "Str0ng!pw",
             "John Doe",
-            "",
+            "john@ex.com",
         )
         profile = user_store.get_user_profile("newuser")
         assert profile is not None
@@ -215,7 +253,7 @@ class TestRegister:
             "short",
             "different",
             "",
-            "",
+            "x@ex.com",
         )
         assert result["ok"] is False
         errors = result["errors"]

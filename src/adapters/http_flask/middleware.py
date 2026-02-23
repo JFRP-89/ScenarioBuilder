@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 
 from flask import Flask, g, jsonify, request
+
 from infrastructure.auth import session_store
 
 logger = logging.getLogger(__name__)

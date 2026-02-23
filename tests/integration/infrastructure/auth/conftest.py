@@ -6,15 +6,28 @@ Tests are automatically **skipped** when no DATABASE_URL_TEST is available.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
-import subprocess
-import sys
 from pathlib import Path
-from urllib.parse import quote_plus, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 
 import pytest
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
+
+from helpers.db import run_alembic_upgrade
+from helpers.fake_clock import FakeClock
+from infrastructure.auth import postgres_session_store as pss_mod
+from infrastructure.auth.postgres_session_store import PostgresSessionStore
+from infrastructure.clock import SystemClock
+from infrastructure.db.models import Base
+from infrastructure.db.session import (
+    SessionLocal,
+    escape_password_in_url,
+    reset_lazy_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,34 +39,15 @@ def _load_db_env() -> None:
         load_dotenv(env_file, override=True)
 
 
-def _escape_password_in_url(url_str: str) -> str:
-    """Escape special characters in PostgreSQL URL password."""
-    if "://" not in url_str or "@" not in url_str:
-        return url_str
-    scheme_part, rest = url_str.split("://", 1)
-    creds_part, host_part = rest.split("@", 1)
-    if ":" not in creds_part:
-        return url_str
-    user, password = creds_part.split(":", 1)
-    return f"{scheme_part}://{user}:{quote_plus(password)}@{host_part}"
+# ---------------------------------------------------------------------------
+# DB bootstrapping helpers
+# ---------------------------------------------------------------------------
 
 
-def _ensure_db_and_schema(url: str) -> None:
-    """Create the test database (if needed) and run migrations."""
-    url = _escape_password_in_url(url)
-    parsed = urlparse(url)
-    db_name = parsed.path.lstrip("/").split("?")[0] if parsed.path else ""
-    if not db_name:
-        return
-
-    admin_url = urlunparse(
-        (parsed.scheme, parsed.netloc, "/postgres", "", parsed.query, "")
-    )
-
+def _create_db_if_needed(admin_url: str, db_name: str) -> None:
+    """Create the test database when it does not yet exist."""
+    engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     try:
-        from sqlalchemy import create_engine, text
-
-        engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         with engine.connect() as conn:
             result = conn.execute(
                 text("SELECT 1 FROM pg_database WHERE datname = :name"),
@@ -63,36 +57,49 @@ def _ensure_db_and_schema(url: str) -> None:
                 safe = db_name.replace('"', '""')
                 conn.execute(text(f'CREATE DATABASE "{safe}"'))
                 logger.info("Created database '%s'", db_name)
+    finally:
         engine.dispose()
-    except Exception as exc:
+
+
+def _run_migrations(url: str) -> None:
+    """Run Alembic migrations, falling back to SQLAlchemy metadata."""
+    proc = run_alembic_upgrade(url)
+
+    if proc.returncode != 0 or not proc.stdout.strip():
+        eng = create_engine(url)
+        try:
+            Base.metadata.create_all(eng)
+        finally:
+            eng.dispose()
+
+
+def _ensure_db_and_schema(url: str) -> None:
+    """Create the test database (if needed) and run migrations."""
+    url = escape_password_in_url(url)
+    parsed = urlparse(url)
+    db_name = parsed.path.lstrip("/").split("?")[0] if parsed.path else ""
+    if not db_name:
+        return
+
+    admin_url = urlunparse(
+        (parsed.scheme, parsed.netloc, "/postgres", "", parsed.query, ""),
+    )
+
+    try:
+        _create_db_if_needed(admin_url, db_name)
+    except SQLAlchemyError as exc:
         logger.warning("Could not ensure DB exists: %s", exc)
         return
 
-    # Run alembic migrations
-    repo_root = Path(__file__).resolve().parents[4]
-    env = os.environ.copy()
-    env["DATABASE_URL"] = url
-    env["CI"] = "true"  # Prevent alembic/env.py overwriting with .env
+    try:
+        _run_migrations(url)
+    except (SQLAlchemyError, OSError) as exc:
+        logger.warning("Fallback schema creation failed: %s", exc)
 
-    proc = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=repo_root,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
-    if proc.returncode != 0 or not proc.stdout.strip():
-        try:
-            from infrastructure.db.models import Base
-            from sqlalchemy import create_engine as ce
-
-            eng = ce(url)
-            Base.metadata.create_all(eng)
-            eng.dispose()
-        except Exception as exc:
-            logger.warning("Fallback schema creation failed: %s", exc)
+# ---------------------------------------------------------------------------
+# Session-scoped DB URL fixture
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -109,22 +116,40 @@ def restore_database_url_session():
     if not url:
         pytest.skip("DATABASE_URL_TEST must be set for auth integration tests.")
 
-    # Ensure the test database and schema exist
     _ensure_db_and_schema(url)
 
-    # SessionLocal reads DATABASE_URL — point it at the test database.
     os.environ["DATABASE_URL"] = url
     logger.info("Auth integration tests: DATABASE_URL → %s", url[:40] + "…")
     yield
-    # Tear down: remove DATABASE_URL and reset lazy engine/session globals
-    # so stale connections don't leak into subsequent test modules.
     os.environ.pop("DATABASE_URL", None)
-    try:
-        from infrastructure.db import session as _sess_mod
+    with contextlib.suppress(SQLAlchemyError):  # pragma: no cover
+        reset_lazy_state()
 
-        if _sess_mod._engine is not None:  # type: ignore[attr-defined]
-            _sess_mod._engine.dispose()  # type: ignore[attr-defined]
-        _sess_mod._engine = None  # type: ignore[attr-defined]
-        _sess_mod._session_local = None  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover
-        pass
+
+# ---------------------------------------------------------------------------
+# Per-test fixtures (shared with test_postgres_session_store)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_clock():
+    """Install a FakeClock for each test, restore SystemClock after."""
+    clock = FakeClock()
+    pss_mod.set_clock(clock)
+    yield clock
+    pss_mod.set_clock(SystemClock())
+
+
+@pytest.fixture()
+def fake_clock(_deterministic_clock: FakeClock) -> FakeClock:
+    """Expose the FakeClock for tests that need to manipulate time."""
+    return _deterministic_clock
+
+
+@pytest.fixture()
+def store():
+    """Fresh PostgresSessionStore instance, cleaned before and after."""
+    s = PostgresSessionStore(session_factory=SessionLocal)
+    s.reset_sessions()
+    yield s
+    s.reset_sessions()

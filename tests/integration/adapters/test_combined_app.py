@@ -9,6 +9,8 @@ Verifies that the FastAPI shell correctly mounts:
 from __future__ import annotations
 
 import pytest
+
+from helpers import do_login, seed_test_users
 from infrastructure.auth import session_store, user_store
 
 
@@ -16,19 +18,10 @@ from infrastructure.auth import session_store, user_store
 def _reset_stores():
     session_store.reset_sessions()
     user_store.reset_stores()
+    seed_test_users()
     yield
     session_store.reset_sessions()
     user_store.reset_stores()
-
-
-@pytest.fixture()
-def combined_client():
-    """Create a Starlette TestClient for the combined ASGI app."""
-    from adapters.combined_app import create_combined_app
-    from starlette.testclient import TestClient
-
-    app = create_combined_app()
-    return TestClient(app, follow_redirects=False)
 
 
 class TestCombinedRouting:
@@ -49,10 +42,7 @@ class TestCombinedRouting:
         assert b"login" in resp.content.lower()
 
     def test_auth_login_creates_session(self, combined_client):
-        resp = combined_client.post(
-            "/auth/login",
-            json={"username": "alice", "password": "alice"},
-        )
+        resp = do_login(combined_client)
         assert resp.status_code == 200
         data = resp.json()
         assert data["ok"] is True
@@ -62,10 +52,7 @@ class TestCombinedRouting:
 
     def test_auth_me_with_session(self, combined_client):
         # Login first
-        combined_client.post(
-            "/auth/login",
-            json={"username": "alice", "password": "alice"},
-        )
+        do_login(combined_client)
         # /auth/me should return profile
         resp = combined_client.get("/auth/me")
         assert resp.status_code == 200
@@ -87,20 +74,14 @@ class TestCombinedRouting:
         assert resp.status_code == 401
 
     def test_api_route_accessible_with_session(self, combined_client):
-        combined_client.post(
-            "/auth/login",
-            json={"username": "alice", "password": "alice"},
-        )
+        do_login(combined_client)
         resp = combined_client.get("/cards/")
         # Should not be 401
         assert resp.status_code != 401
 
     def test_login_then_logout_then_api_401(self, combined_client):
         # Login
-        login_resp = combined_client.post(
-            "/auth/login",
-            json={"username": "alice", "password": "alice"},
-        )
+        login_resp = do_login(combined_client)
         csrf = login_resp.cookies.get("sb_csrf", "")
         # Logout
         combined_client.post(

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.services.generate import (
     handle_create_scenario,
     handle_update_scenario,
@@ -16,7 +17,10 @@ from adapters.ui_gradio.services.generate import (
 from adapters.ui_gradio.ui.router import PAGE_HOME, navigate_to
 from adapters.ui_gradio.ui.wiring._generate._create_logic import validate_preview_data
 from adapters.ui_gradio.ui.wiring._generate._outputs import build_stay_outputs
-from adapters.ui_gradio.ui.wiring._generate._preview import preview_and_render
+from adapters.ui_gradio.ui.wiring._generate._preview import (
+    preview_and_render,
+    rerender_svg_with_units,
+)
 from adapters.ui_gradio.ui.wiring._generate._resets import (
     build_dropdown_resets,
     build_extra_resets,
@@ -55,6 +59,7 @@ class GenerateCtx:
     svg_preview: gr.HTML
     output: gr.JSON
     preview_full_state: gr.State
+    map_units_radio: gr.Radio | None = None
     create_scenario_btn: gr.Button | None = None
     create_scenario_status: gr.Textbox | None = None
     page_state: gr.State | None = None
@@ -170,6 +175,14 @@ def wire_generate(*, ctx: GenerateCtx) -> None:
         ],
         outputs=preview_outputs,
     )
+
+    # -- Map display-units converter (re-renders SVG only) ---------------
+    if c.map_units_radio is not None:
+        c.map_units_radio.change(
+            fn=rerender_svg_with_units,
+            inputs=[c.preview_full_state, c.map_units_radio],
+            outputs=[c.svg_preview],
+        )
 
     # -- Create Scenario (calls API + resets form) ----------------------
     if (

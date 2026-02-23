@@ -11,6 +11,7 @@ from typing import cast
 
 from defusedxml import ElementTree as DET
 from defusedxml.ElementTree import fromstring as defused_fromstring
+
 from domain.errors import ValidationError
 
 # ── XXE prevention ──────────────────────────────────────────────────
@@ -62,13 +63,59 @@ def _local_svg_name(name: str) -> str:
 
 
 def _allowed_svg_attrs() -> dict[str, set[str]]:
-    """Return allowed attributes per tag (safe presentation subset)."""
+    """Return allowed attributes per tag (safe presentation subset).
+
+    Extended for tactical-dark theme: supports ``<defs>``, ``<style>``,
+    ``<pattern>``, ``<line>``, ``<filter>`` pipeline, and CSS ``class`` /
+    ``id`` attributes on shape elements.
+    """
     _common_paint = {"fill", "stroke", "stroke-width"}
+    _common_class = {"class", "id"}
+    _stroke_extras = {
+        "vector-effect",
+        "stroke-dasharray",
+        "stroke-linecap",
+        "stroke-linejoin",
+        "stroke-opacity",
+        "fill-opacity",
+        "opacity",
+    }
     return {
         "svg": {"xmlns", "width", "height", "viewBox"},
-        "rect": {"x", "y", "width", "height"} | _common_paint,
-        "circle": {"cx", "cy", "r"} | _common_paint,
-        "polygon": {"points"} | _common_paint,
+        "defs": set(),
+        "style": {"type"},
+        "pattern": {
+            "id",
+            "width",
+            "height",
+            "patternUnits",
+            "patternTransform",
+        },
+        "filter": {"id", "x", "y", "width", "height"},
+        "feGaussianBlur": {"in", "stdDeviation", "result"},
+        "feColorMatrix": {"in", "type", "values", "result"},
+        "feMerge": set(),
+        "feMergeNode": {"in"},
+        "line": {
+            "x1",
+            "y1",
+            "x2",
+            "y2",
+        }
+        | _common_paint
+        | _common_class
+        | _stroke_extras,
+        "rect": {"x", "y", "width", "height"}
+        | _common_paint
+        | _common_class
+        | _stroke_extras
+        | {"filter"},
+        "circle": {"cx", "cy", "r"}
+        | _common_paint
+        | _common_class
+        | _stroke_extras
+        | {"filter"},
+        "polygon": {"points"} | _common_paint | _common_class | _stroke_extras,
         "text": {
             "x",
             "y",
@@ -78,20 +125,44 @@ def _allowed_svg_attrs() -> dict[str, set[str]]:
             "text-anchor",
             "dominant-baseline",
             "font-weight",
-        },
-        "g": {"transform"},
+            "paint-order",
+            "stroke",
+            "stroke-width",
+            "stroke-linejoin",
+        }
+        | _common_class,
+        "g": {"transform"} | _common_class | {"id"},
     }
 
 
 def _enforce_svg_tag_allowed(tag: str) -> None:
     """Enforce allowlist for SVG tags."""
-    allowed_tags = {"svg", "rect", "circle", "polygon", "text", "g"}
+    allowed_tags = {
+        "svg",
+        "defs",
+        "style",
+        "pattern",
+        "filter",
+        "feGaussianBlur",
+        "feColorMatrix",
+        "feMerge",
+        "feMergeNode",
+        "line",
+        "rect",
+        "circle",
+        "polygon",
+        "text",
+        "g",
+    }
     if tag not in allowed_tags:
         raise ValidationError(f"SVG contains forbidden tag: <{tag}>")
 
 
-def _validate_svg_numeric_attr(_tag: str, attr_name: str, attr_value: str) -> None:
-    """Validate numeric SVG attribute values for specific tags."""
+def _validate_svg_numeric_attr(tag: str, attr_name: str, attr_value: str) -> None:
+    """Validate numeric SVG attribute values for specific tags.
+
+    ``<filter>`` attributes accept percentage values (``-50%``, ``200%``).
+    """
     _NUMERIC_ATTRS = {"x", "y", "width", "height", "cx", "cy", "r"}
     if attr_name not in _NUMERIC_ATTRS:
         return
@@ -101,6 +172,15 @@ def _validate_svg_numeric_attr(_tag: str, attr_name: str, attr_value: str) -> No
         if len(parts) != 4 or any(not p.lstrip("-").isdigit() for p in parts):
             raise ValidationError("SVG viewBox must be 4 integers")
         return
+
+    # Filters and patterns allow percentage values (e.g. "-50%", "200%")
+    if tag in {"filter", "pattern"}:
+        cleaned = attr_value.strip().rstrip("%")
+        if cleaned.lstrip("-").replace(".", "", 1).isdigit():
+            return
+        raise ValidationError(
+            f"SVG attribute '{attr_name}' on <{tag}> must be numeric or percentage"
+        )
 
     if not attr_value.strip().lstrip("-").isdigit():
         raise ValidationError(f"SVG attribute '{attr_name}' must be an integer")
@@ -115,11 +195,20 @@ def _validate_svg_polygon_points(attr_value: str) -> None:
 
 
 def _validate_paint_value(attr_name: str, attr_value: str) -> None:
-    """Validate fill/stroke values don't contain dangerous references."""
+    """Validate fill/stroke/filter values don't contain dangerous references.
+
+    Internal ``url(#local-id)`` references (patterns, filters) are safe.
+    External ``url(http://…)`` or ``javascript:`` / ``expression()`` are blocked.
+    """
     lower = attr_value.lower()
-    if "url(" in lower or "javascript:" in lower or "expression(" in lower:
+    if "javascript:" in lower or "expression(" in lower:
         raise ValidationError(
             f"SVG attribute '{attr_name}' contains forbidden reference"
+        )
+    # Allow internal fragment references: url(#some-id)
+    if "url(" in lower and not re.match(r"^url\(\s*#[\w-]+\s*\)$", attr_value.strip()):
+        raise ValidationError(
+            f"SVG attribute '{attr_name}' contains forbidden external URL reference"
         )
 
 
@@ -143,7 +232,7 @@ def _validate_svg_attribute(
             f"SVG must not contain external reference attribute: {clean_attr}"
         )
 
-    if lower_attr in {"style", "class"}:
+    if lower_attr in {"style"}:
         raise ValidationError(f"SVG must not contain styling attribute: {clean_attr}")
 
     if clean_attr not in allowed_for_tag:
@@ -151,7 +240,7 @@ def _validate_svg_attribute(
             f"SVG contains forbidden attribute '{clean_attr}' on <{tag}>"
         )
 
-    if lower_attr in {"fill", "stroke"}:
+    if lower_attr in {"fill", "stroke", "filter"}:
         _validate_paint_value(clean_attr, attr_value)
 
     _validate_svg_numeric_attr(tag, clean_attr, attr_value)

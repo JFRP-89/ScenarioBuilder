@@ -1,7 +1,7 @@
 """Tests for production-hardening rules in bootstrap.
 
 Verifies that ``APP_ENV=prod`` enforces strict fail-fast behaviour for
-the session store and blocks demo seeding, while dev mode retains
+the session store, while dev mode retains
 graceful fallbacks.
 
 All tests run **without** a real PostgreSQL database — connections and
@@ -30,7 +30,10 @@ def _reload_bootstrap():
 
 
 def _set_env(
-    monkeypatch, *, app_env: str = "", db_url: str | None = None, seed: str = ""
+    monkeypatch,
+    *,
+    app_env: str = "",
+    db_url: str | None = None,
 ):
     """Set the environment knobs used by bootstrap.
 
@@ -45,10 +48,6 @@ def _set_env(
         monkeypatch.setenv("DATABASE_URL", "")
     else:
         monkeypatch.setenv("DATABASE_URL", db_url)
-    if seed:
-        monkeypatch.setenv("SEED_DEMO_USERS", seed)
-    else:
-        monkeypatch.setenv("SEED_DEMO_USERS", "")
 
 
 VALID_PG_URL = "postgresql+psycopg2://u:p@localhost:5432/test"
@@ -63,7 +62,7 @@ class TestProdSessionStoreNoDatabaseUrl:
         _set_env(monkeypatch, app_env="prod", db_url=None)
         mod = _reload_bootstrap()
         with pytest.raises(RuntimeError, match="DATABASE_URL is not set"):
-            mod._build_session_store()
+            mod.build_session_store()
 
 
 # =========================================================================
@@ -83,7 +82,7 @@ class TestProdSessionStoreNotPostgres:
         _set_env(monkeypatch, app_env="prod", db_url=bad_url)
         mod = _reload_bootstrap()
         with pytest.raises(RuntimeError, match="not a PostgreSQL URL"):
-            mod._build_session_store()
+            mod.build_session_store()
 
 
 # =========================================================================
@@ -95,7 +94,7 @@ class TestProdSessionStoreDbUnreachable:
         _set_env(monkeypatch, app_env="prod", db_url=VALID_PG_URL)
         mod = _reload_bootstrap()
 
-        # Stub the imports that _build_session_store does lazily
+        # Stub the imports that build_session_store does lazily
         fake_session_store_mod = types.ModuleType(
             "infrastructure.auth.postgres_session_store"
         )
@@ -113,14 +112,16 @@ class TestProdSessionStoreDbUnreachable:
             patch.dict(
                 "sys.modules",
                 {
-                    "infrastructure.auth.postgres_session_store": fake_session_store_mod,
+                    "infrastructure.auth.postgres_session_store": (
+                        fake_session_store_mod
+                    ),
                     "infrastructure.auth.session_store": fake_configure_mod,
                     "infrastructure.db.session": fake_db_session_mod,
                 },
             ),
             pytest.raises(RuntimeError, match="cannot connect to PostgreSQL"),
         ):
-            mod._build_session_store()
+            mod.build_session_store()
 
 
 # =========================================================================
@@ -144,7 +145,7 @@ class TestProdSessionStoreImportFails:
             ),
             pytest.raises(RuntimeError, match="required dependency not installed"),
         ):
-            mod._build_session_store()
+            mod.build_session_store()
 
 
 # =========================================================================
@@ -172,94 +173,24 @@ class TestDevSessionStoreFallback:
         with patch.dict(
             "sys.modules",
             {
-                "infrastructure.auth.postgres_session_store": fake_session_store_mod,
+                "infrastructure.auth.postgres_session_store": (fake_session_store_mod),
                 "infrastructure.auth.session_store": fake_configure_mod,
                 "infrastructure.db.session": fake_db_session_mod,
             },
         ):
             # Should NOT raise — logs warning and falls back
-            mod._build_session_store()
+            mod.build_session_store()
 
     def test_no_error_when_database_url_missing_in_dev(self, monkeypatch):
         _set_env(monkeypatch, app_env="dev", db_url=None)
         mod = _reload_bootstrap()
         # Should silently fall back to in-memory
-        mod._build_session_store()
+        mod.build_session_store()
 
     def test_no_error_when_url_not_postgres_in_dev(self, monkeypatch):
         _set_env(monkeypatch, app_env="dev", db_url="sqlite:///test.db")
         mod = _reload_bootstrap()
-        mod._build_session_store()
-
-
-# =========================================================================
-# 6. Seed demo — blocked in prod even if explicitly requested
-# =========================================================================
-class TestSeedDemoBlockedInProd:
-
-    def test_seed_demo_not_called_in_prod(self, monkeypatch):
-        _set_env(monkeypatch, app_env="prod", db_url=VALID_PG_URL)
-
-        # Stub the session store wiring to avoid a real DB connection
-        mod = _reload_bootstrap()
-        monkeypatch.setattr(mod, "_build_session_store", lambda: None)
-
-        # Enable the seed flag — should still be ignored in prod
-        monkeypatch.setenv("SEED_DEMO_USERS", "1")
-
-        seed_fn = MagicMock()
-        with patch.dict(
-            "sys.modules",
-            {
-                "infrastructure.auth.user_store": MagicMock(
-                    seed_demo_users_to_database=seed_fn
-                ),
-            },
-        ):
-            mod.build_services()
-
-        seed_fn.assert_not_called()
-
-
-# =========================================================================
-# 7. Seed demo — allowed in dev when explicitly opted-in
-# =========================================================================
-class TestSeedDemoAllowedInDev:
-
-    def test_seed_demo_called_in_dev_when_enabled(self, monkeypatch):
-        _set_env(monkeypatch, app_env="dev", db_url=None, seed="1")
-        mod = _reload_bootstrap()
-        monkeypatch.setattr(mod, "_build_session_store", lambda: None)
-
-        seed_fn = MagicMock()
-        fake_user_store = types.ModuleType("infrastructure.auth.user_store")
-        fake_user_store.seed_demo_users_to_database = seed_fn  # type: ignore[attr-defined]
-
-        with patch.dict(
-            "sys.modules",
-            {"infrastructure.auth.user_store": fake_user_store},
-        ):
-            mod.build_services()
-
-        seed_fn.assert_called_once()
-
-    def test_seed_demo_not_called_in_dev_when_disabled(self, monkeypatch):
-        _set_env(monkeypatch, app_env="dev", db_url=None, seed="0")
-        mod = _reload_bootstrap()
-        monkeypatch.setattr(mod, "_build_session_store", lambda: None)
-
-        seed_fn = MagicMock()
-        with patch.dict(
-            "sys.modules",
-            {
-                "infrastructure.auth.user_store": MagicMock(
-                    seed_demo_users_to_database=seed_fn
-                ),
-            },
-        ):
-            mod.build_services()
-
-        seed_fn.assert_not_called()
+        mod.build_session_store()
 
 
 # =========================================================================
@@ -270,25 +201,25 @@ class TestEnvironmentHelpers:
     def test_is_prod_true(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "prod")
         mod = _reload_bootstrap()
-        assert mod._is_prod() is True
+        assert mod.is_prod() is True
 
     def test_is_prod_false_for_dev(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "dev")
         mod = _reload_bootstrap()
-        assert mod._is_prod() is False
+        assert mod.is_prod() is False
 
     def test_is_prod_false_when_unset(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "")
         mod = _reload_bootstrap()
-        assert mod._is_prod() is False
+        assert mod.is_prod() is False
 
     def test_get_env_strips_whitespace(self, monkeypatch):
         monkeypatch.setenv("TEST_VAR", "  hello  ")
         mod = _reload_bootstrap()
-        assert mod._get_env("TEST_VAR") == "hello"
+        assert mod.get_env("TEST_VAR") == "hello"
 
     def test_get_env_returns_default(self, monkeypatch):
         monkeypatch.setenv("TEST_VAR", "")
         mod = _reload_bootstrap()
         # empty string → falls through to default
-        assert mod._get_env("TEST_VAR", "fallback") == ""
+        assert mod.get_env("TEST_VAR", "fallback") == ""

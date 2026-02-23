@@ -11,11 +11,13 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
+
 from domain.cards.card import Card, GameMode
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
+from tests.unit.application.conftest import FakeCardRepository, SpySvgRenderer
 
 
 # =============================================================================
@@ -49,73 +51,8 @@ def make_valid_card(
 
 
 # =============================================================================
-# FAKE REPOSITORIES AND RENDERERS
+# TESTS
 # =============================================================================
-class FakeCardRepository:
-    """In-memory card repository for testing."""
-
-    def __init__(self) -> None:
-        self._cards: dict[str, Card] = {}
-
-    def add(self, card: Card) -> None:
-        """Pre-populate repository with a card."""
-        self._cards[card.card_id] = card
-
-    def get_by_id(self, card_id: str) -> Optional[Card]:
-        """Get card by id."""
-        return self._cards.get(card_id)
-
-    def save(self, card: Card) -> None:
-        self._cards[card.card_id] = card
-
-    def find_by_seed(self, seed: int) -> Optional[Card]:
-        return next((c for c in self._cards.values() if c.seed == seed), None)
-
-    def delete(self, card_id: str) -> bool:
-        return self._cards.pop(card_id, None) is not None
-
-    def list_all(self) -> list[Card]:
-        return list(self._cards.values())
-
-    def list_for_owner(self, owner_id: str) -> list[Card]:
-        return [c for c in self._cards.values() if c.owner_id == owner_id]
-
-
-class SpySvgRenderer:
-    """Spy SVG renderer that tracks calls and returns configurable SVG."""
-
-    def __init__(
-        self, svg: str = "<svg></svg>", should_raise: Optional[Exception] = None
-    ) -> None:
-        self._svg = svg
-        self._should_raise = should_raise
-        self.calls: list[tuple[dict, list[dict]]] = []
-
-    def render(self, table_mm: dict, shapes: list[dict]) -> str:
-        """Render table and shapes to SVG, recording the call."""
-        self.calls.append((table_mm, shapes))
-        if self._should_raise:
-            raise self._should_raise
-        return self._svg
-
-    def render_svg(self, map_spec: dict) -> str:
-        """Render map spec to SVG."""
-        return self._svg
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def repo() -> FakeCardRepository:
-    """Provide empty card repository."""
-    return FakeCardRepository()
-
-
-@pytest.fixture
-def renderer() -> SpySvgRenderer:
-    """Provide spy renderer."""
-    return SpySvgRenderer("<svg></svg>")
 
 
 # =============================================================================

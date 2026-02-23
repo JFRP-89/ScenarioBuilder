@@ -20,103 +20,8 @@ from typing import Optional
 import pytest
 
 # Domain imports (real)
-from domain.cards.card import Card, GameMode
 from domain.errors import ValidationError
-from domain.maps.map_spec import MapSpec
-from domain.maps.table_size import TableSize
-from domain.security.authz import Visibility
-
-
-# =============================================================================
-# FIXTURES - Valid domain objects
-# =============================================================================
-@pytest.fixture
-def table() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def valid_shapes() -> list[dict]:
-    """Shapes valid for standard table (1200x1200 mm)."""
-    return [{"type": "rect", "x": 100, "y": 100, "width": 200, "height": 200}]
-
-
-@pytest.fixture
-def map_spec(table: TableSize, valid_shapes: list[dict]) -> MapSpec:
-    return MapSpec(table=table, shapes=valid_shapes)
-
-
-@pytest.fixture
-def private_card(table: TableSize, map_spec: MapSpec) -> Card:
-    """A PRIVATE Card owned by 'owner-123'."""
-    return Card(
-        card_id="card-001",
-        owner_id="owner-123",
-        visibility=Visibility.PRIVATE,
-        shared_with=None,
-        mode=GameMode.MATCHED,
-        seed=42,
-        table=table,
-        map_spec=map_spec,
-    )
-
-
-@pytest.fixture
-def public_card(table: TableSize, map_spec: MapSpec) -> Card:
-    """A PUBLIC Card owned by 'owner-123'."""
-    return Card(
-        card_id="card-002",
-        owner_id="owner-123",
-        visibility=Visibility.PUBLIC,
-        shared_with=None,
-        mode=GameMode.CASUAL,
-        seed=99,
-        table=table,
-        map_spec=map_spec,
-    )
-
-
-# =============================================================================
-# TEST DOUBLES
-# =============================================================================
-class FakeCardRepository:
-    """In-memory fake repository for testing."""
-
-    def __init__(self, cards: Optional[dict[str, Card]] = None) -> None:
-        self.cards: dict[str, Card] = cards or {}
-
-    def get_by_id(self, card_id: str) -> Optional[Card]:
-        return self.cards.get(card_id)
-
-    def save(self, card: Card) -> None:
-        self.cards[card.card_id] = card
-
-    def find_by_seed(self, seed: int) -> Optional[Card]:
-        return next((c for c in self.cards.values() if c.seed == seed), None)
-
-    def delete(self, card_id: str) -> bool:
-        return self.cards.pop(card_id, None) is not None
-
-    def list_all(self) -> list[Card]:
-        return list(self.cards.values())
-
-    def list_for_owner(self, owner_id: str) -> list[Card]:
-        return [c for c in self.cards.values() if c.owner_id == owner_id]
-
-
-@pytest.fixture
-def empty_repository() -> FakeCardRepository:
-    return FakeCardRepository()
-
-
-@pytest.fixture
-def repository_with_private_card(private_card: Card) -> FakeCardRepository:
-    return FakeCardRepository(cards={private_card.card_id: private_card})
-
-
-@pytest.fixture
-def repository_with_public_card(public_card: Card) -> FakeCardRepository:
-    return FakeCardRepository(cards={public_card.card_id: public_card})
+from tests.unit.application.conftest import FakeCardRepository
 
 
 # =============================================================================
@@ -265,12 +170,3 @@ class TestGetCardPublicAccess:
         # Returns card data
         assert response.card_id == "card-002"
         assert response.visibility == "public"
-
-
-# =============================================================================
-# TODO(future): Additional tests for hardening phase:
-# - Test SHARED visibility with allowlisted user
-# - Test SHARED visibility with non-allowlisted user
-# - Test repository failure handling
-# - Test response includes all expected fields (table_mm, shapes)
-# =============================================================================

@@ -22,7 +22,6 @@ MVP Contract (8 test cases):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Optional
 
 import pytest
@@ -40,89 +39,12 @@ from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
 
-
-# =============================================================================
-# TEST DOUBLES
-# =============================================================================
-class FakeIdGenerator:
-    """Fake IdGenerator that returns predictable IDs."""
-
-    def __init__(self, card_id: str = "card-001") -> None:
-        self._card_id = card_id
-
-    def generate_card_id(self) -> str:
-        return self._card_id
-
-
-class FakeSeedGenerator:
-    """Fake SeedGenerator that returns predictable seeds."""
-
-    def __init__(self, seed: int = 999) -> None:
-        self._seed = seed
-        self.calls = 0
-
-    def generate_seed(self) -> int:
-        self.calls += 1
-        return self._seed
-
-    def calculate_from_config(self, config: dict) -> int:
-        """Delegate to the real deterministic implementation."""
-        from infrastructure.generators.deterministic_seed_generator import (
-            calculate_seed_from_config,
-        )
-
-        return calculate_seed_from_config(config)
-
-
-@dataclass
-class SpyScenarioGenerator:
-    """Spy ScenarioGenerator that records calls and returns configurable shapes."""
-
-    shapes: list[dict]
-    calls: list[tuple[int, TableSize, GameMode]] = field(default_factory=list)
-
-    def generate_shapes(
-        self, seed: int, table: TableSize, mode: GameMode
-    ) -> list[dict]:
-        self.calls.append((seed, table, mode))
-        return self.shapes
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def fake_id_generator() -> FakeIdGenerator:
-    return FakeIdGenerator(card_id="card-001")
-
-
-@pytest.fixture
-def fake_seed_generator() -> FakeSeedGenerator:
-    return FakeSeedGenerator(seed=999)
-
-
-@pytest.fixture
-def valid_shapes() -> list[dict]:
-    """Shapes that are valid for standard table (1200x1200 mm)."""
-    return [{"type": "circle", "cx": 600, "cy": 600, "r": 100}]
-
-
-@pytest.fixture
-def spy_scenario_generator(valid_shapes: list[dict]) -> SpyScenarioGenerator:
-    return SpyScenarioGenerator(shapes=valid_shapes)
-
-
-@pytest.fixture
-def use_case(
-    fake_id_generator: FakeIdGenerator,
-    fake_seed_generator: FakeSeedGenerator,
-    spy_scenario_generator: SpyScenarioGenerator,
-) -> GenerateScenarioCard:
-    return GenerateScenarioCard(
-        id_generator=fake_id_generator,
-        seed_generator=fake_seed_generator,
-        scenario_generator=spy_scenario_generator,
-    )
+# Test doubles (defined in conftest.py)
+from tests.unit.application.conftest import (
+    FakeIdGenerator,
+    FakeSeedGenerator,
+    SpyScenarioGenerator,
+)
 
 
 # =============================================================================

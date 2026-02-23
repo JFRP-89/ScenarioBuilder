@@ -11,6 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._deployment._form_state import (
     UNCHANGED,
     default_zone_form,
@@ -147,7 +148,7 @@ class TestSelectedZoneFormRect:
         """Stored in cm, display in in → values converted."""
         r = selected_zone_form(rect_zone, zone_unit="in")
         # 100 cm → 40.0 in (CM_PER_INCH = 2.5), rounded to 2 decimals
-        assert r["width"] == 40.0
+        assert r["width"] == pytest.approx(40.0)
 
 
 # ---------------------------------------------------------------------------
@@ -273,4 +274,5 @@ class TestUnchangedSentinel:
         assert UNCHANGED is not None
 
     def test_identity(self):
-        assert UNCHANGED is UNCHANGED
+        sentinel = UNCHANGED
+        assert sentinel is UNCHANGED

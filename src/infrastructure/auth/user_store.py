@@ -6,7 +6,6 @@ Security notes
 ~~~~~~~~~~~~~~
 - Passwords are hashed with PBKDF2-HMAC-SHA256 (100 000 iterations + random salt).
 - Lockout counters are per-username (anti brute-force).
-- Demo users have ``password == username`` but are stored hashed.
 """
 
 from __future__ import annotations
@@ -15,7 +14,24 @@ import hashlib
 import os
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict, cast
+
+# ── Optional database imports (best-effort persistence) ──────────────────────
+try:
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from infrastructure.db.models import UserModel
+    from infrastructure.db.session import SessionLocal
+
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
+    if TYPE_CHECKING:
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from infrastructure.db.models import UserModel
+        from infrastructure.db.session import SessionLocal
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _PBKDF2_ITERATIONS = 100_000
@@ -68,35 +84,29 @@ _USERS: dict[str, UserRecord] = {}
 _LOCKOUT: dict[str, LockoutRecord] = {}
 
 
-def _seed_demo_users() -> None:
-    """Populate demo users (idempotent)."""
-    demo_accounts = {
-        "demo-user": {"name": "Demo User", "email": "demo@example.com"},
-        "alice": {"name": "Alice", "email": "alice@example.com"},
-        "bob": {"name": "Bob", "email": "bob@example.com"},
-        "charlie": {"name": "Charlie", "email": "charlie@example.com"},
-        "dave": {"name": "Dave", "email": "dave@example.com"},
-    }
-    for username, info in demo_accounts.items():
-        if username not in _USERS:
-            pw_hash, salt = _hash_password(username)  # password == username
-            _USERS[username] = UserRecord(
-                password_hash=pw_hash,
-                salt=salt,
-                name=info["name"],
-                email=info["email"],
-            )
-
-
-# Seed on import so they're always available
-_seed_demo_users()
-
-
 # ── Public API ───────────────────────────────────────────────────────────────
 def user_exists(username: str) -> bool:
     """Return True if *username* is a registered user."""
     with _lock:
         return username in _USERS
+
+
+def email_exists(email: str, *, exclude_username: str | None = None) -> bool:
+    """Return True if *email* is already registered by another user.
+
+    Empty emails are never considered duplicates.
+    If *exclude_username* is given, that user's email is ignored
+    (used when updating your own profile).
+    """
+    if not email:
+        return False
+    with _lock:
+        for uname, record in _USERS.items():
+            if uname == exclude_username:
+                continue
+            if record["email"] == email:
+                return True
+        return False
 
 
 def verify_credentials(username: str, password: str) -> bool:
@@ -159,11 +169,20 @@ def get_user_profile(username: str) -> dict[str, str] | None:
 
 
 def update_user_profile(username: str, name: str, email: str) -> bool:
-    """Update display name and email. Return True on success."""
+    """Update display name and email. Return True on success.
+
+    Returns False if *username* does not exist **or** if *email* is
+    already registered by a different user.
+    """
     with _lock:
         user = _USERS.get(username)
         if user is None:
             return False
+        # Check email uniqueness (empty emails are exempt)
+        if email:
+            for uname, record in _USERS.items():
+                if uname != username and record["email"] == email:
+                    return False
         user["name"] = name
         user["email"] = email
         return True
@@ -186,7 +205,6 @@ def reset_stores() -> None:
     with _lock:
         _USERS.clear()
         _LOCKOUT.clear()
-    _seed_demo_users()
 
 
 def create_user(
@@ -204,6 +222,11 @@ def create_user(
     with _lock:
         if username in _USERS:
             return False
+        # Check email uniqueness (empty emails are exempt)
+        if email:
+            for record in _USERS.values():
+                if record["email"] == email:
+                    return False
         pw_hash, salt = _hash_password(password)
         _USERS[username] = UserRecord(
             password_hash=pw_hash,
@@ -219,11 +242,9 @@ def create_user(
 
 def _persist_user_to_database(username: str) -> None:
     """Persist a single user to PostgreSQL (best-effort, no-op on failure)."""
+    if not _HAS_DB:
+        return
     try:
-        from infrastructure.db.models import UserModel
-        from infrastructure.db.session import SessionLocal
-        from sqlalchemy.exc import SQLAlchemyError
-
         with _lock:
             user_rec = _USERS.get(username)
             if user_rec is None:
@@ -246,52 +267,45 @@ def _persist_user_to_database(username: str) -> None:
             session.rollback()
         finally:
             session.close()
-    except ImportError:
-        pass
     except (OSError, RuntimeError):
         pass
 
 
-def seed_demo_users_to_database() -> None:
-    """Attempt to seed demo users to PostgreSQL (if available, idempotent).
+def load_users_from_database() -> int:
+    """Load all users from PostgreSQL into the in-memory store.
 
-    This is called at app startup to populate the users table.
-    If PostgreSQL is not available, silently skips (falls back to in-memory).
+    Called once during ``build_services()`` so that users persisted in a
+    previous run are available immediately after restart.
+
+    Returns the number of users loaded.  Silently returns 0 when the
+    database is unavailable or the dependency is not installed.
     """
     try:
-        from infrastructure.db.models import UserModel
-        from infrastructure.db.session import SessionLocal
-        from sqlalchemy.exc import SQLAlchemyError
+        if not _HAS_DB:
+            return 0
+    except NameError:
+        return 0
 
-        demo_accounts = {
-            "demo-user": {"name": "Demo User", "email": "demo@example.com"},
-            "alice": {"name": "Alice", "email": "alice@example.com"},
-            "bob": {"name": "Bob", "email": "bob@example.com"},
-            "charlie": {"name": "Charlie", "email": "charlie@example.com"},
-            "dave": {"name": "Dave", "email": "dave@example.com"},
-        }
-
+    try:
         session = SessionLocal()
         try:
-            for username, _info in demo_accounts.items():
-                existing = session.query(UserModel).filter_by(username=username).first()
-                if existing is None and username in _USERS:
-                    user_rec = _USERS[username]
-                    model = UserModel(
-                        username=username,
-                        password_hash=user_rec["password_hash"],
-                        salt=user_rec["salt"],
-                        name=user_rec["name"],
-                        email=user_rec["email"],
-                    )
-                    session.add(model)
-            session.commit()
+            rows = session.query(UserModel).all()
+            count = 0
+            with _lock:
+                for row in rows:
+                    uname = cast(str, row.username)
+                    if uname not in _USERS:
+                        _USERS[uname] = UserRecord(
+                            password_hash=cast(bytes, row.password_hash),
+                            salt=cast(bytes, row.salt),
+                            name=cast(str, row.name),
+                            email=cast(str, row.email),
+                        )
+                        count += 1
+            return count
         except SQLAlchemyError:
-            session.rollback()
-            raise
+            return 0
         finally:
             session.close()
-    except ImportError:
-        pass
     except (OSError, RuntimeError):
-        pass
+        return 0

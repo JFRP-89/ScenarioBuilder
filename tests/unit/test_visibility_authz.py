@@ -15,6 +15,7 @@ Authorization rules:
 from __future__ import annotations
 
 import pytest
+
 from domain.errors import ValidationError
 from domain.security.authz import (
     Visibility,
@@ -22,29 +23,6 @@ from domain.security.authz import (
     can_write,
     parse_visibility,
 )
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def owner() -> str:
-    return "user_a"
-
-
-@pytest.fixture
-def other() -> str:
-    return "user_b"
-
-
-@pytest.fixture
-def friend() -> str:
-    return "user_c"
-
-
-@pytest.fixture
-def blank() -> str:
-    return "   "
 
 
 # =============================================================================
@@ -633,8 +611,8 @@ class TestHardeningSharedWithTypeValidation:
             can_read(
                 owner_id=owner,
                 visibility=Visibility.SHARED,
-                current_user_id="u",  # 'u' is a char in "user_c"
-                shared_with="user_c",  # WRONG: string instead of list
+                current_user_id="u",  # 'u' is a char in friend value
+                shared_with=friend,  # WRONG: string instead of list
             )
 
     def test_rejects_shared_with_as_integer(self, owner: str, other: str):
@@ -929,8 +907,8 @@ class TestDenyByDefaultDefensiveCode:
         # This simulates a future scenario where a new visibility level is
         # added but not yet handled in can_read()
         unknown_visibility = object.__new__(Visibility)
-        unknown_visibility._name_ = "UNKNOWN"
-        unknown_visibility._value_ = "unknown"
+        object.__setattr__(unknown_visibility, "_name_", "UNKNOWN")
+        object.__setattr__(unknown_visibility, "_value_", "unknown")
 
         # Non-owner with unknown visibility should be denied by default
         result = can_read(
@@ -948,8 +926,8 @@ class TestDenyByDefaultDefensiveCode:
         This verifies the defensive code triggers after the owner check.
         """
         restricted_visibility = object.__new__(Visibility)
-        restricted_visibility._name_ = "RESTRICTED"
-        restricted_visibility._value_ = "restricted"
+        object.__setattr__(restricted_visibility, "_name_", "RESTRICTED")
+        object.__setattr__(restricted_visibility, "_value_", "restricted")
 
         # Owner can still read (owner check comes first)
         result_owner = can_read(

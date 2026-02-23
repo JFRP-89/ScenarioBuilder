@@ -1,21 +1,10 @@
-"""RED tests for Flask favorites routes contract.
+"""Integration tests for Flask favorites routes contract.
 
-These tests define the expected contract for favorites API endpoints:
-- POST /favorites/<card_id>/toggle - toggle favorite status for a card
-- GET /favorites - list all favorite cards for the actor
+Tests cover:
+- POST /favorites/<card_id>/toggle — toggle favorite status for a card
+- GET /favorites — list all favorite cards for the actor
 
-All endpoints require X-Actor-Id header and use services from app.config["services"].
-
-Expected error contract (handled by global error handlers in app.py):
-- Missing X-Actor-Id header → 400 Bad Request (ValidationError)
-- Exception with "forbidden" in message → 403 Forbidden
-- Exception with "not found" in message → 404 Not Found
-
-Blueprint registration expected:
-- url_prefix="/favorites"
-- Internal routes: "/<card_id>/toggle" (POST), "" (GET)
-
-NOTE: These tests are RED (failing) because routes/favorites.py does not exist yet.
+All endpoints require a valid session.  Services come from app.config["services"].
 """
 
 from __future__ import annotations
@@ -23,96 +12,53 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
+
 from adapters.http_flask.app import create_app
-from application.use_cases.list_favorites import (
-    ListFavoritesRequest,
-    ListFavoritesResponse,
-)
-from application.use_cases.toggle_favorite import (
-    ToggleFavoriteRequest,
-    ToggleFavoriteResponse,
-)
+from application.use_cases.list_favorites import ListFavoritesResponse
+from application.use_cases.toggle_favorite import ToggleFavoriteResponse
+from helpers.fakes import FakeUseCase
+from helpers.flask_helpers import csrf_token_of, store_csrf_token
 
 
 # =============================================================================
-# FAKE USE CASES (SPY PATTERN)
+# FAKES
 # =============================================================================
-class FakeToggleFavorite:
-    """Fake ToggleFavorite use case for testing."""
-
-    def __init__(
-        self,
-        response: ToggleFavoriteResponse | None = None,
-        error: Exception | None = None,
-    ):
-        self.last_request: ToggleFavoriteRequest | None = None
-        self.call_count = 0
-        self._response = response or ToggleFavoriteResponse(
-            card_id="card-001",
-            is_favorite=True,
-        )
-        self._error = error
-
-    def execute(self, request: ToggleFavoriteRequest) -> ToggleFavoriteResponse:
-        self.last_request = request
-        self.call_count += 1
-        if self._error:
-            raise self._error
-        return self._response
-
-
-class FakeListFavorites:
-    """Fake ListFavorites use case for testing."""
-
-    def __init__(
-        self,
-        response: ListFavoritesResponse | None = None,
-        error: Exception | None = None,
-    ):
-        self.last_request: ListFavoritesRequest | None = None
-        self.call_count = 0
-        self._response = response or ListFavoritesResponse(
-            card_ids=["card-001", "card-002"],
-        )
-        self._error = error
-
-    def execute(self, request: ListFavoritesRequest) -> ListFavoritesResponse:
-        self.last_request = request
-        self.call_count += 1
-        if self._error:
-            raise self._error
-        return self._response
-
-
 @dataclass
 class FakeServices:
     """Fake services object for testing favorites routes."""
 
-    toggle_favorite: FakeToggleFavorite
-    list_favorites: FakeListFavorites
+    toggle_favorite: FakeUseCase
+    list_favorites: FakeUseCase
+
+
+def _default_toggle_response() -> ToggleFavoriteResponse:
+    return ToggleFavoriteResponse(card_id="card-001", is_favorite=True)
+
+
+def _default_list_response() -> ListFavoritesResponse:
+    return ListFavoritesResponse(card_ids=["card-001", "card-002"])
 
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
-@pytest.fixture
-def fake_toggle():
+@pytest.fixture(name="fake_toggle")
+def _provide_fake_toggle():
     """Create a fake toggle_favorite use case."""
-    return FakeToggleFavorite()
+    return FakeUseCase(response=_default_toggle_response())
 
 
-@pytest.fixture
-def fake_list():
+@pytest.fixture(name="fake_list")
+def _provide_fake_list():
     """Create a fake list_favorites use case."""
-    return FakeListFavorites()
+    return FakeUseCase(response=_default_list_response())
 
 
-@pytest.fixture
-def client(fake_toggle, fake_list, session_factory):
+@pytest.fixture(name="client")
+def _make_favorites_client(fake_toggle, fake_list, session_factory):
     """Create Flask test client with fake services and session."""
     app = create_app()
 
-    # Inject fake services
     app.config["services"] = FakeServices(
         toggle_favorite=fake_toggle,
         list_favorites=fake_list,
@@ -120,18 +66,18 @@ def client(fake_toggle, fake_list, session_factory):
 
     with app.test_client() as test_client:
         auth = session_factory(test_client, "u1")
-        test_client._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
+        store_csrf_token(test_client, auth["csrf_token"])
         yield test_client
 
 
 # =============================================================================
-# TESTS: POST /favorites/<card_id>/toggle - Missing Actor ID
+# TESTS: POST /favorites/<card_id>/toggle
 # =============================================================================
-class TestToggleFavoriteMissingActorId:
-    """Tests for POST /favorites/<card_id>/toggle without valid session."""
+class TestToggleFavorite:
+    """Tests for POST /favorites/<card_id>/toggle."""
 
-    def test_post_toggle_missing_auth_returns_401(self, fake_toggle, fake_list):
-        """POST /favorites/<card_id>/toggle without session returns 401."""
+    def test_missing_auth_returns_401(self, fake_toggle, fake_list):
+        """POST without session returns 401."""
         app = create_app()
         app.config["services"] = FakeServices(
             toggle_favorite=fake_toggle,
@@ -143,18 +89,11 @@ class TestToggleFavoriteMissingActorId:
 
         assert response.status_code == 401, "Missing auth should return 401"
 
-
-# =============================================================================
-# TESTS: POST /favorites/<card_id>/toggle - Happy Path
-# =============================================================================
-class TestToggleFavoriteHappyPath:
-    """Tests for POST /favorites/<card_id>/toggle happy path."""
-
-    def test_post_toggle_returns_200_with_json(self, client, fake_toggle):
-        """POST /favorites/<card_id>/toggle with valid session returns 200 + JSON."""
+    def test_returns_200_with_json(self, client):
+        """POST with valid session returns 200 + JSON."""
         response = client.post(
             "/favorites/card-001/toggle",
-            headers={"X-CSRF-Token": client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(client)},
         )
 
         assert response.status_code == 200, "Valid POST should return 200"
@@ -166,11 +105,11 @@ class TestToggleFavoriteHappyPath:
         assert data["card_id"] == "card-001"
         assert isinstance(data["is_favorite"], bool)
 
-    def test_post_toggle_calls_use_case_with_correct_request(self, client, fake_toggle):
-        """POST /favorites/<card_id>/toggle passes correct data to use case."""
+    def test_calls_use_case_with_correct_request(self, client, fake_toggle):
+        """POST passes correct data to use case."""
         response = client.post(
             "/favorites/card-001/toggle",
-            headers={"X-CSRF-Token": client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(client)},
         )
 
         assert response.status_code == 200
@@ -179,24 +118,16 @@ class TestToggleFavoriteHappyPath:
         ), "toggle_favorite.execute() should be called once"
         assert fake_toggle.last_request is not None, "Request should be captured"
 
-        # Validate request DTO fields
         assert fake_toggle.last_request.actor_id == "u1"
         assert fake_toggle.last_request.card_id == "card-001"
 
-
-# =============================================================================
-# TESTS: POST /favorites/<card_id>/toggle - Forbidden
-# =============================================================================
-class TestToggleFavoriteForbidden:
-    """Tests for POST /favorites/<card_id>/toggle when use case raises forbidden."""
-
-    @pytest.fixture
-    def client_forbidden(self, fake_list, session_factory):
+    @pytest.fixture(name="client_forbidden")
+    def _make_forbidden_client(self, fake_list, session_factory):
         """Create client with toggle that raises forbidden error."""
         app = create_app()
 
-        fake_toggle_error = FakeToggleFavorite(
-            error=Exception("forbidden: cannot favorite private card")
+        fake_toggle_error = FakeUseCase(
+            error=RuntimeError("forbidden: cannot favorite private card"),
         )
 
         app.config["services"] = FakeServices(
@@ -206,27 +137,27 @@ class TestToggleFavoriteForbidden:
 
         with app.test_client() as test_client:
             auth = session_factory(test_client, "u1")
-            test_client._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
+            store_csrf_token(test_client, auth["csrf_token"])
             yield test_client
 
-    def test_post_toggle_forbidden_returns_403(self, client_forbidden):
-        """POST /favorites/<card_id>/toggle returns 403 when forbidden."""
+    def test_forbidden_returns_403(self, client_forbidden):
+        """POST returns 403 when forbidden."""
         response = client_forbidden.post(
             "/favorites/card-001/toggle",
-            headers={"X-CSRF-Token": client_forbidden._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(client_forbidden)},
         )
 
         assert response.status_code == 403, "Forbidden should return 403"
 
 
 # =============================================================================
-# TESTS: GET /favorites - Missing Actor ID
+# TESTS: GET /favorites
 # =============================================================================
-class TestListFavoritesMissingActorId:
-    """Tests for GET /favorites without valid session."""
+class TestListFavorites:
+    """Tests for GET /favorites."""
 
-    def test_get_favorites_missing_auth_returns_401(self, fake_toggle, fake_list):
-        """GET /favorites without session returns 401."""
+    def test_missing_auth_returns_401(self, fake_toggle, fake_list):
+        """GET without session returns 401."""
         app = create_app()
         app.config["services"] = FakeServices(
             toggle_favorite=fake_toggle,
@@ -238,15 +169,8 @@ class TestListFavoritesMissingActorId:
 
         assert response.status_code == 401, "Missing auth should return 401"
 
-
-# =============================================================================
-# TESTS: GET /favorites - Happy Path
-# =============================================================================
-class TestListFavoritesHappyPath:
-    """Tests for GET /favorites happy path."""
-
-    def test_get_favorites_returns_200_with_card_ids(self, client, fake_list):
-        """GET /favorites with valid session returns 200 + JSON with card_ids."""
+    def test_returns_200_with_card_ids(self, client):
+        """GET with valid session returns 200 + JSON with card_ids."""
         response = client.get("/favorites")
 
         assert response.status_code == 200, "Valid GET should return 200"
@@ -257,8 +181,8 @@ class TestListFavoritesHappyPath:
         assert isinstance(data["card_ids"], list), "card_ids should be a list"
         assert data["card_ids"] == ["card-001", "card-002"]
 
-    def test_get_favorites_calls_use_case_with_correct_request(self, client, fake_list):
-        """GET /favorites passes correct data to use case."""
+    def test_calls_use_case_with_correct_request(self, client, fake_list):
+        """GET passes correct data to use case."""
         response = client.get("/favorites")
 
         assert response.status_code == 200
@@ -267,23 +191,15 @@ class TestListFavoritesHappyPath:
         ), "list_favorites.execute() should be called once"
         assert fake_list.last_request is not None, "Request should be captured"
 
-        # Validate request DTO fields
         assert fake_list.last_request.actor_id == "u1"
 
-
-# =============================================================================
-# TESTS: GET /favorites - Not Found
-# =============================================================================
-class TestListFavoritesNotFound:
-    """Tests for GET /favorites when use case raises not found."""
-
-    @pytest.fixture
-    def client_not_found(self, fake_toggle, session_factory):
+    @pytest.fixture(name="client_not_found")
+    def _make_not_found_client(self, fake_toggle, session_factory):
         """Create client with list that raises not found error."""
         app = create_app()
 
-        fake_list_error = FakeListFavorites(
-            error=Exception("not found: card does not exist")
+        fake_list_error = FakeUseCase(
+            error=RuntimeError("not found: card does not exist"),
         )
 
         app.config["services"] = FakeServices(
@@ -295,8 +211,8 @@ class TestListFavoritesNotFound:
             session_factory(test_client, "u1")
             yield test_client
 
-    def test_get_favorites_not_found_returns_404(self, client_not_found):
-        """GET /favorites returns 404 when not found."""
+    def test_not_found_returns_404(self, client_not_found):
+        """GET returns 404 when not found."""
         response = client_not_found.get("/favorites")
 
         assert response.status_code == 404, "Not found should return 404"

@@ -7,12 +7,14 @@ import re
 from pathlib import Path
 
 import pytest
+from e2e.utils import fill_required_text_fields
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator, Page
 
 
 @pytest.mark.e2e
-def test_ui_smoke_loads(e2e_services, wait_for_health, page):
+@pytest.mark.usefixtures("e2e_services")
+def test_ui_smoke_loads(wait_for_health, page):
     """
     Smoke test E2E UI (Gradio): carga e interacción mínima.
     """
@@ -43,7 +45,7 @@ def test_ui_smoke_loads(e2e_services, wait_for_health, page):
             seed_input.fill("123")
 
         # Fill required text fields so the API accepts the request
-        _fill_required_text_fields(page)
+        fill_required_text_fields(page, "Smoke Test Scenario")
 
         generate_button = page.get_by_role(
             "button",
@@ -166,22 +168,6 @@ def _select_mode(mode_control: Locator, value: str) -> None:
             return
 
     mode_control.fill(value)
-
-
-def _fill_required_text_fields(page: Page) -> None:
-    """Fill required form fields so the API accepts the request."""
-    _fields = {
-        "scenario-name-input": "Smoke Test Scenario",
-        "armies-input": "Test armies",
-        "deployment": "Standard",
-        "layout": "Open Field",
-        "objectives": "Hold Ground",
-        "initial_priority": "None",
-    }
-    for elem_id, value in _fields.items():
-        locator = page.locator(f"#{elem_id} input, #{elem_id} textarea")
-        if locator.count() > 0:
-            locator.first.fill(value)
 
 
 def _assert_generation_result(page: Page) -> None:

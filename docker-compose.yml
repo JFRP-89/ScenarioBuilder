@@ -1,16 +1,19 @@
 # =============================================================================
-# Docker Compose for ScenarioBuilder
+# Docker Compose for ScenarioBuilder — Production Stack
+# =============================================================================
 # Stack: PostgreSQL 16 + Combined App (FastAPI + Flask Auth/API + Gradio UI)
 #
-# The combined app runs on a single port (8000) and handles:
-# - Authentication and API endpoints (Flask)
+# The unified app runs on port 8000 and handles:
+# - Authentication & API (Flask)
 # - Interactive UI (Gradio at /sb/)
-# - Shared cookie handling via ASGI/FastAPI
+# - Shared session cookies via ASGI middleware
 #
-# NOTE: Quality analysis tools (pylint, radon, vulture, mypy, bandit) are
-#       NOT included in production images to minimize size. For development:
-#       - Local: pip install -r requirements-dev.txt
-#       - CI/CD: docker build --target quality-check
+# Production requirements:
+# - POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD must be set in .env
+# - DATABASE_URL will be constructed automatically
+# - Resource limits: 1 CPU / 1GB RAM per service
+#
+# Healthchecks enabled for orchestrators (K8s, ECS, Swarm, etc.)
 # =============================================================================
 
 services:
@@ -22,16 +25,27 @@ services:
     container_name: scenariobuilder-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-scenario}
-      POSTGRES_USER: ${POSTGRES_USER:-scenario}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scenario}
+      POSTGRES_DB: ${POSTGRES_DB:?error}
+      POSTGRES_USER: ${POSTGRES_USER:?error}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?error}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    
+    # Production resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scenario} -d ${POSTGRES_DB:-scenario}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -54,33 +68,38 @@ services:
     container_name: scenariobuilder-app
     restart: unless-stopped
     environment:
-      # ASGI server (Uvicorn)
+      # Python / ASGI server
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: /app/src
       
-      # Flask configuration (for internal auth system)
-      FLASK_ENV: ${FLASK_ENV:-production}
+      # Flask (production mode)
+      FLASK_ENV: production
       FLASK_DEBUG: "0"
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       
-      # Server configuration
-      APP_HOST: 0.0.0.0
-      APP_PORT: 8000
+      # Server configuration (must match Uvicorn args below)
+      HOST: 0.0.0.0
+      PORT: 8000
+      LOG_LEVEL: info
       
-      # Database connection
-      DATABASE_URL: postgresql://${POSTGRES_USER:-scenario}:${POSTGRES_PASSWORD:-scenario}@db:5432/${POSTGRES_DB:-scenario}
-      
-      # Application defaults
-      DEFAULT_ACTOR_ID: ${DEFAULT_ACTOR_ID:-demo-user}
-      
-      # Production mode — strict fail-fast, no fallbacks
-      APP_ENV: prod
+      # Database connection (REQUIRED)
+      DATABASE_URL: postgresql://${POSTGRES_USER:?error}:${POSTGRES_PASSWORD:?error}@db:5432/${POSTGRES_DB:?error}
+    
+    # Production resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    
     command: [
       "sh", "-c",
-      "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000"
+      "alembic upgrade head && python -m uvicorn adapters.combined_app:create_combined_app --factory --host 0.0.0.0 --port 8000 --log-level info"
     ]
     ports:
-      - "${APP_PORT:-8000}:8000"
+      - "${PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 # Add src to path if running as script (not as module)
 if __name__ == "__main__":
@@ -24,6 +25,7 @@ if __name__ == "__main__":
         sys.path.insert(0, src_path)
 
 import gradio as gr
+
 from adapters.ui_gradio.ui._url_sync_js import build_url_sync_head_js
 from adapters.ui_gradio.ui.components import configure_renderer
 from adapters.ui_gradio.ui.pages.auth_components import (
@@ -81,7 +83,31 @@ def build_app() -> gr.Blocks:
     # Mirrors PAGE_TO_URL from router.py on the client side.
     _URL_SYNC_JS = build_url_sync_head_js()
 
-    with gr.Blocks(title="Scenario Card Generator", head=_URL_SYNC_JS) as app:
+    # ── Profile modal: backdrop element + click-outside-to-close ──
+    _PROFILE_MODAL_JS = (
+        "<script>\n"
+        "(function(){\n"
+        "  var bd = document.createElement('div');\n"
+        "  bd.id = 'profile-backdrop';\n"
+        "  document.body.appendChild(bd);\n"
+        "  bd.addEventListener('mousedown', function(){\n"
+        "    var btn = document.querySelector('#profile-close-btn button')\n"
+        "           || document.getElementById('profile-close-btn');\n"
+        "    if (btn) btn.click();\n"
+        "  });\n"
+        "})();\n"
+        "</script>"
+    )
+
+    # ── Load tactical dark CSS skin ──────────────────────────────
+    _CSS_PATH = Path(__file__).parent / "ui" / "tactical_gradio.css"
+    _TACTICAL_CSS = _CSS_PATH.read_text(encoding="utf-8") if _CSS_PATH.exists() else ""
+
+    with gr.Blocks(
+        title="Scenario Card Generator",
+        head=_URL_SYNC_JS + _PROFILE_MODAL_JS,
+        css=_TACTICAL_CSS,
+    ) as app:
         # ── Inject infrastructure renderer (composition root) ────────
         from infrastructure.maps.svg_map_renderer import SvgMapRenderer
 
@@ -287,6 +313,7 @@ def build_app() -> gr.Blocks:
                 editing_reload_trigger=editing_reload_trigger,
                 detail_title_md=detail.card_title_md,
                 detail_svg_preview=detail.svg_preview,
+                detail_map_units_radio=detail.map_units_radio,
                 detail_content_html=detail.detail_content_html,
                 detail_edit_btn=detail.edit_btn,
                 detail_delete_btn=detail.delete_btn,
@@ -295,6 +322,7 @@ def build_app() -> gr.Blocks:
                 detail_delete_cancel_btn=detail.delete_cancel_btn,
                 detail_favorite_btn=detail.favorite_btn,
                 edit_title_md=edit.card_title_md,
+                edit_map_units_radio=edit.map_units_radio,
                 edit_svg_preview=edit.svg_preview,
                 edit_card_json=edit.card_json,
                 editing_card_id=editing_card_id,

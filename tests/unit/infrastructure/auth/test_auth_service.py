@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import pytest
+
+from helpers import seed_test_users
 from infrastructure.auth import auth_service, session_store, user_store
 
 
 @pytest.fixture(autouse=True)
 def _clean():
-    """Reset all stores before each test."""
+    """Reset all stores before each test and seed test users."""
     session_store.reset_sessions()
     user_store.reset_stores()
+    seed_test_users()
     yield
     session_store.reset_sessions()
     user_store.reset_stores()
@@ -189,3 +192,25 @@ class TestUpdateProfile:
     def test_expired_session(self):
         result = auth_service.update_profile("nonexistent", "Name", "a@b.com")
         assert result["ok"] is False
+
+    def test_duplicate_email_rejected(self):
+        """Cannot change email to one already used by another user."""
+        # alice already has alice@example.com (seeded test user)
+        login_res = auth_service.authenticate("bob", "bob")
+        session_id = str(login_res["session_id"])
+        alice_profile = user_store.get_user_profile("alice")
+        assert alice_profile is not None
+        result = auth_service.update_profile(session_id, "Bob", alice_profile["email"])
+        assert result["ok"] is False
+        assert "email" in str(result["message"]).lower()
+
+    def test_keeping_own_email_allowed(self):
+        """User can keep their current email when updating profile."""
+        login_res = auth_service.authenticate("alice", "alice")
+        session_id = str(login_res["session_id"])
+        alice_profile = user_store.get_user_profile("alice")
+        assert alice_profile is not None
+        result = auth_service.update_profile(
+            session_id, "Alice New Name", alice_profile["email"]
+        )
+        assert result["ok"] is True

@@ -55,10 +55,17 @@ class TestApplyTableConfig:
 
     def test_custom_valid_inches(self):
         payload: dict = {}
-        custom, err = apply_table_config(payload, "custom", 48, 48, "inches")
+        custom, err = apply_table_config(payload, "custom", 48, 48, "in")
         assert err is None
         assert custom is not None
-        assert abs(custom["width_cm"] - 48 * 2.54) < 0.01
+        assert abs(custom["width_cm"] - 48 * 2.5) < 0.01
+
+    def test_custom_valid_feet(self):
+        payload: dict = {}
+        custom, err = apply_table_config(payload, "custom", 4, 4, "ft")
+        assert err is None
+        assert custom is not None
+        assert abs(custom["width_cm"] - 4 * 30.0) < 0.01
 
     def test_custom_out_of_range_returns_error(self):
         payload: dict = {}

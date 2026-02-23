@@ -7,6 +7,7 @@ with InMemoryCardRepository + InMemoryFavoritesRepository.
 from __future__ import annotations
 
 import pytest
+
 from application.use_cases.list_cards import (
     ListCards,
     ListCardsRequest,

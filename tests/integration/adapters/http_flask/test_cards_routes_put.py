@@ -13,22 +13,24 @@ Tests that the update endpoint:
 from __future__ import annotations
 
 import pytest
+
 from adapters.http_flask.app import create_app
 from application.use_cases.generate_scenario_card import (
     GenerateScenarioCardRequest,
 )
 from application.use_cases.save_card import SaveCardRequest
 from domain.cards.card import GameMode
+from helpers.flask_helpers import csrf_token_of, store_csrf_token
 
 
-@pytest.fixture
-def app_with_client(session_factory):
+@pytest.fixture(name="app_with_client")
+def _make_app_with_client(session_factory):
     """Create a Flask app with test client, using real services."""
     app = create_app()
     app.config["TESTING"] = True
     c = app.test_client()
     auth = session_factory(c, "user-test")
-    c._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
+    store_csrf_token(c, auth["csrf_token"])
     return app, c
 
 
@@ -78,7 +80,7 @@ class TestCardsPutUpdate:
         response = flask_client.put(
             f"/cards/{card_id}",
             json=update_payload,
-            headers={"X-CSRF-Token": flask_client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(flask_client)},
         )
 
         # 4) Verify response
@@ -106,7 +108,7 @@ class TestCardsPutUpdate:
         response = flask_client.put(
             "/cards/nonexistent-card-id",
             json={"armies": "Test"},
-            headers={"X-CSRF-Token": flask_client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(flask_client)},
         )
 
         # Should return 404 (not found) or similar error
