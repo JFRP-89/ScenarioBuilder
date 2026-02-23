@@ -186,6 +186,7 @@ def render_page(
     *,
     empty_message: str = "No scenarios match the selected filters.",
     count_label: str = "scenarios",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Paginate *cards* and render the current page as HTML.
 
@@ -194,7 +195,7 @@ def render_page(
     if not cards:
         safe_msg = escape_html(empty_message)
         empty_html = (
-            f'<div style="text-align:center;color:#999;padding:30px 0;">'
+            f'<div style="text-align:center;color:#5a7090;padding:30px 0;">'
             f"{safe_msg}</div>"
         )
         return empty_html, _EMPTY_PAGE_INFO, 1
@@ -208,7 +209,10 @@ def render_page(
     page_cards = cards[start_idx:end_idx]
 
     cards_html: str = render_card_list_html(
-        page_cards, favorite_ids=set(fav_ids), unit=unit
+        page_cards,
+        favorite_ids=set(fav_ids),
+        unit=unit,
+        actor_id=actor_id,
     )
     safe_label = escape_html(count_label)
     page_info = (
@@ -232,6 +236,7 @@ def render_filtered_page(
     *,
     empty_message: str = "No scenarios match the selected filters.",
     count_label: str = "scenarios",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Sanitise, filter, paginate and render cards in one call.
 
@@ -251,4 +256,5 @@ def render_filtered_page(
         per_page,
         empty_message=empty_message,
         count_label=count_label,
+        actor_id=actor_id,
     )

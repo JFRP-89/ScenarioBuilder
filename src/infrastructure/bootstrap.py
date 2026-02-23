@@ -64,14 +64,14 @@ _LOG_BACKEND_IN_MEMORY = "Using SessionStore backend: in_memory"
 # =============================================================================
 # ENVIRONMENT HELPERS
 # =============================================================================
-def _get_env(name: str, default: str = "") -> str:
+def get_env(name: str, default: str = "") -> str:
     """Read an environment variable, stripped of whitespace."""
     return os.environ.get(name, default).strip()
 
 
-def _is_prod() -> bool:
+def is_prod() -> bool:
     """Return ``True`` when ``APP_ENV`` equals ``prod``."""
-    return _get_env("APP_ENV") == "prod"
+    return get_env("APP_ENV") == "prod"
 
 
 def get_services() -> "Services":
@@ -87,7 +87,7 @@ def get_services() -> "Services":
 # =============================================================================
 # SESSION STORE WIRING
 # =============================================================================
-def _build_session_store() -> None:
+def build_session_store() -> None:
     """Configure session store backend based on ``DATABASE_URL`` and ``APP_ENV``.
 
     Production (``APP_ENV=prod``)
@@ -98,8 +98,8 @@ def _build_session_store() -> None:
         Failures are logged as warnings and the in-memory session store
         is used as a fallback.
     """
-    prod = _is_prod()
-    database_url = _get_env("DATABASE_URL")
+    prod = is_prod()
+    database_url = get_env("DATABASE_URL")
 
     # --- 1) DATABASE_URL must be present in prod --------------------------
     if not database_url:
@@ -165,6 +165,29 @@ def _build_session_store() -> None:
     store = PostgresSessionStore(session_factory=SessionLocal)
     configure_store(store)
     logger.info("Using SessionStore backend: postgres")
+
+
+def _load_persisted_users() -> None:
+    """Load users from PostgreSQL into the in-memory user store.
+
+    Best-effort: logs the result but never raises.
+    """
+    database_url = get_env("DATABASE_URL")
+    if not database_url or not database_url.startswith("postgres"):
+        return
+
+    try:
+        from infrastructure.auth.user_store import load_users_from_database
+
+        count = load_users_from_database()
+        if count:
+            logger.info("Loaded %d user(s) from PostgreSQL into memory.", count)
+        else:
+            logger.info(
+                "No users to load from PostgreSQL (table empty or unreachable).",
+            )
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        logger.warning("Could not load users from database: %s", exc)
 
 
 # =============================================================================
@@ -258,20 +281,10 @@ def build_services() -> Services:
         Services container with all use cases wired up.
     """
     # 0) Configure session store backend (postgres or in-memory)
-    _build_session_store()
+    build_session_store()
 
-    # 0b) Seed demo users (dev only, opt-in via SEED_DEMO_USERS=1)
-    seed_requested = _get_env("SEED_DEMO_USERS") in ("1", "true", "yes")
-    if seed_requested and _is_prod():
-        logger.warning("SEED_DEMO_USERS ignored in production")
-    elif seed_requested:
-        try:
-            from infrastructure.auth.user_store import seed_demo_users_to_database
-
-            seed_demo_users_to_database()
-            logger.info("Demo users seeded successfully.")
-        except (ImportError, OSError, RuntimeError):
-            logger.debug("Failed to seed demo users — skipping.", exc_info=True)
+    # 0b) Load persisted users into the in-memory store
+    _load_persisted_users()
 
     # 1) Build infrastructure dependencies
     card_repo = _build_card_repository()

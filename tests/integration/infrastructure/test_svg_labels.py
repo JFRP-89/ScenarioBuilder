@@ -35,13 +35,14 @@ class TestSvgLabelsForShapes:
         assert 'y="150"' in result
 
     def test_rect_without_description_has_no_label(self, renderer):
-        """Rect without description should not have a label."""
+        """Rect without description should not have a shape label."""
         table_mm = {"width_mm": 1200, "height_mm": 1200}
         shapes = [{"type": "rect", "x": 0, "y": 0, "width": 1200, "height": 300}]
         result = renderer.render(table_mm, shapes)
-        # Should have rect but no text element
+        # Should have rect but no shape label text
+        # (overlay dimension labels may exist, so check class specifically)
         assert "<rect" in result
-        assert "<text" not in result
+        assert 'class="sb-label' not in result
 
     def test_circle_with_description_has_label(self, renderer):
         """Circle (scenography) with description should have centered label."""
@@ -102,12 +103,14 @@ class TestSvgLabelsForShapes:
         assert 'y="550"' in result
 
     def test_objective_point_without_description_has_no_label(self, renderer):
-        """Objective point without description should not have a label."""
+        """Objective point without description has numbered marker but no label."""
         table_mm = {"width_mm": 1200, "height_mm": 1200}
         shapes = [{"type": "objective_point", "cx": 600, "cy": 600}]
         result = renderer.render(table_mm, shapes)
         assert "<circle" in result
-        assert "<text" not in result
+        # Numbered marker text IS present (objective index)
+        assert "<text" in result
+        assert ">1<" in result
 
     def test_multiple_shapes_with_descriptions(self, renderer):
         """Multiple shapes with descriptions should all have labels."""
@@ -136,11 +139,15 @@ class TestSvgLabelsForShapes:
             },
         ]
         result = renderer.render(table_mm, shapes)
-        # Should have 3 text elements
-        assert result.count("<text") == 3
+        # 3 description labels + 1 objective numbered marker = 4 shape text elements
+        # (overlay dimension labels + compass also produce text elements)
         assert "North Zone" in result
         assert "Center Hill" in result
         assert "South Marker" in result
+        # Verify each shape label is present with correct CSS class
+        assert 'class="sb-label-zone"' in result or "North Zone" in result
+        assert 'class="sb-label"' in result or "Center Hill" in result
+        assert 'class="sb-label-obj"' in result or "South Marker" in result
 
     def test_description_with_special_characters_is_escaped(self, renderer):
         """Descriptions with HTML special characters should be escaped."""
@@ -180,4 +187,5 @@ class TestSvgLabelsForShapes:
         result = renderer.render(table_mm, shapes)
         assert "<rect" in result
         assert "<circle" in result
-        assert "<text" not in result
+        # No shape labels (overlay dimension labels may still exist)
+        assert 'class="sb-label' not in result

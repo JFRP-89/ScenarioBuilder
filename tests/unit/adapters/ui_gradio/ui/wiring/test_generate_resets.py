@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.wiring._generate._resets import (
     build_dropdown_resets,
     build_extra_resets,
@@ -40,10 +41,10 @@ class TestBuildFormResets:
         # generate_from_seed is at index 3, value=None, interactive=True
         assert resets[3].get("value") is None
 
-    def test_visibility_reset_to_public(self) -> None:
+    def test_visibility_reset_to_private(self) -> None:
         resets = build_form_resets()
         # visibility is at index 9 (shifted +1 due to generate_from_seed)
-        assert resets[9].get("value") == "public"
+        assert resets[9].get("value") == "private"
 
     def test_special_rules_state_is_empty_list(self) -> None:
         resets = build_form_resets()
@@ -57,8 +58,8 @@ class TestBuildFormResets:
 
     def test_state_lists_are_empty(self) -> None:
         resets = build_form_resets()
-        # vp_state (13), scenography_state (14),
-        # deployment_zones_state (15), objective_points_state (16)
+        # Indices: vp_state=13, scenography_state=14,
+        # deployment_zones_state=15, objective_points_state=16
         for idx in (13, 14, 15, 16):
             assert resets[idx] == [], f"Index {idx} should be []"
 

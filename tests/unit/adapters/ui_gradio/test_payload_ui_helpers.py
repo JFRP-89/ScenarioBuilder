@@ -7,6 +7,8 @@ UI interactions (preset changes, unit changes) to allow safe refactoring.
 
 from __future__ import annotations
 
+import pytest
+
 
 class TestBuildGeneratePayload:
     """Characterization tests for _build_generate_payload()."""
@@ -160,8 +162,8 @@ class TestOnTablePresetChange:
 
         # visibility is a dict (gr.update returns dict)
         assert visibility["visible"] is True
-        assert width == 120.0
-        assert height == 120.0
+        assert width == pytest.approx(120.0)
+        assert height == pytest.approx(120.0)
 
     def test_standard_preset_returns_120x120_in_cm(self):
         """preset='standard' returns 120x120 cm."""
@@ -170,8 +172,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("standard", "cm")
 
         assert visibility["visible"] is False
-        assert width == 120.0
-        assert height == 120.0
+        assert width == pytest.approx(120.0)
+        assert height == pytest.approx(120.0)
 
     def test_standard_preset_returns_48x48_in_inches(self):
         """preset='standard' returns 48x48 inches (120cm / 2.5)."""
@@ -180,8 +182,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("standard", "in")
 
         assert visibility["visible"] is False
-        assert width == 48.0
-        assert height == 48.0
+        assert width == pytest.approx(48.0)
+        assert height == pytest.approx(48.0)
 
     def test_standard_preset_returns_4x4_in_feet(self):
         """preset='standard' returns 4x4 feet (120cm / 30)."""
@@ -190,8 +192,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("standard", "ft")
 
         assert visibility["visible"] is False
-        assert width == 4.0
-        assert height == 4.0
+        assert width == pytest.approx(4.0)
+        assert height == pytest.approx(4.0)
 
     def test_massive_preset_returns_180x120_in_cm(self):
         """preset='massive' returns 180x120 cm."""
@@ -200,8 +202,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("massive", "cm")
 
         assert visibility["visible"] is False
-        assert width == 180.0
-        assert height == 120.0
+        assert width == pytest.approx(180.0)
+        assert height == pytest.approx(120.0)
 
     def test_massive_preset_converts_to_inches(self):
         """preset='massive' converts 180x120 cm to inches."""
@@ -210,8 +212,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("massive", "in")
 
         assert visibility["visible"] is False
-        assert width == 72.0  # 180 / 2.5
-        assert height == 48.0  # 120 / 2.5
+        assert width == pytest.approx(72.0)  # 180 / 2.5
+        assert height == pytest.approx(48.0)  # 120 / 2.5
 
     def test_massive_preset_converts_to_feet(self):
         """preset='massive' converts 180x120 cm to feet."""
@@ -220,8 +222,8 @@ class TestOnTablePresetChange:
         visibility, width, height = _on_table_preset_change("massive", "ft")
 
         assert visibility["visible"] is False
-        assert width == 6.0  # 180 / 30
-        assert height == 4.0  # 120 / 30
+        assert width == pytest.approx(6.0)  # 180 / 30
+        assert height == pytest.approx(4.0)  # 120 / 30
 
 
 class TestOnTableUnitChange:
@@ -235,8 +237,8 @@ class TestOnTableUnitChange:
             "cm", 120.0, 120.0, "cm"
         )
 
-        assert new_width == 120.0
-        assert new_height == 120.0
+        assert new_width == pytest.approx(120.0)
+        assert new_height == pytest.approx(120.0)
         assert new_prev == "cm"
 
     def test_converts_cm_to_inches(self):
@@ -247,8 +249,8 @@ class TestOnTableUnitChange:
             "in", 120.0, 120.0, "cm"
         )
 
-        assert new_width == 48.0  # 120 / 2.5
-        assert new_height == 48.0
+        assert new_width == pytest.approx(48.0)  # 120 / 2.5
+        assert new_height == pytest.approx(48.0)
         assert new_prev == "in"
 
     def test_converts_cm_to_feet(self):
@@ -259,8 +261,8 @@ class TestOnTableUnitChange:
             "ft", 120.0, 120.0, "cm"
         )
 
-        assert new_width == 4.0  # 120 / 30
-        assert new_height == 4.0
+        assert new_width == pytest.approx(4.0)  # 120 / 30
+        assert new_height == pytest.approx(4.0)
         assert new_prev == "ft"
 
     def test_converts_inches_to_cm(self):
@@ -269,8 +271,8 @@ class TestOnTableUnitChange:
 
         new_width, new_height, new_prev = _on_table_unit_change("cm", 48.0, 48.0, "in")
 
-        assert new_width == 120.0  # 48 * 2.5
-        assert new_height == 120.0
+        assert new_width == pytest.approx(120.0)  # 48 * 2.5
+        assert new_height == pytest.approx(120.0)
         assert new_prev == "cm"
 
     def test_converts_feet_to_cm(self):
@@ -279,8 +281,8 @@ class TestOnTableUnitChange:
 
         new_width, new_height, new_prev = _on_table_unit_change("cm", 4.0, 4.0, "ft")
 
-        assert new_width == 120.0  # 4 * 30
-        assert new_height == 120.0
+        assert new_width == pytest.approx(120.0)  # 4 * 30
+        assert new_height == pytest.approx(120.0)
         assert new_prev == "cm"
 
     def test_clamps_to_min_limit_for_new_unit(self):
@@ -291,8 +293,8 @@ class TestOnTableUnitChange:
         # 1 cm = 0.4 in, should clamp to 24 in
         new_width, new_height, new_prev = _on_table_unit_change("in", 1.0, 1.0, "cm")
 
-        assert new_width == 24.0  # min for inches
-        assert new_height == 24.0
+        assert new_width == pytest.approx(24.0)  # min for inches
+        assert new_height == pytest.approx(24.0)
         assert new_prev == "in"
 
     def test_clamps_to_max_limit_for_new_unit(self):
@@ -305,8 +307,8 @@ class TestOnTableUnitChange:
             "in", 400.0, 400.0, "cm"
         )
 
-        assert new_width == 120.0  # max for inches
-        assert new_height == 120.0
+        assert new_width == pytest.approx(120.0)  # max for inches
+        assert new_height == pytest.approx(120.0)
         assert new_prev == "in"
 
     def test_returns_unchanged_if_width_or_height_falsy(self):
@@ -315,8 +317,8 @@ class TestOnTableUnitChange:
 
         new_width, new_height, new_prev = _on_table_unit_change("in", 0.0, 120.0, "cm")
 
-        assert new_width == 0.0
-        assert new_height == 120.0
+        assert new_width == pytest.approx(0.0)
+        assert new_height == pytest.approx(120.0)
         assert new_prev == "in"
 
     def test_rounds_to_2_decimals(self):
@@ -328,6 +330,6 @@ class TestOnTableUnitChange:
             "ft", 100.0, 100.0, "cm"
         )
 
-        assert new_width == 3.33
-        assert new_height == 3.33
+        assert new_width == pytest.approx(3.33)
+        assert new_height == pytest.approx(3.33)
         assert new_prev == "ft"

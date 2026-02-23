@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 import pytest
+
 from adapters.ui_gradio.ui.components.search_helpers import (
     DEFAULT_ITEMS_PER_PAGE,
     ITEMS_PER_PAGE_CHOICES,
@@ -155,7 +156,7 @@ class TestRenderPage:
         return [{"card_id": f"c{i}", "name": f"Card {i}"} for i in range(n)]
 
     def test_empty_cards_returns_empty_html(self):
-        html, info, page = render_page([], [], "cm", 1, 10)
+        html, _, page = render_page([], [], "cm", 1, 10)
         assert "No scenarios match" in html
         assert page == 1
 
@@ -165,21 +166,21 @@ class TestRenderPage:
 
     def test_single_page(self):
         cards = self._make_cards(5)
-        html, info, page = render_page(cards, [], "cm", 1, 10)
+        _, info, page = render_page(cards, [], "cm", 1, 10)
         assert "Page 1 of 1" in info
         assert "(5 scenarios)" in info
         assert page == 1
 
     def test_multi_page_first(self):
         cards = self._make_cards(25)
-        html, info, page = render_page(cards, [], "cm", 1, 10)
+        _, info, page = render_page(cards, [], "cm", 1, 10)
         assert "Page 1 of 3" in info
         assert "(25 scenarios)" in info
         assert page == 1
 
     def test_multi_page_last(self):
         cards = self._make_cards(25)
-        html, info, page = render_page(cards, [], "cm", 3, 10)
+        _, info, page = render_page(cards, [], "cm", 3, 10)
         assert "Page 3 of 3" in info
         assert page == 3
 
@@ -212,7 +213,7 @@ class TestRenderPage:
 
     def test_per_page_5(self):
         cards = self._make_cards(12)
-        _, info, page = render_page(cards, [], "cm", 1, 5)
+        _, info, _ = render_page(cards, [], "cm", 1, 5)
         assert "Page 1 of 3" in info
 
     def test_favorites_marked_in_html(self):
@@ -559,7 +560,7 @@ class TestRenderFilteredPage:
 
     def test_basic_rendering(self):
         cards = self._make_cards(5)
-        html_out, info, page = render_filtered_page(cards, [], "cm", 1)
+        _, info, page = render_filtered_page(cards, [], "cm", 1)
         assert "Page 1 of 1" in info
         assert page == 1
 

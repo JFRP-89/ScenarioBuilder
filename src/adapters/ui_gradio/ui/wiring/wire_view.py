@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.auth import is_session_valid
 from adapters.ui_gradio.ui.router import PAGE_HOME, navigate_to_detail
 

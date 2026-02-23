@@ -12,6 +12,7 @@ a2wsgi==1.10.10
 SQLAlchemy==2.0.32
 alembic==1.13.2
 playwright==1.49.0
+psutil==7.2.2
 
 pytest==8.2.0
 pytest-cov==5.0.0

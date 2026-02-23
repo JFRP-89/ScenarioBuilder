@@ -46,7 +46,7 @@ class TestExtractObjectivesTextForForm:
             _extract_objectives_text_for_form,
         )
 
-        text, vp_enabled, vp_list = _extract_objectives_text_for_form("Just text")
+        text, vp_enabled, _ = _extract_objectives_text_for_form("Just text")
         assert text == "Just text"
         assert vp_enabled is False
 

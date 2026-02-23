@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import pytest
+
+from helpers import seed_test_users
 from infrastructure.auth import auth_service, session_store, user_store
 
 
 @pytest.fixture(autouse=True)
 def _clean():
-    """Reset all stores before each test."""
+    """Reset all stores before each test and seed test users."""
     session_store.reset_sessions()
     user_store.reset_stores()
+    seed_test_users()
     yield
     session_store.reset_sessions()
     user_store.reset_stores()
@@ -41,8 +44,8 @@ class TestChangePassword:
         ok = user_store.change_password("ghost", "NewStr0ng!pw")
         assert ok is False
 
-    def test_change_demo_user_password(self):
-        """Demo users can also change their password."""
+    def test_change_existing_user_password(self):
+        """Existing users can also change their password."""
         ok = user_store.change_password("alice", "Alice_New!1")
         assert ok is True
         assert user_store.verify_credentials("alice", "Alice_New!1") is True

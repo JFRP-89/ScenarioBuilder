@@ -1,7 +1,8 @@
 """Collision detection for map shapes.
 
-Supports RectxRect, CirclexCircle, and RectxCircle overlap tests
-with a configurable clearance margin (MIN_CLEARANCE_MM).
+Supports RectxRect, CirclexCircle, RectxCircle, and polygon
+overlap tests (via AABB bounding box) with a configurable
+clearance margin (MIN_CLEARANCE_MM).
 """
 
 from __future__ import annotations
@@ -26,6 +27,40 @@ def _circle_bounds(shape: dict) -> tuple[int, int, int, int]:
     """Return axis-aligned bounding box for a circle shape."""
     cx, cy, r = shape["cx"], shape["cy"], shape["r"]
     return (cx - r, cy - r, cx + r, cy + r)
+
+
+def _polygon_bounds(shape: dict) -> tuple[int, int, int, int]:
+    """Return axis-aligned bounding box for a polygon shape."""
+    points = shape["points"]
+    xs = [p["x"] for p in points]
+    ys = [p["y"] for p in points]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _shape_bounds(shape: dict) -> tuple[int, int, int, int] | None:
+    """Return AABB for any supported shape type, or None."""
+    t = shape.get("type", "")
+    if t == "rect":
+        return _rect_bounds(shape)
+    if t == "circle":
+        return _circle_bounds(shape)
+    if t == "polygon":
+        return _polygon_bounds(shape)
+    return None
+
+
+def _aabb_overlap(
+    a: tuple[int, int, int, int],
+    b: tuple[int, int, int, int],
+    clearance: int,
+) -> bool:
+    """Check if two AABBs overlap (including clearance margin)."""
+    return not (
+        a[2] + clearance <= b[0]
+        or b[2] + clearance <= a[0]
+        or a[3] + clearance <= b[1]
+        or b[3] + clearance <= a[1]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +121,7 @@ def _allows_overlap(shape: dict) -> bool:
 def shapes_overlap(a: dict, b: dict, clearance: int = MIN_CLEARANCE_MM) -> bool:
     """Check if two shapes overlap with a given clearance.
 
-    Supports: rect, circle. Polygons are skipped (returns False).
+    Supports: rect, circle, polygon (polygon uses AABB bounding box).
     If either shape sets allow_overlap=True, collisions are ignored.
 
     Args:
@@ -114,7 +149,13 @@ def shapes_overlap(a: dict, b: dict, clearance: int = MIN_CLEARANCE_MM) -> bool:
     if ta == "circle" and tb == "rect":
         return _rect_circle_overlap(b, a, clearance)
 
-    # Polygon or unknown type — skip collision (conservative: no overlap)
+    # Polygon involved — use AABB (bounding-box) overlap
+    bounds_a = _shape_bounds(a)
+    bounds_b = _shape_bounds(b)
+    if bounds_a is not None and bounds_b is not None:
+        return _aabb_overlap(bounds_a, bounds_b, clearance)
+
+    # Unknown type — conservatively assume no overlap
     return False
 
 

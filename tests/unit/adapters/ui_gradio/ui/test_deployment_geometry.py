@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._deployment._geometry import (
     _calculate_circle_vertices,
     _calculate_triangle_vertices,

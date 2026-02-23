@@ -1,13 +1,13 @@
 """E2E test: seed=0 means manual scenario (no shape generation)."""
 
 import pytest
-import requests
-
-from tests.e2e._support import get_api_base_url
+from e2e._support import get_api_base_url
+from e2e._support.api_helpers import post_card
 
 
 @pytest.mark.e2e
-def test_seed_zero_skips_generation(e2e_services, wait_for_health):
+@pytest.mark.usefixtures("e2e_services")
+def test_seed_zero_skips_generation(wait_for_health):
     """
     E2E API: seed=0 debe resultar en NO generación de shapes.
 
@@ -29,12 +29,7 @@ def test_seed_zero_skips_generation(e2e_services, wait_for_health):
     }
 
     # POST /cards con seed=0
-    response = requests.post(
-        f"{api_url}/cards",
-        headers=headers,
-        json=payload,
-        timeout=30,
-    )
+    response = post_card(api_url, headers, payload)
 
     # Validar status
     assert response.status_code == 201, (
@@ -74,7 +69,8 @@ def test_seed_zero_skips_generation(e2e_services, wait_for_health):
 
 
 @pytest.mark.e2e
-def test_seed_one_generates_shapes(e2e_services, wait_for_health):
+@pytest.mark.usefixtures("e2e_services")
+def test_seed_one_generates_shapes(wait_for_health):
     """
     E2E API: seed>=1 preserva el seed y puede generar shapes (TBD: debuggear por qué shapes vacío).
 
@@ -95,12 +91,7 @@ def test_seed_one_generates_shapes(e2e_services, wait_for_health):
     }
 
     # POST /cards con seed=1
-    response = requests.post(
-        f"{api_url}/cards",
-        headers=headers,
-        json=payload,
-        timeout=30,
-    )
+    response = post_card(api_url, headers, payload)
 
     # Validar status
     assert response.status_code == 201, (
@@ -121,7 +112,7 @@ def test_seed_one_generates_shapes(e2e_services, wait_for_health):
     assert "objective_shapes" in shapes
     assert "scenography_specs" in shapes
 
-    # TODO: Investigar por qué shapes está vacío en e2e cuando en unit tests funciona
+    # KNOWN: shapes may appear empty in e2e even though unit tests populate them
     # print(f"DEBUG shapes: {shapes}")
 
     print(f"✅ Generated scenario (seed=1) creado exitosamente: {card_data['card_id']}")

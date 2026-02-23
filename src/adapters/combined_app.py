@@ -17,11 +17,12 @@ from urllib.parse import urlencode
 
 import gradio as gr
 from a2wsgi import WSGIMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+
 from adapters.http_flask.app import create_app as create_flask_app
 from adapters.ui_gradio.app import build_app as build_gradio_app
 from adapters.ui_gradio.ui.router import PAGE_TO_URL
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
 
 # Query-param names allowed to be forwarded through sub-route redirects.
 _FORWARD_PARAMS: frozenset[str] = frozenset({"id", "seed", "mode", "filter"})

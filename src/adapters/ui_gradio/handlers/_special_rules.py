@@ -6,6 +6,7 @@ import uuid
 from typing import Any, Callable
 
 import gradio as gr
+
 from adapters.ui_gradio.ui_types import SpecialRuleItem
 
 

@@ -16,6 +16,7 @@ from functools import partial
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import (
     get_default_actor_id,
@@ -61,6 +62,7 @@ __all__ = [
     "DetailPageCtx",
     "EditButtonCtx",
     "_fetch_card_and_svg",
+    "_rerender_svg_with_units",
     "_get_reset_detail_for_loading",
     "_load_card_detail",
     "_toggle_fav",
@@ -104,6 +106,26 @@ def _fetch_card_and_svg(
     return card_data, _wrap_svg(svg_html)
 
 
+def _rerender_svg_with_units(
+    card_id: str,
+    display_units: str,
+    actor_id: str = "",
+) -> str:
+    """Re-render the SVG map with different display units.
+
+    Called when the user switches the map-display-units radio on
+    the detail or edit page.  Only the overlay dimension labels
+    change; no card data is modified.
+    """
+    if not card_id:
+        return ""
+    if not actor_id:
+        actor_id = get_default_actor_id()
+    units = display_units if display_units in ("cm", "in", "ft") else "cm"
+    svg_html = nav_svc.get_card_svg(actor_id, card_id, display_units=units)
+    return _wrap_svg(svg_html)
+
+
 # ── Testable factory for the instant-reset function ──────────────
 def _get_reset_detail_for_loading():
     """Return a function that immediately hides Edit/Delete and shows loading."""
@@ -111,8 +133,8 @@ def _get_reset_detail_for_loading():
     def _reset(_card_id: str) -> tuple:
         return (
             "## Loading…",
-            '<div style="color:#999;text-align:center;">Loading…</div>',
-            '<div style="color:#999;text-align:center;">Loading…</div>',
+            '<div style="color:#5a7090;text-align:center;">Loading…</div>',
+            '<div style="color:#5a7090;text-align:center;">Loading…</div>',
             gr.update(visible=False),
             gr.update(visible=False),
             gr.update(visible=False),
@@ -131,8 +153,8 @@ def _load_card_detail(card_id: str, actor_id: str = "") -> tuple:
     if not card_id:
         return (
             "## Scenario Detail",
-            '<div style="color:#999;">No card selected</div>',
-            '<div style="color:#999;text-align:center;">No data</div>',
+            '<div style="color:#5a7090;">No card selected</div>',
+            '<div style="color:#5a7090;text-align:center;">No data</div>',
             gr.update(visible=False),
             gr.update(visible=False),
             gr.update(visible=False),
@@ -234,6 +256,7 @@ class DetailPageCtx:
     # Detail page widgets
     detail_title_md: gr.Markdown
     detail_svg_preview: gr.HTML
+    detail_map_units_radio: gr.Radio
     detail_content_html: gr.HTML
     detail_edit_btn: gr.Button
     detail_delete_btn: gr.Button
@@ -243,6 +266,7 @@ class DetailPageCtx:
     detail_favorite_btn: gr.Button
     # Edit page widgets (kept for backward compat)
     edit_title_md: gr.Markdown
+    edit_map_units_radio: gr.Radio
     edit_svg_preview: gr.HTML
     edit_card_json: gr.JSON
     # Create-form fields for populate-on-edit
@@ -338,6 +362,17 @@ def wire_detail_page(*, ctx: DetailPageCtx) -> None:
         outputs=[c.detail_favorite_btn],
     )
 
+    # ── Map display-units converter (re-renders SVG only) ──────────
+    _unit_inputs = _build_inputs(
+        [c.detail_card_id_state, c.detail_map_units_radio],
+        c.actor_id_state,
+    )
+    c.detail_map_units_radio.change(
+        fn=_rerender_svg_with_units,
+        inputs=_unit_inputs,
+        outputs=[c.detail_svg_preview],
+    )
+
     # ── Delete button → show/hide confirmation ────────────────────
     c.detail_delete_btn.click(
         fn=lambda: gr.update(visible=True),
@@ -430,3 +465,14 @@ def wire_detail_page(*, ctx: DetailPageCtx) -> None:
                 c.edit_card_json,
             ],
         )
+
+    # ── Edit-page map display-units converter ─────────────────────
+    _edit_unit_inputs = _build_inputs(
+        [c.detail_card_id_state, c.edit_map_units_radio],
+        c.actor_id_state,
+    )
+    c.edit_map_units_radio.change(
+        fn=_rerender_svg_with_units,
+        inputs=_edit_unit_inputs,
+        outputs=[c.edit_svg_preview],
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.auth._service import (
     authenticate,
     get_logged_in_label,
@@ -14,12 +15,14 @@ from adapters.ui_gradio.auth._store import (
     MAX_FAILED_ATTEMPTS,
     reset_stores,
 )
+from helpers import seed_test_users
 
 
 @pytest.fixture(autouse=True)
 def _clean_stores():
-    """Reset stores before each test."""
+    """Reset stores before each test and seed test users."""
     reset_stores()
+    seed_test_users()
     yield
     reset_stores()
 
@@ -61,7 +64,7 @@ class TestAuthenticate:
 
     def test_lockout_after_three_failures(self):
         for _ in range(MAX_FAILED_ATTEMPTS):
-            result = authenticate("alice", "wrong")
+            authenticate("alice", "wrong")
 
         # Now locked
         result = authenticate("alice", "alice")
@@ -97,9 +100,9 @@ class TestAuthenticate:
 
     @pytest.mark.parametrize(
         "username",
-        ["demo-user", "alice", "bob", "charlie", "dave"],
+        ["alice", "bob", "charlie", "dave"],
     )
-    def test_all_demo_users_can_login(self, username: str):
+    def test_all_test_users_can_login(self, username: str):
         result = authenticate(username, username)
         assert result["ok"] is True
         assert result["actor_id"] == username
@@ -172,6 +175,23 @@ class TestUpdateProfile:
         profile = get_profile("bob")
         assert profile["profile"]["name"] == "Bob 2"
         assert profile["profile"]["email"] == "bob2@example.com"
+
+    def test_duplicate_email_rejected(self):
+        """Cannot change email to one already used by another user."""
+        alice_profile = get_profile("alice")
+        assert alice_profile["ok"] is True
+        alice_email = alice_profile["profile"]["email"]
+        result = update_profile("bob", "Bob", alice_email)
+        assert result["ok"] is False
+        assert "email" in str(result["message"]).lower()
+
+    def test_keeping_own_email_allowed(self):
+        """User can keep their current email when updating name only."""
+        alice_profile = get_profile("alice")
+        assert alice_profile["ok"] is True
+        alice_email = alice_profile["profile"]["email"]
+        result = update_profile("alice", "Alice Updated", alice_email)
+        assert result["ok"] is True
 
 
 # =====================================================================

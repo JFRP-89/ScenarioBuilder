@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.auth._validators import (
     validate_display_name,
     validate_email,

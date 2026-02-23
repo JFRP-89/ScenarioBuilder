@@ -7,12 +7,13 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+from sqlalchemy.orm import Session
+
 from domain.cards.card import Card, parse_game_mode
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
 from infrastructure.db.models import CardModel
-from sqlalchemy.orm import Session
 
 
 class PostgresCardRepository:

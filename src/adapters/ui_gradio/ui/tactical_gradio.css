@@ -1,0 +1,1060 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TACTICAL_GRADIO.CSS — ScenarioBuilder Gradio Skin
+   Overrides Gradio's default theme to match the "tactical dark" design.
+   Loaded via gr.Blocks(css=...) in app.py
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 0. IMPORTS — Web fonts ───────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ── 1. ROOT OVERRIDES — Gradio CSS variables ────────────────────────── */
+.gradio-container {
+  --body-background-fill: #06080b !important;
+  --background-fill-primary: #171e2c !important;
+  --background-fill-secondary: #111315 !important;
+  --block-background-fill: #171e2c !important;
+  --block-border-color: #2a3545 !important;
+  --block-label-background-fill: #1d2736 !important;
+  --block-label-text-color: #92a9c1 !important;
+  --block-title-text-color: #e9eef6 !important;
+  --body-text-color: #e9eef6 !important;
+  --body-text-color-subdued: #92a9c1 !important;
+  --border-color-primary: #2a3545 !important;
+  --border-color-accent: #f6d41c !important;
+  --button-primary-background-fill: #f6d41c !important;
+  --button-primary-background-fill-hover: #d4bc49 !important;
+  --button-primary-text-color: #06080b !important;
+  --button-primary-border-color: #f6d41c !important;
+  --button-secondary-background-fill: #1d2736 !important;
+  --button-secondary-background-fill-hover: #243040 !important;
+  --button-secondary-text-color: #e9eef6 !important;
+  --button-secondary-border-color: #2a3545 !important;
+  --button-cancel-background-fill: #2a1215 !important;
+  --button-cancel-background-fill-hover: #c93c3f !important;
+  --button-cancel-text-color: #ef5f62 !important;
+  --button-cancel-border-color: #552b36 !important;
+  --color-accent: #f6d41c !important;
+  --color-accent-soft: rgba(246, 212, 28, 0.15) !important;
+  --checkbox-background-color: #111315 !important;
+  --checkbox-background-color-selected: #f6d41c !important;
+  --checkbox-background-color-hover: rgba(246,212,28,0.04) !important;
+  --checkbox-background-color-focus: #111315 !important;
+  --checkbox-border-color: #354560 !important;
+  --checkbox-border-color-hover: rgba(246,212,28,0.4) !important;
+  --checkbox-border-color-focus: #f6d41c !important;
+  --checkbox-border-color-selected: #f6d41c !important;
+  --checkbox-border-width: 1.5px !important;
+  --checkbox-border-radius: 4px !important;
+  --checkbox-shadow: none !important;
+  --checkbox-check: none !important;
+  --checkbox-label-text-color: #e9eef6 !important;
+  --checkbox-label-text-color-selected: #f6d41c !important;
+  --checkbox-label-background-fill: transparent !important;
+  --checkbox-label-background-fill-hover: rgba(255,255,255,0.04) !important;
+  --checkbox-label-background-fill-focus: transparent !important;
+  --checkbox-label-background-fill-selected: rgba(246,212,28,0.10) !important;
+  --checkbox-label-border-color: transparent !important;
+  --checkbox-label-border-width: 1px !important;
+  --checkbox-label-shadow: none !important;
+  --checkbox-label-padding: 6px 14px !important;
+  --checkbox-label-text-weight: 600 !important;
+  --checkbox-label-text-size: 13px !important;
+  --checkbox-label-gap: 2px !important;
+  --radio-circle: none !important;
+  --input-background-fill: #111315 !important;
+  --input-border-color: #2a3545 !important;
+  --input-border-color-focus: #f6d41c !important;
+  --input-placeholder-color: #5a7090 !important;
+  --input-text-color: #e9eef6 !important;
+  --loader-color: #f6d41c !important;
+  --neutral-50: #111315 !important;
+  --neutral-100: #171e2c !important;
+  --neutral-200: #1d2736 !important;
+  --neutral-300: #2a3545 !important;
+  --neutral-400: #354560 !important;
+  --neutral-500: #5a7090 !important;
+  --neutral-600: #92a9c1 !important;
+  --neutral-700: #c5cdd8 !important;
+  --neutral-800: #e9eef6 !important;
+  --neutral-900: #f0f4f8 !important;
+  --panel-background-fill: #111315 !important;
+  --shadow-drop: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  --shadow-drop-lg: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+  --table-border-color: #2a3545 !important;
+  --table-even-background-fill: #171e2c !important;
+  --table-odd-background-fill: #111315 !important;
+  --table-row-focus: rgba(246, 212, 28, 0.1) !important;
+
+  /* Typography */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace !important;
+
+  /* Radius */
+  --block-radius: 10px !important;
+  --container-radius: 14px !important;
+  --radius-sm: 6px !important;
+  --radius-md: 10px !important;
+  --radius-lg: 14px !important;
+
+  /* Spacing */
+  --block-label-margin: 0 !important;
+  --block-padding: 16px !important;
+  --layout-gap: 16px !important;
+  --section-header-text-size: 1rem !important;
+
+  /* ── Design-System tokens (sb-* namespace) ──────────────────────── */
+  /* Button heights */
+  --sb-h-sm: 32px;
+  --sb-h-md: 40px;
+  --sb-h-lg: 48px;
+  /* Horizontal padding */
+  --sb-px-sm: 12px;
+  --sb-px-md: 16px;
+  --sb-px-lg: 20px;
+  /* Radii (mirror Gradio tokens for custom HTML) */
+  --sb-r-sm: 6px;
+  --sb-r-md: 10px;
+  --sb-r-lg: 14px;
+  /* Focus ring & glow */
+  --sb-focus-ring: 0 0 0 2px #0a0c10, 0 0 0 4px #f6d41c;
+  --sb-glow-accent: 0 0 14px rgba(246,212,28,0.06);
+  /* Palette (single source of truth for card HTML) */
+  --sb-body: #06080b;
+  --sb-panel: #171e2c;
+  --sb-surface: #111315;
+  --sb-secondary: #1d2736;
+  --sb-border: #2a3545;
+  --sb-border-hover: #354560;
+  --sb-accent: #f6d41c;
+  --sb-accent-hover: #d4bc49;
+  --sb-text: #e9eef6;
+  --sb-muted: #92a9c1;
+  --sb-subdued: #5a7090;
+  --sb-danger: #e5484d;
+  --sb-danger-bg: rgba(229,72,77,0.15);
+  --sb-danger-border: rgba(229,72,77,0.3);
+
+  /* Direct overrides */
+  background: #06080b !important;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+  max-width: 100% !important;
+}
+
+/* ── 2. GLOBAL — Tactical background effects ──────────────────────────── */
+
+/* Tactical grid background */
+.gradio-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* Subtle vignette */
+.gradio-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.4) 100%);
+  pointer-events: none;
+}
+
+/* ── 3. BLOCKS & CONTAINERS ───────────────────────────────────────────── */
+.gr-block,
+.gr-panel,
+.gr-group,
+.gr-box {
+  background: #171e2c !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 10px !important;
+}
+
+.gr-padded {
+  padding: 16px !important;
+}
+
+/* ── 4. BUTTONS ───────────────────────────────────────────────────────── */
+button.primary,
+.gr-button.primary,
+button[class*="primary"] {
+  background: #f6d41c !important;
+  color: #06080b !important;
+  border: 1px solid #f6d41c !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  transition: all 0.15s ease !important;
+}
+
+button.primary:hover,
+.gr-button.primary:hover,
+button[class*="primary"]:hover {
+  background: #d4bc49 !important;
+  border-color: #d4bc49 !important;
+}
+
+button.secondary,
+.gr-button.secondary,
+button[class*="secondary"] {
+  background: #1d2736 !important;
+  color: #e9eef6 !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 10px !important;
+  transition: all 0.15s ease !important;
+}
+
+button.secondary:hover,
+.gr-button.secondary:hover,
+button[class*="secondary"]:hover {
+  background: #243040 !important;
+  border-color: #354560 !important;
+}
+
+button.stop,
+.gr-button.stop,
+button[class*="stop"] {
+  background: #2a1215 !important;
+  color: #ef5f62 !important;
+  border: 1px solid #552b36 !important;
+  border-radius: 10px !important;
+}
+
+button.stop:hover,
+.gr-button.stop:hover,
+button[class*="stop"]:hover {
+  background: #c93c3f !important;
+  color: #fff !important;
+}
+
+button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+button:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #0a0c10, 0 0 0 4px #f6d41c !important;
+}
+
+/* ── 4b. SB-BTN — Design-System button component ─────────────────────
+   Used in card HTML where we control the markup directly.
+   Gradio-managed buttons keep the overrides from section 4.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Base */
+.sb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font, 'Inter', system-ui, sans-serif);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--sb-r-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  text-decoration: none;
+  line-height: 1;
+  /* Default size = md */
+  height: var(--sb-h-md);
+  padding: 0 var(--sb-px-md);
+  font-size: 14px;
+}
+
+/* ── Sizes ─── */
+.sb-btn--sm {
+  height: var(--sb-h-sm);
+  padding: 0 var(--sb-px-sm);
+  font-size: 12px;
+  border-radius: var(--sb-r-sm);
+}
+
+.sb-btn--lg {
+  height: var(--sb-h-lg);
+  padding: 0 var(--sb-px-lg);
+  font-size: 16px;
+  border-radius: var(--sb-r-lg);
+}
+
+/* ── Variants ─── */
+
+/* Primary — amber CTA, dark text */
+.sb-btn--primary {
+  background: var(--sb-accent);
+  color: var(--sb-body);
+  border-color: var(--sb-accent);
+}
+.sb-btn--primary:hover {
+  background: var(--sb-accent-hover);
+  border-color: var(--sb-accent-hover);
+}
+
+/* Secondary — dark panel + subtle border */
+.sb-btn--secondary {
+  background: var(--sb-secondary);
+  color: var(--sb-text);
+  border-color: var(--sb-border);
+}
+.sb-btn--secondary:hover {
+  background: #243040;
+  border-color: var(--sb-border-hover);
+}
+
+/* Ghost — transparent, muted text */
+.sb-btn--ghost {
+  background: transparent;
+  color: var(--sb-muted);
+  border-color: transparent;
+}
+.sb-btn--ghost:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--sb-text);
+}
+
+/* Danger — red tint */
+.sb-btn--danger {
+  background: var(--sb-danger-bg);
+  color: var(--sb-danger);
+  border-color: var(--sb-danger-border);
+}
+.sb-btn--danger:hover {
+  background: var(--sb-danger);
+  color: #fff;
+}
+
+/* Icon-only — square button */
+.sb-btn--icon {
+  width: var(--sb-h-md);
+  padding: 0;
+}
+.sb-btn--icon.sb-btn--sm {
+  width: var(--sb-h-sm);
+}
+
+/* ── States ─── */
+.sb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.sb-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--sb-focus-ring);
+}
+
+/* ── 4c. SB-CARD — Scenario card component ───────────────────────────
+   Cards rendered as HTML in scenario_card.py.
+   ──────────────────────────────────────────────────────────────────── */
+
+.sb-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-r-md);
+  margin-bottom: 8px;
+  background: var(--sb-panel);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sb-card:hover {
+  border-color: var(--sb-border-hover);
+  box-shadow: var(--sb-glow-accent);
+}
+
+.sb-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-card__title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--sb-text);
+}
+
+.sb-card__meta {
+  font-size: 12px;
+  color: var(--sb-muted);
+}
+
+.sb-card__sub {
+  font-size: 11px;
+  color: var(--sb-subdued);
+  margin-top: 2px;
+}
+
+.sb-card__seed {
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  color: var(--sb-accent);
+  background: rgba(246,212,28,0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.sb-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.sb-card__fav {
+  font-size: 18px;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.sb-card__fav--active  { color: var(--sb-accent); }
+.sb-card__fav--inactive { color: var(--sb-subdued); }
+.sb-card__fav:hover { color: var(--sb-accent-hover); }
+
+/* Thumbnail frame */
+.sb-thumb {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-r-md);
+  background: var(--sb-surface);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sb-thumb__inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.sb-thumb__placeholder {
+  font-size: 48px;
+  color: var(--sb-subdued);
+  font-weight: 300;
+}
+
+/* Empty state */
+.sb-empty {
+  text-align: center;
+  color: var(--sb-subdued);
+  padding: 40px 0;
+}
+
+.sb-empty__icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+/* ── 5. FORM INPUTS ───────────────────────────────────────────────────── */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="search"],
+textarea,
+.gr-text-input,
+.gr-input {
+  background: #111315 !important;
+  border: 1px solid #2a3545 !important;
+  color: #e9eef6 !important;
+  border-radius: 10px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+input:focus,
+textarea:focus,
+.gr-text-input:focus,
+.gr-input:focus {
+  border-color: #f6d41c !important;
+  box-shadow: 0 0 0 2px rgba(246, 212, 28, 0.15) !important;
+  outline: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #5a7090 !important;
+}
+
+/* Select / Dropdown */
+select,
+.gr-dropdown,
+[data-testid="dropdown"] {
+  background: #111315 !important;
+  border: 1px solid #2a3545 !important;
+  color: #e9eef6 !important;
+  border-radius: 10px !important;
+}
+
+/* Dropdown menu */
+.gr-dropdown ul,
+ul.options,
+[role="listbox"] {
+  background: #171e2c !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 10px !important;
+}
+
+.gr-dropdown li,
+ul.options li,
+[role="option"] {
+  color: #e9eef6 !important;
+}
+
+.gr-dropdown li:hover,
+ul.options li:hover,
+[role="option"]:hover,
+[role="option"].selected {
+  background: #1d2736 !important;
+  color: #f6d41c !important;
+}
+
+/* Labels */
+label,
+.gr-label,
+.label-wrap {
+  color: #92a9c1 !important;
+  font-weight: 500 !important;
+}
+
+/* ── 5b. RADIO → TACTICAL SEGMENTED CONTROLS ─────────────────────────
+   Gradio radio groups become dark pill-toggle segments.
+   Native inputs stay accessible (Tab + Arrow keys).
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Group container → dark inset track */
+.gradio-container div:has(> label > input[type="radio"]) {
+  display: inline-flex !important;
+  flex-wrap: wrap !important;
+  gap: 2px !important;
+  background: #0e1319 !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 12px !important;
+  padding: 3px !important;
+}
+
+/* Hide native radio input (sr-only — accessible to screen readers + kb) */
+.gradio-container input[type="radio"] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Reset margin on text span within radio label */
+.gradio-container label:has(> input[type="radio"]) > span {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Label → segment pill */
+.gradio-container label:has(> input[type="radio"]) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px 14px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #697b94 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  transition: color .15s, background .15s, border-color .15s, box-shadow .15s !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+  text-transform: capitalize !important;
+}
+
+/* Hover */
+.gradio-container label:has(> input[type="radio"]):hover {
+  color: #c5cdd8 !important;
+  background: #181c22 !important;
+}
+
+/* Selected */
+.gradio-container label:has(> input[type="radio"]:checked),
+.gradio-container label.selected:has(> input[type="radio"]) {
+  background: #252619 !important;
+  color: #f6d41c !important;
+  border-color: rgba(246,212,28,0.22) !important;
+  box-shadow: 0 0 0 1px rgba(246,212,28,0.10),
+              0 0 14px rgba(246,212,28,0.06) !important;
+}
+
+/* Focus-visible for keyboard navigation */
+.gradio-container label:has(> input[type="radio"]:focus-visible) {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #0a0c10,
+              0 0 0 4px rgba(246,212,28,0.45) !important;
+  z-index: 1 !important;
+}
+
+/* Disabled */
+.gradio-container label:has(> input[type="radio"]:disabled) {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+/* ── 5c. CHECKBOX → TACTICAL HUD TOGGLE ──────────────────────────────
+   Dark checkbox with amber indicator and subtle glow.
+   ──────────────────────────────────────────────────────────────────── */
+
+.gradio-container input[type="checkbox"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  border: 1.5px solid #354560 !important;
+  border-radius: 4px !important;
+  background: #111315 !important;
+  background-image: none !important;
+  cursor: pointer !important;
+  position: relative !important;
+  transition: background .15s, border-color .15s, box-shadow .15s !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+}
+
+.gradio-container input[type="checkbox"]:hover {
+  border-color: rgba(246,212,28,0.4) !important;
+  background: rgba(246,212,28,0.04) !important;
+}
+
+.gradio-container input[type="checkbox"]:checked {
+  background: #f6d41c !important;
+  background-image: none !important;
+  border-color: #f6d41c !important;
+  box-shadow: 0 0 8px rgba(246,212,28,0.2) !important;
+}
+
+.gradio-container input[type="checkbox"]:checked::after {
+  content: '' !important;
+  display: block !important;
+  width: 4px !important;
+  height: 8px !important;
+  margin: 1px auto 0 !important;
+  border: solid #06080b !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(45deg) !important;
+}
+
+.gradio-container input[type="checkbox"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #0a0c10,
+              0 0 0 4px rgba(246,212,28,0.45) !important;
+}
+
+.gradio-container input[type="checkbox"]:disabled {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+}
+
+/* Checkbox label text */
+.gradio-container label:has(> input[type="checkbox"]) {
+  color: #e9eef6 !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+}
+
+/* ── 6. MARKDOWN ──────────────────────────────────────────────────────── */
+.gr-markdown,
+.gr-prose,
+.prose {
+  color: #e9eef6 !important;
+}
+
+.gr-markdown h1,
+.gr-markdown h2,
+.gr-markdown h3,
+.prose h1,
+.prose h2,
+.prose h3 {
+  color: #e9eef6 !important;
+  border-bottom: none !important;
+}
+
+.gr-markdown a,
+.prose a {
+  color: #f6d41c !important;
+}
+
+.gr-markdown code,
+.prose code {
+  background: #2d302a !important;
+  color: #f6d41c !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* ── 7. TABS ──────────────────────────────────────────────────────────── */
+.tabs,
+.tab-nav {
+  background: transparent !important;
+  border-bottom: 1px solid #2a3545 !important;
+}
+
+.tab-nav button {
+  color: #92a9c1 !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease !important;
+}
+
+.tab-nav button:hover {
+  color: #e9eef6 !important;
+}
+
+.tab-nav button.selected {
+  color: #f6d41c !important;
+  border-bottom-color: #f6d41c !important;
+}
+
+/* ── 8. ACCORDION ─────────────────────────────────────────────────────── */
+.gr-accordion {
+  background: #171e2c !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 10px !important;
+}
+
+.gr-accordion summary {
+  color: #e9eef6 !important;
+  font-weight: 600 !important;
+}
+
+/* ── 9. TOP BAR (Gradio in-app) ───────────────────────────────────────── */
+#top-bar {
+  background: #111315 !important;
+  border-bottom: 1px solid #2a3545 !important;
+  padding: 8px 16px !important;
+  border-radius: 0 !important;
+}
+
+/* ── 10. AUTH GATE ────────────────────────────────────────────────────── */
+#auth-gate {
+  background: #171e2c !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 14px !important;
+  padding: 32px !important;
+  max-width: 480px !important;
+  margin: 80px auto !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6), 0 0 20px rgba(246,212,28,.06) !important;
+}
+
+/* ── 11. PROFILE PANEL ────────────────────────────────────────────────── */
+/* Default: normal inline element, hidden by Gradio (visible=False).     */
+/* JS adds .sb-modal-open to promote it to a fixed centered modal.       */
+#profile-panel {
+  background: #171e2c !important;
+  border: 1px solid #2a3545 !important;
+  border-radius: 14px !important;
+  padding: 24px !important;
+  max-width: 520px !important;
+  margin: 24px auto !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6) !important;
+}
+
+/* Modal state — toggled by JS when profile opens */
+#profile-panel.sb-modal-open {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 10001 !important;
+  width: calc(100% - 48px) !important;
+  max-height: calc(100vh - 48px) !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6), 0 0 20px rgba(246,212,28,.06) !important;
+}
+
+/* Dynamic backdrop — created by JS, not Gradio */
+#profile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(6, 8, 11, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: none;          /* JS toggles to 'block' */
+}
+
+/* ── 12. SCROLLBAR ────────────────────────────────────────────────────── */
+.gradio-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.gradio-container ::-webkit-scrollbar-track {
+  background: #0a0c10;
+}
+.gradio-container ::-webkit-scrollbar-thumb {
+  background: #2a3545;
+  border-radius: 999px;
+}
+.gradio-container ::-webkit-scrollbar-thumb:hover {
+  background: #354560;
+}
+
+/* ── 13. LINKS & SELECTION ────────────────────────────────────────────── */
+.gradio-container a {
+  color: #f6d41c !important;
+}
+.gradio-container a:hover {
+  color: #d4bc49 !important;
+}
+
+.gradio-container ::selection {
+  background: #38392a;
+  color: #e9eef6;
+}
+
+/* ── 14. LOADING / SPINNER ────────────────────────────────────────────── */
+.gr-loading {
+  border-color: #f6d41c !important;
+}
+
+.progress-bar {
+  background: #f6d41c !important;
+}
+
+/* ── 15. RESPONSIVE ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .gradio-container {
+    padding: 8px !important;
+  }
+
+  #auth-gate {
+    max-width: 100% !important;
+    margin: 16px auto !important;
+    padding: 20px !important;
+  }
+
+  #profile-panel.sb-modal-open {
+    max-width: 100% !important;
+    width: calc(100% - 24px) !important;
+    padding: 20px !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+}
+
+/* ── 16. REDUCED MOTION ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .gradio-container *,
+  .gradio-container *::before,
+  .gradio-container *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── 17. PAGE CONTAINERS ──────────────────────────────────────────────── */
+#page-home,
+#page-list-scenarios,
+#page-scenario-detail,
+#page-create-scenario,
+#page-edit-scenario,
+#page-favorites {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 16px !important;
+}
+
+/* ── 17b. CONTROL BAR — compact filter strip ─────────────────────────
+   A single tactical panel grouping segmented filters + circular refresh.
+   Used on Home, My Scenarios, and Favorites pages.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Panel wrapper */
+.sb-controlbar {
+  background: var(--sb-panel, #171e2c) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: var(--sb-r-lg, 14px) !important;
+  padding: 14px 16px 12px !important;
+  margin-bottom: 12px !important;
+}
+
+/* Header strip */
+.sb-controlbar__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sb-subdued, #5a7090);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Tactical dot indicator */
+.sb-controlbar__indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sb-accent, #f6d41c);
+  box-shadow: 0 0 6px rgba(246,212,28,0.4);
+  flex-shrink: 0;
+}
+
+/* Grid rows — let Gradio Row handle flex, but tighten gaps */
+.sb-controlbar__row {
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Kill Gradio's inner panel/block backgrounds inside the control bar */
+.sb-controlbar .gr-block,
+.sb-controlbar .gr-panel,
+.sb-controlbar .gr-group,
+.sb-controlbar .gr-box,
+.sb-controlbar > div,
+.sb-controlbar .form,
+.sb-controlbar .block {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Flatten each segment's container (remove inner panels/borders) */
+.sb-controlbar__segment {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+}
+
+/* Make segment labels compact */
+.sb-controlbar__segment > label,
+.sb-controlbar__segment .label-wrap {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase !important;
+  color: var(--sb-muted, #92a9c1) !important;
+  margin-bottom: 4px !important;
+}
+
+/* Compact segmented control sizing inside control bar */
+.sb-controlbar__segment div:has(> label > input[type="radio"]) {
+  padding: 2px !important;
+  border-radius: 10px !important;
+}
+
+.sb-controlbar__segment label:has(> input[type="radio"]) {
+  padding: 4px 12px !important;
+  min-height: 30px !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+}
+
+/* Bottom row alignment: units left, refresh right */
+.sb-controlbar__bottom {
+  align-items: flex-end !important;
+}
+
+/* ── Circular refresh button ─── */
+.sb-refresh-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+}
+
+.sb-refresh-btn button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: var(--sb-secondary, #1d2736) !important;
+  border: 1px solid var(--sb-border, #2a3545) !important;
+  color: var(--sb-accent, #f6d41c) !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.sb-refresh-btn button:hover {
+  background: var(--sb-accent, #f6d41c) !important;
+  color: var(--sb-body, #06080b) !important;
+  border-color: var(--sb-accent, #f6d41c) !important;
+  box-shadow: 0 0 12px rgba(246,212,28,0.15) !important;
+}
+
+.sb-refresh-btn button:active {
+  transform: scale(0.94);
+}
+
+.sb-refresh-btn button:focus-visible {
+  outline: none !important;
+  box-shadow: var(--sb-focus-ring, 0 0 0 2px #0a0c10, 0 0 0 4px #f6d41c) !important;
+}
+
+.sb-refresh-btn button:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+/* ── Responsive: stack on mobile ─── */
+@media (max-width: 640px) {
+  .sb-controlbar__row {
+    flex-direction: column !important;
+  }
+  .sb-controlbar__bottom {
+    flex-direction: row !important;
+  }
+  .sb-refresh-btn {
+    align-self: flex-end !important;
+  }
+}
+
+/* ── 18. FOOTER (hide Gradio branding) ────────────────────────────────── */
+footer {
+  display: none !important;
+}

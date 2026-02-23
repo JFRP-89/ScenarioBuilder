@@ -11,6 +11,7 @@ Targets uncovered lines in generate_scenario_card.py:
 from __future__ import annotations
 
 import pytest
+
 from application.use_cases.generate_scenario_card import (
     GenerateScenarioCard,
     GenerateScenarioCardRequest,
@@ -63,7 +64,7 @@ class TestResolveSpecialRules:
 
     def test_list_passes_through(self) -> None:
         rules = [{"name": "A", "description": "B"}]
-        assert _resolve_special_rules(rules) is rules
+        assert _resolve_special_rules(rules) == rules
 
     def test_other_type_returns_none(self) -> None:
         assert _resolve_special_rules(42) is None  # type: ignore[arg-type]

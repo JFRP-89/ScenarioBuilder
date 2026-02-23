@@ -15,6 +15,7 @@ Rules:
 from __future__ import annotations
 
 import pytest
+
 from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.map_spec_shape_validation import validate_deployment_shapes

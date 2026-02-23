@@ -9,6 +9,7 @@ fallback).
 from __future__ import annotations
 
 import pytest
+
 from infrastructure.maps._renderer._geometry import (
     calculate_polygon_center,
     estimate_text_width,
@@ -180,7 +181,7 @@ class TestFindBestObjectivePosition:
 
     def test_center_position_prefers_up(self) -> None:
         """When all sides have ample space, prefers 'up'."""
-        x, y, direction = find_best_objective_position(
+        _, _, direction = find_best_objective_position(
             600, 400, "Objective A", 1200, 800
         )
         assert direction == "up"
@@ -200,7 +201,7 @@ class TestFindBestObjectivePosition:
 
     def test_corner_placement(self) -> None:
         """Near a corner — should still produce a valid position."""
-        x, y, direction = find_best_objective_position(20, 20, "X", 1200, 800)
+        _, _, direction = find_best_objective_position(20, 20, "X", 1200, 800)
         assert direction in ("up", "down", "left", "right")
 
     def test_no_fit_returns_center_fallback(self) -> None:
@@ -217,9 +218,9 @@ class TestFindBestObjectivePosition:
         assert isinstance(x, int) and isinstance(y, int)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # estimate_text_width
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 class TestEstimateTextWidth:
     def test_minimum_width(self) -> None:
         assert estimate_text_width("") >= 10

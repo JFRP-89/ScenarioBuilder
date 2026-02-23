@@ -17,56 +17,9 @@ from __future__ import annotations
 
 import pytest
 
-from tests.helpers.fake_clock import FakeClock
+import infrastructure.auth.postgres_session_store as pss_mod
 
 pytestmark = pytest.mark.db
-
-# ── Deferred imports (DB modules can't load at collection time) ─────────────
-
-
-def _import_pss():
-    """Return the ``postgres_session_store`` module (deferred)."""
-    from infrastructure.auth import postgres_session_store as pss
-
-    return pss
-
-
-def _make_store():
-    """Create a fresh ``PostgresSessionStore`` with real SessionLocal."""
-    from infrastructure.auth.postgres_session_store import PostgresSessionStore
-    from infrastructure.db.session import SessionLocal
-
-    return PostgresSessionStore(session_factory=SessionLocal)
-
-
-# ── Fixtures ────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(autouse=True)
-def _deterministic_clock():
-    """Install a FakeClock for each test, restore SystemClock after."""
-    pss = _import_pss()
-    clock = FakeClock()
-    pss.set_clock(clock)
-    yield clock
-    from infrastructure.clock import SystemClock
-
-    pss.set_clock(SystemClock())
-
-
-@pytest.fixture()
-def fake_clock(_deterministic_clock: FakeClock) -> FakeClock:
-    """Expose the FakeClock for tests that need to manipulate time."""
-    return _deterministic_clock
-
-
-@pytest.fixture()
-def store():
-    """Fresh PostgresSessionStore instance, cleaned before and after."""
-    s = _make_store()
-    s.reset_sessions()
-    yield s
-    s.reset_sessions()
 
 
 # ── create_session ──────────────────────────────────────────────────────────
@@ -151,8 +104,6 @@ class TestGetSession:
 
         Disable idle-timeout so only the max-lifetime boundary is tested.
         """
-        import infrastructure.auth.postgres_session_store as pss_mod
-
         monkeypatch.setattr(pss_mod, "SESSION_IDLE_MINUTES", 999_999)
         rec = store.create_session("alice")
         fake_clock.advance(hours=12)
@@ -163,8 +114,6 @@ class TestGetSession:
 
         Disable idle-timeout so only the max-lifetime comparison fires.
         """
-        import infrastructure.auth.postgres_session_store as pss_mod
-
         monkeypatch.setattr(pss_mod, "SESSION_IDLE_MINUTES", 999_999)
         rec = store.create_session("alice")
         fake_clock.advance(hours=12, seconds=1)
@@ -318,10 +267,12 @@ class TestGetCsrfToken:
         assert store.get_csrf_token(rec["session_id"]) is None
 
 
-# ── cleanup_expired_sessions ────────────────────────────────────────────────
+# ── cleanup / reset ─────────────────────────────────────────────────────────
 
 
-class TestCleanupExpiredSessions:
+class TestCleanupAndReset:
+    """Cleanup of expired sessions and full reset."""
+
     def test_removes_expired_sessions(self, store, fake_clock):
         store.create_session("alice")
         fake_clock.advance(hours=13)
@@ -336,12 +287,7 @@ class TestCleanupExpiredSessions:
         removed = store.cleanup_expired_sessions()
         assert removed >= 1
 
-
-# ── reset_sessions ──────────────────────────────────────────────────────────
-
-
-class TestResetSessions:
-    def test_clears_all(self, store):
+    def test_reset_clears_all(self, store):
         store.create_session("alice")
         store.create_session("bob")
         store.reset_sessions()

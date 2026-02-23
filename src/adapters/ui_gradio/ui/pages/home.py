@@ -3,6 +3,7 @@
 Shows:
 - Welcome header
 - Quick-action buttons (Create New, Browse All, Favorites)
+- CONTROL BAR with mode / preset / unit filters + circular refresh
 - Recent cards list with pagination
 """
 
@@ -11,6 +12,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import gradio as gr
+
+from adapters.ui_gradio.ui.components.control_bar import build_control_bar
 
 
 def build_home_page() -> SimpleNamespace:
@@ -46,40 +49,16 @@ def build_home_page() -> SimpleNamespace:
 
         gr.Markdown("### Recent Scenarios")
 
-        # Filters row
-        with gr.Row():
-            mode_filter = gr.Radio(
-                choices=["All", "Casual", "Narrative", "Matched"],
-                value="All",
-                label="Game Mode",
-                elem_id="home-mode-filter",
-                scale=1,
-                min_width=200,
-            )
-            preset_filter = gr.Radio(
-                choices=["All", "Standard", "Massive", "Custom"],
-                value="All",
-                label="Table Preset",
-                elem_id="home-preset-filter",
-                scale=1,
-                min_width=200,
-            )
-            unit_selector = gr.Radio(
-                choices=["cm", "in", "ft"],
-                value="cm",
-                label="Units",
-                elem_id="home-unit-selector",
-                scale=1,
-                min_width=200,
-            )
-            reload_btn = gr.Button(
-                "Refresh",
-                variant="secondary",
-                size="sm",
-                elem_id="home-reload-btn",
-                scale=1,
-                min_width=200,
-            )
+        # ── CONTROL BAR (filters + refresh) ──────────────────────────
+        cb = build_control_bar(
+            page_prefix="home",
+            mode_choices=["All", "Casual", "Narrative", "Matched"],
+            preset_choices=["All", "Standard", "Massive", "Custom"],
+        )
+        mode_filter = cb.mode_filter
+        preset_filter = cb.preset_filter
+        unit_selector = cb.unit_selector
+        reload_btn = cb.reload_btn
 
         # Search and per-page controls
         with gr.Row():
@@ -101,7 +80,8 @@ def build_home_page() -> SimpleNamespace:
 
         recent_cards_html = gr.HTML(
             value=(
-                '<div style="text-align:center;color:#999;padding:30px 0;">'
+                '<div style="text-align:center;color:#5a7090;padding:30px 0;">'
+                '<div style="font-size:2.5rem;margin-bottom:12px;opacity:.4;">\U0001f3b2</div>'
                 "No recent scenarios. Create your first one!</div>"
             ),
             elem_id="home-recent-cards",
@@ -111,7 +91,7 @@ def build_home_page() -> SimpleNamespace:
         with gr.Row():
             prev_btn = gr.Button("← Previous", scale=1, size="sm")
             page_info = gr.HTML(
-                value='<div style="text-align:center;padding:10px 0;">Page 1</div>',
+                value='<div style="text-align:center;padding:10px 0;color:#92a9c1;">Page 1</div>',
                 elem_id="home-page-info",
             )
             next_btn = gr.Button("Next →", scale=1, size="sm")

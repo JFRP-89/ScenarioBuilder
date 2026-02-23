@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from adapters.http_flask.constants import KEY_STATUS, STATUS_OK
 from flask import Blueprint, jsonify
+
+from adapters.http_flask.constants import KEY_STATUS, STATUS_OK
 
 health_bp = Blueprint("health", __name__)
 

@@ -1,13 +1,15 @@
 """E2E test: Verificar determinismo de seed en mapa SVG."""
 
 import hashlib
+from pathlib import Path
 
 import pytest
-import requests
+from e2e._support.api_helpers import get_map_svg, matched_payload, post_card
 
 
 @pytest.mark.e2e
-def test_seed_determinism_api(e2e_services, wait_for_health, page):
+@pytest.mark.usefixtures("e2e_services")
+def test_seed_determinism_api(wait_for_health):
     """
     Prueba que con la misma seed, el SVG del mapa es determinista.
 
@@ -18,12 +20,7 @@ def test_seed_determinism_api(e2e_services, wait_for_health, page):
 
     api_url = "http://localhost:8000"
     headers = {"X-Actor-Id": "e2e-user"}
-    payload = {
-        "mode": "matched",
-        "seed": 123,
-        "table_preset": "standard",
-        "visibility": "private",
-    }
+    payload = matched_payload()
 
     # Primera generación
     svg_1 = _generate_and_fetch_svg(api_url, headers, payload)
@@ -57,12 +54,7 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
         SVG content como string
     """
     # POST /cards
-    response = requests.post(
-        f"{api_url}/cards",
-        headers=headers,
-        json=payload,
-        timeout=30,
-    )
+    response = post_card(api_url, headers, payload)
     assert (
         response.status_code == 201
     ), f"POST /cards falló: {response.status_code} - {response.text}"
@@ -72,11 +64,7 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
     assert card_id, f"No se encontró card_id en respuesta: {card_data}"
 
     # GET /cards/{card_id}/map.svg
-    svg_response = requests.get(
-        f"{api_url}/cards/{card_id}/map.svg",
-        headers=headers,
-        timeout=30,
-    )
+    svg_response = get_map_svg(api_url, card_id, headers)
     assert (
         svg_response.status_code == 200
     ), f"GET /cards/{card_id}/map.svg falló: {svg_response.status_code} - {svg_response.text}"
@@ -89,8 +77,6 @@ def _generate_and_fetch_svg(api_url: str, headers: dict, payload: dict) -> str:
 
 def _save_artifact(content: str, filename: str) -> None:
     """Guarda contenido en artifacts para debug."""
-    from pathlib import Path
-
     artifacts_dir = Path(__file__).parent / "artifacts"
     artifacts_dir.mkdir(exist_ok=True)
     artifact_path = artifacts_dir / filename

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
 from adapters.ui_gradio.auth._store import (
     LOCKOUT_DURATION,
     MAX_FAILED_ATTEMPTS,
@@ -17,6 +18,7 @@ from adapters.ui_gradio.auth._store import (
     user_exists,
     verify_credentials,
 )
+from helpers import seed_test_users
 from infrastructure.auth.user_store import (
     _hash_password,
     _verify_password,
@@ -25,8 +27,9 @@ from infrastructure.auth.user_store import (
 
 @pytest.fixture(autouse=True)
 def _clean_stores():
-    """Reset stores before each test."""
+    """Reset stores before each test and seed test users."""
     reset_stores()
+    seed_test_users()
     yield
     reset_stores()
 
@@ -61,16 +64,16 @@ class TestPasswordHashing:
 
 
 # =====================================================================
-# Demo users
+# Seeded test users
 # =====================================================================
-class TestDemoUsers:
-    """Demo users must be seeded on import."""
+class TestSeededUsers:
+    """Test users must be present after fixture setup."""
 
     @pytest.mark.parametrize(
         "username",
-        ["demo-user", "alice", "bob", "charlie", "dave"],
+        ["alice", "bob", "charlie", "dave"],
     )
-    def test_demo_user_exists(self, username: str):
+    def test_user_exists(self, username: str):
         assert user_exists(username) is True
 
     def test_unknown_user_does_not_exist(self):
@@ -78,9 +81,9 @@ class TestDemoUsers:
 
     @pytest.mark.parametrize(
         "username",
-        ["demo-user", "alice", "bob", "charlie", "dave"],
+        ["alice", "bob", "charlie", "dave"],
     )
-    def test_demo_password_equals_username(self, username: str):
+    def test_password_equals_username(self, username: str):
         assert verify_credentials(username, username) is True
 
     def test_wrong_password_rejected(self):
@@ -94,7 +97,7 @@ class TestDemoUsers:
 # Profiles
 # =====================================================================
 class TestProfiles:
-    """Profile CRUD for demo users."""
+    """Profile CRUD for test users."""
 
     def test_get_profile_returns_data(self):
         profile = get_user_profile("alice")
@@ -118,9 +121,9 @@ class TestProfiles:
 
     @pytest.mark.parametrize(
         "username",
-        ["demo-user", "alice", "bob", "charlie", "dave"],
+        ["alice", "bob", "charlie", "dave"],
     )
-    def test_demo_users_have_valid_emails(self, username: str):
+    def test_users_have_valid_emails(self, username: str):
         profile = get_user_profile(username)
         assert profile is not None
         assert "@" in profile["email"]
@@ -185,7 +188,7 @@ class TestLockout:
             "infrastructure.auth.user_store.datetime",
         ) as mock_dt:
             mock_dt.now.return_value = future
-            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+            mock_dt.side_effect = datetime
             locked, _ = is_locked("alice")
             assert locked is False
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from domain.errors import ValidationError
 from domain.validation import validate_non_empty_str
 

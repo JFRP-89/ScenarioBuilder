@@ -126,17 +126,41 @@ def list_favorites(actor_id: str) -> dict[str, Any]:
 # ============================================================================
 # Get card SVG map
 # ============================================================================
-def get_card_svg(actor_id: str, card_id: str) -> str:
+def get_card_svg(
+    actor_id: str,
+    card_id: str,
+    display_units: str = "cm",
+) -> str:
     """Render a card's map as SVG (direct use-case call)."""
     placeholder = (
-        '<div style="color:#999;font-size:14px;text-align:center;">'
+        '<div style="color:#5a7090;font-size:14px;text-align:center;">'
         "SVG preview unavailable.</div>"
     )
     try:
         svc = get_services()
         r = svc.render_map_svg.execute(
-            RenderMapSvgRequest(actor_id=actor_id, card_id=card_id)
+            RenderMapSvgRequest(
+                actor_id=actor_id,
+                card_id=card_id,
+                display_units=display_units,
+            )
         )
         return str(r.svg)
     except (DomainError, OSError, RuntimeError):
         return placeholder
+
+
+def get_card_svg_thumb(actor_id: str, card_id: str) -> str:
+    """Render a card's map as lightweight SVG thumbnail."""
+    try:
+        svc = get_services()
+        r = svc.render_map_svg.execute(
+            RenderMapSvgRequest(
+                actor_id=actor_id,
+                card_id=card_id,
+                render_mode="thumb",
+            )
+        )
+        return str(r.svg)
+    except (DomainError, OSError, RuntimeError):
+        return ""

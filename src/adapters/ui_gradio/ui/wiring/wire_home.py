@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 from adapters.ui_gradio.ui.components.search_helpers import (
@@ -44,7 +45,13 @@ def load_recent_cards(
 
     filtered = filter_by_mode_preset(cards, mode_filter, preset_filter)
     html, page_info, new_page = render_filtered_page(
-        filtered, fav_ids, unit, page, search_raw, per_page_raw
+        filtered,
+        fav_ids,
+        unit,
+        page,
+        search_raw,
+        per_page_raw,
+        actor_id=actor_id,
     )
     return html, page_info, new_page, cards, fav_ids
 
@@ -58,11 +65,18 @@ def render_from_cache(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Re-render from cached cards without hitting the API."""
     filtered = filter_by_mode_preset(cards_cache, mode_filter, preset_filter)
     return render_filtered_page(
-        filtered, fav_ids_cache, unit, page, search_raw, per_page_raw
+        filtered,
+        fav_ids_cache,
+        unit,
+        page,
+        search_raw,
+        per_page_raw,
+        actor_id=actor_id,
     )
 
 
@@ -75,6 +89,7 @@ def go_to_previous_page(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the previous page."""
     return render_from_cache(
@@ -86,6 +101,7 @@ def go_to_previous_page(
         fav_ids_cache,
         search_raw,
         per_page_raw,
+        actor_id,
     )
 
 
@@ -98,6 +114,7 @@ def go_to_next_page(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Navigate to the next page."""
     return render_from_cache(
@@ -109,6 +126,7 @@ def go_to_next_page(
         fav_ids_cache,
         search_raw,
         per_page_raw,
+        actor_id,
     )
 
 
@@ -146,7 +164,7 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
     ]
     if c.actor_id_state is not None:
         _all_inputs.append(c.actor_id_state)
-    _cache_inputs = [
+    _cache_inputs: list[gr.components.Component] = [
         c.home_mode_filter,
         c.home_preset_filter,
         c.home_unit_selector,
@@ -156,6 +174,8 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         c.home_search_box,
         c.home_per_page_dropdown,
     ]
+    if c.actor_id_state is not None:
+        _cache_inputs.append(c.actor_id_state)
     _page_outputs = [c.home_recent_html, c.home_page_info, c.home_page_state]
     _full_outputs = [
         c.home_recent_html,
@@ -178,9 +198,10 @@ def wire_home_page(*, ctx: HomePageCtx) -> None:
         fav_ids: list[str],
         search: str,
         per_page: str,
+        actor_id: str = "",
     ) -> tuple[str, str, int]:
         return render_from_cache(
-            mode, preset, unit, 1, cards, fav_ids, search, per_page
+            mode, preset, unit, 1, cards, fav_ids, search, per_page, actor_id
         )
 
     for widget in (

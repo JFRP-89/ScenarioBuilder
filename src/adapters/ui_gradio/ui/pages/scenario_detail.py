@@ -38,13 +38,21 @@ def build_detail_page() -> SimpleNamespace:
                 elem_id="detail-title",
             )
 
+        # Unit converter for map dimension labels
+        map_units_radio = gr.Radio(
+            choices=["cm", "in", "ft"],
+            value="cm",
+            label="Map display units",
+            elem_id="detail-map-display-units",
+        )
+
         # SVG map preview (centered, styled)
         svg_preview = gr.HTML(
             value=(
                 '<div style="display:flex;align-items:center;'
                 "justify-content:center;height:300px;"
-                "border:2px dashed #ccc;border-radius:8px;"
-                'color:#999;font-size:14px;">'
+                "border:2px dashed #2a3545;border-radius:14px;"
+                'color:#5a7090;font-size:14px;background:#111315;">'
                 "Map preview</div>"
             ),
             elem_id="detail-svg-preview",
@@ -52,7 +60,7 @@ def build_detail_page() -> SimpleNamespace:
 
         # Main content area — rendered as styled HTML
         detail_content_html = gr.HTML(
-            value='<div style="color:#999;text-align:center;">Loading...</div>',
+            value='<div style="color:#5a7090;text-align:center;">Loading...</div>',
             elem_id="detail-content-html",
         )
 
@@ -98,6 +106,7 @@ def build_detail_page() -> SimpleNamespace:
     return SimpleNamespace(
         container=container,
         card_title_md=card_title_md,
+        map_units_radio=map_units_radio,
         svg_preview=svg_preview,
         detail_content_html=detail_content_html,
         edit_btn=edit_btn,

@@ -7,6 +7,7 @@ surfaces — HTML detail view, SVG map renderer, and escape helpers.
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.components.search_helpers import (
     escape_html,
     escape_html_attr,
@@ -258,71 +259,72 @@ class TestSvgRendererEscaping:
         return r
 
     def test_escape_text_blocks_script(self):
-        r = self._make_renderer()
-        result = r._escape_text("<script>alert(1)</script>")
+        from infrastructure.maps._renderer._sanitize import escape_text
+
+        result = escape_text("<script>alert(1)</script>")
         assert "<script>" not in result
         assert "&lt;script&gt;" in result
 
     def test_escape_text_quotes_encoded(self):
-        r = self._make_renderer()
-        result = r._escape_text('" onerror="alert(1)')
+        from infrastructure.maps._renderer._sanitize import escape_text
+
+        result = escape_text('" onerror="alert(1)')
         assert '"' not in result
 
     def test_safe_paint_allows_hex(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert SvgMapRenderer._safe_paint("#ff0000", "x") == "#ff0000"
-        assert SvgMapRenderer._safe_paint("#abc", "x") == "#abc"
+        assert safe_paint("#ff0000", "x") == "#ff0000"
+        assert safe_paint("#abc", "x") == "#abc"
 
     def test_safe_paint_allows_rgba(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
         val = "rgba(100,150,250,0.3)"
-        assert SvgMapRenderer._safe_paint(val, "x") == val
+        assert safe_paint(val, "x") == val
 
     def test_safe_paint_allows_named_color(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert SvgMapRenderer._safe_paint("red", "x") == "red"
-        assert SvgMapRenderer._safe_paint("none", "x") == "none"
-        assert SvgMapRenderer._safe_paint("transparent", "x") == "transparent"
+        assert safe_paint("red", "x") == "red"
+        assert safe_paint("none", "x") == "none"
+        assert safe_paint("transparent", "x") == "transparent"
 
     def test_safe_paint_blocks_javascript(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert SvgMapRenderer._safe_paint("javascript:alert(1)", "safe") == "safe"
+        assert safe_paint("javascript:alert(1)", "safe") == "safe"
 
     def test_safe_paint_blocks_url(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert SvgMapRenderer._safe_paint("url(evil)", "safe") == "safe"
+        assert safe_paint("url(evil)", "safe") == "safe"
 
     def test_safe_paint_blocks_expression(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert SvgMapRenderer._safe_paint("expression(alert(1))", "safe") == "safe"
+        assert safe_paint("expression(alert(1))", "safe") == "safe"
 
     def test_safe_paint_blocks_html_injection(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_paint
 
-        assert (
-            SvgMapRenderer._safe_paint('"><script>alert(1)</script>', "safe") == "safe"
-        )
+        assert safe_paint('"><script>alert(1)</script>', "safe") == "safe"
 
     def test_safe_numeric_allows_numbers(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_numeric
 
-        assert SvgMapRenderer._safe_numeric("2", "0") == "2"
-        assert SvgMapRenderer._safe_numeric("1.5", "0") == "1.5"
+        assert safe_numeric("2", "0") == "2"
+        assert safe_numeric("1.5", "0") == "1.5"
 
     def test_safe_numeric_blocks_injection(self):
-        from infrastructure.maps.svg_map_renderer import SvgMapRenderer
+        from infrastructure.maps._renderer._sanitize import safe_numeric
 
-        assert SvgMapRenderer._safe_numeric("2;alert(1)", "0") == "0"
-        assert SvgMapRenderer._safe_numeric('" onerror="x', "0") == "0"
+        assert safe_numeric("2;alert(1)", "0") == "0"
+        assert safe_numeric('" onerror="x', "0") == "0"
 
     def test_rect_with_malicious_fill(self):
-        r = self._make_renderer()
+        from infrastructure.maps._renderer._primitives import rect_svg
+
         shape = {
             "type": "rect",
             "x": 0,
@@ -331,11 +333,12 @@ class TestSvgRendererEscaping:
             "height": 100,
             "fill": "javascript:alert(1)",
         }
-        svg = r._rect_svg(shape)
+        svg = rect_svg(shape)
         assert "javascript:" not in svg
 
     def test_circle_with_malicious_stroke(self):
-        r = self._make_renderer()
+        from infrastructure.maps._renderer._primitives import circle_svg
+
         shape = {
             "type": "circle",
             "cx": 50,
@@ -343,22 +346,24 @@ class TestSvgRendererEscaping:
             "r": 25,
             "stroke": '"><script>alert(1)</script>',
         }
-        svg = r._circle_svg(shape)
+        svg = circle_svg(shape)
         assert "<script>" not in svg
 
     def test_polygon_with_malicious_fill(self):
-        r = self._make_renderer()
+        from infrastructure.maps._renderer._primitives import polygon_svg
+
         shape = {
             "type": "polygon",
             "points": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}],
             "fill": "expression(alert(1))",
         }
-        svg = r._polygon_svg(shape)
+        svg = polygon_svg(shape)
         assert "expression(" not in svg
 
     def test_text_label_with_xss_description(self):
-        r = self._make_renderer()
-        svg = r._text_label_svg(100, 100, "</text><script>alert(1)</script>")
+        from infrastructure.maps._renderer._primitives import text_label_svg
+
+        svg = text_label_svg(100, 100, "</text><script>alert(1)</script>")
         assert "<script>" not in svg
         assert "&lt;script&gt;" in svg
 

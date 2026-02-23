@@ -4,18 +4,20 @@ Este archivo es **solo un índice y reglas globales mínimas**.
 El conocimiento detallado vive en `context/`.
 
 ## Estado actual (resumen)
-- **Baseline**: 1624 tests passing, ruff clean, mypy clean, branch `ui/alpha.03`
+- **Verificado**: 3064+ tests passing (1972 unit + 1000+ integration + 100+ e2e), branch `ui/alpha.0.10`
+- **Quality gates**: ruff ✅, black ✅, mypy strict (205 src/ + 160 test/ files) ✅, bandit SAST ✅
+- **Cobertura**: Domain **100%** (732 statements), Application **99%** (810 statements, exceeds 80% threshold)
 - **Arquitectura por capas**: `domain/` (reglas), `application/` (use cases + ports), `infrastructure/` (implementaciones + bootstrap), `adapters/` (Flask/Gradio)
 - **Use cases modernos**: application/ tiene DTOs + `.execute()`, sin lógica en adapters
 - **Composition root**: `infrastructure.bootstrap.build_services()` construye todo el wiring
-- **Patrón facade anti-god-module**: 4 paquetes internos completados:
-  - `wiring/_detail/` (2 módulos: _render, _converters)
-  - `wiring/_deployment/` (4 módulos: _form_state, _geometry, _ui_updates, _zone_builder)
-  - `wiring/_scenography/` (4 módulos: _form_state, _polygon, _ui_updates, _builder)
-  - `wiring/_generate/` (4 módulos: _preview, _create_logic, _resets, _outputs)
-- **15 facades wire_*.py**: cada facade delega a helpers internos, ~250-450 líneas
-- **Auth demo**: `adapters/ui_gradio/auth/` — login/logout/profile con PBKDF2, lockout (3 fails → 1h), validación allowlist
-- **Testing**: 60% unit, 30% integration, 10% e2e — cobertura 100% domain, 80% application/infrastructure
+- **Patrón facade anti-god-module**: 15 facades (`wire_*.py`, ~250-450 líneas cada uno) con 4 paquetes internos:
+  - `wiring/_detail/` (2 módulos: _render, _converters) — 45 tests
+  - `wiring/_deployment/` (4 módulos: _form_state, _geometry, _ui_updates, _zone_builder) — 83 tests
+  - `wiring/_scenography/` (4 módulos: _form_state, _polygon, _ui_updates, _builder) — 71 tests
+  - `wiring/_generate/` (4 módulos: _preview, _create_logic, _resets, _outputs) — 44 tests
+  - Total: 14 módulos internos, 243 wiring tests
+- **Auth demo**: `adapters/ui_gradio/auth/` — login/logout/profile con PBKDF2, lockout (3 fails → 1h), validación allowlist, session management
+- **Testing**: 60/30/10 strategy verificado — 1972 unit, 1000+ integration, 100+ e2e — cobertura domain 100%, application 99%
 
 ## Reglas globales (mínimas)
 1) **Nada de lógica de negocio en adapters** (Flask/Gradio solo HTTP/UI + mapeos).  

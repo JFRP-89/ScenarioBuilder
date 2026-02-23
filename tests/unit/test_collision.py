@@ -121,20 +121,28 @@ class TestRectCircleOverlap:
 
 
 # =============================================================================
-# POLYGON (skip / conservative)
+# POLYGON (AABB bounding-box overlap)
 # =============================================================================
 class TestPolygonOverlap:
-    """Polygons are conservatively treated as non-overlapping."""
+    """Polygon collision via AABB bounding-box."""
 
-    def test_polygon_vs_rect_returns_false(self) -> None:
+    def test_polygon_vs_rect_overlapping(self) -> None:
         poly = {
             "type": "polygon",
             "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
         }
         rect = {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
+        assert shapes_overlap(poly, rect)
+
+    def test_polygon_vs_rect_separated(self) -> None:
+        poly = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
+        }
+        rect = {"type": "rect", "x": 200, "y": 200, "width": 100, "height": 100}
         assert not shapes_overlap(poly, rect)
 
-    def test_polygon_vs_polygon_returns_false(self) -> None:
+    def test_polygon_vs_polygon_overlapping(self) -> None:
         a = {
             "type": "polygon",
             "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
@@ -143,6 +151,75 @@ class TestPolygonOverlap:
             "type": "polygon",
             "points": [{"x": 10, "y": 10}, {"x": 60, "y": 10}, {"x": 35, "y": 60}],
         }
+        assert shapes_overlap(a, b)
+
+    def test_polygon_vs_polygon_separated(self) -> None:
+        a = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
+        }
+        b = {
+            "type": "polygon",
+            "points": [
+                {"x": 200, "y": 200},
+                {"x": 250, "y": 200},
+                {"x": 225, "y": 250},
+            ],
+        }
+        assert not shapes_overlap(a, b)
+
+    def test_polygon_vs_circle_overlapping(self) -> None:
+        poly = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}],
+        }
+        circle = {"type": "circle", "cx": 50, "cy": 50, "r": 30}
+        assert shapes_overlap(poly, circle)
+
+    def test_polygon_vs_circle_separated(self) -> None:
+        poly = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
+        }
+        circle = {"type": "circle", "cx": 300, "cy": 300, "r": 30}
+        assert not shapes_overlap(poly, circle)
+
+    def test_polygon_clearance_violation(self) -> None:
+        """Polygons separated by less than clearance are overlapping."""
+        a = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}],
+        }
+        # bbox of a: (0,0)-(100,100). b starts at x=105 → 5mm gap < 10mm clearance
+        b = {
+            "type": "polygon",
+            "points": [{"x": 105, "y": 0}, {"x": 200, "y": 0}, {"x": 150, "y": 100}],
+        }
+        assert shapes_overlap(a, b, clearance=10)
+
+    def test_polygon_allow_overlap_skips_check(self) -> None:
+        a = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
+            "allow_overlap": True,
+        }
+        b = {
+            "type": "polygon",
+            "points": [{"x": 10, "y": 10}, {"x": 60, "y": 10}, {"x": 35, "y": 60}],
+        }
+        assert not shapes_overlap(a, b)
+
+    def test_polygon_order_independent(self) -> None:
+        poly = {
+            "type": "polygon",
+            "points": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}],
+        }
+        rect = {"type": "rect", "x": 20, "y": 20, "width": 60, "height": 60}
+        assert shapes_overlap(poly, rect) == shapes_overlap(rect, poly)
+
+    def test_unknown_types_return_no_overlap(self) -> None:
+        a = {"type": "hexagon", "cx": 10, "cy": 10, "r": 5}
+        b = {"type": "triangle", "points": [{"x": 0, "y": 0}]}
         assert not shapes_overlap(a, b)
 
 

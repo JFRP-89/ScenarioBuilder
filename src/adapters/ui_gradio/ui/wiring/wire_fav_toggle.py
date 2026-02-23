@@ -8,6 +8,7 @@ button. This module wires that button to call the Flask API toggle.
 from __future__ import annotations
 
 import gradio as gr
+
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
 

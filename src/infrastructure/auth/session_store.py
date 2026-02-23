@@ -124,6 +124,12 @@ def get_store() -> SessionStoreBackend | None:
     return _store_holder[0]
 
 
+def reset_store() -> None:
+    """Reset the session backend to in-memory fallback (for testing)."""
+    _store_holder[0] = None
+    logger.info("session_store: backend reset to in-memory")
+
+
 # ── In-memory store (fallback for dev/test) ──────────────────────────────────
 _lock = threading.Lock()
 _SESSIONS: dict[str, SessionRecord] = {}

@@ -2,27 +2,40 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 import pytest
-from infrastructure.auth import session_store
+from flask import Flask
+from flask.testing import FlaskClient
+
+from adapters.http_flask.app import create_app
+from helpers import seed_test_users
+from helpers.flask_helpers import create_test_session
+from infrastructure.auth import session_store, user_store
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
-def create_test_session(test_client, actor_id: str = "u1") -> dict:
-    """Create a server-side session and inject its cookie into *test_client*.
+@pytest.fixture()
+def app() -> Generator[Flask, None, None]:
+    """Create a Flask test app and reset auth stores."""
+    session_store.reset_sessions()
+    user_store.reset_stores()
+    seed_test_users()
+    flask_app = create_app()
+    flask_app.config["TESTING"] = True
+    yield flask_app
+    session_store.reset_sessions()
+    user_store.reset_stores()
 
-    Returns ``{"session_id": ..., "csrf_token": ...}``.
 
-    This replaces the legacy ``X-Actor-Id`` header approach: the middleware
-    now requires a valid ``sb_session`` cookie for API routes.
-    """
-    session = session_store.create_session(actor_id)
-    session_id: str = session["session_id"]
-    csrf_token: str = session["csrf_token"]
-    test_client.set_cookie(
-        key="sb_session",
-        value=session_id,
-        domain="localhost",
-    )
-    return {"session_id": session_id, "csrf_token": csrf_token}
+@pytest.fixture()
+def client(request) -> FlaskClient:
+    """Flask test client backed by the *app* fixture."""
+    flask_app: Flask = request.getfixturevalue("app")
+    return flask_app.test_client()
 
 
 @pytest.fixture()

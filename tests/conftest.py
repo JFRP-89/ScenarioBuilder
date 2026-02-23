@@ -84,7 +84,11 @@ def _db_is_reachable() -> bool:
         from urllib.parse import urlparse, urlunparse
 
         from sqlalchemy import create_engine, text
+        from sqlalchemy.exc import SQLAlchemyError
+    except ImportError:
+        return False
 
+    try:
         # Connect to the 'postgres' admin DB instead of the test DB,
         # which may not exist yet (the repo conftest creates it per-test).
         parsed = urlparse(url)
@@ -97,12 +101,12 @@ def _db_is_reachable() -> bool:
             conn.execute(text("SELECT 1"))
         eng.dispose()
         return True
-    except Exception:
+    except (OSError, SQLAlchemyError, ValueError):
         return False
 
 
-# Cache the result so we only probe once.
-_db_reachable: bool | None = None
+# Cache the result so we only probe once.  Mutable container avoids ``global``.
+_db_cache: list[bool | None] = [None]
 
 
 def db_enabled() -> bool:
@@ -112,19 +116,18 @@ def db_enabled() -> bool:
     1. ``RUN_DB_TESTS`` env var is ``1`` / ``true`` / ``yes``.
     2. The database at ``DATABASE_URL_TEST`` answers ``SELECT 1``.
     """
-    global _db_reachable
     run_flag = os.environ.get("RUN_DB_TESTS", "").strip().lower()
     if run_flag not in ("1", "true", "yes"):
         return False
-    if _db_reachable is None:
-        _db_reachable = _db_is_reachable()
-    return _db_reachable
+    if _db_cache[0] is None:
+        _db_cache[0] = _db_is_reachable()
+    return bool(_db_cache[0])
 
 
 # ---------------------------------------------------------------------------
 # 3. Auto-skip @pytest.mark.db tests when DB is not available
 # ---------------------------------------------------------------------------
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(items):
     """Skip ``@pytest.mark.db`` tests unless DB profile is active."""
     if db_enabled():
         return  # DB available — run everything

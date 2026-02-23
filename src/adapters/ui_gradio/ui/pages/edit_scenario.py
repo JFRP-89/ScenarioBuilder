@@ -36,6 +36,13 @@ def build_edit_page() -> SimpleNamespace:
             "Currently you can view the card details here."
         )
 
+        map_units_radio = gr.Radio(
+            choices=["cm", "in", "ft"],
+            value="cm",
+            label="Map display units",
+            elem_id="edit-map-display-units",
+        )
+
         svg_preview = gr.HTML(
             value=(
                 '<div style="display:flex;align-items:center;'
@@ -54,6 +61,7 @@ def build_edit_page() -> SimpleNamespace:
     return SimpleNamespace(
         container=container,
         card_title_md=card_title_md,
+        map_units_radio=map_units_radio,
         svg_preview=svg_preview,
         card_json=card_json,
         back_btn=back_btn,

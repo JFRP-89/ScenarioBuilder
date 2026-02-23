@@ -10,6 +10,7 @@ Tests for:
 from __future__ import annotations
 
 import pytest
+
 from domain.cards.card_content_validation import (
     validate_objectives,
     validate_shared_with_visibility,

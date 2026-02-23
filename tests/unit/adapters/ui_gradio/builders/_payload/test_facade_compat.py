@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.builders import payload
 
 _EXPECTED_SYMBOLS = [

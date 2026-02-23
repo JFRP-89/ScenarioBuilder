@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-from infrastructure.auth import session_store
 from infrastructure.auth.session_store import (
     active_session_count,
     create_session,
@@ -15,27 +13,6 @@ from infrastructure.auth.session_store import (
     reset_sessions,
     rotate_session_id,
 )
-from infrastructure.clock import SystemClock
-
-from tests.helpers.fake_clock import FakeClock
-
-
-@pytest.fixture(autouse=True)
-def _deterministic_clock():
-    """Install a FakeClock and restore SystemClock after each test."""
-    clock = FakeClock()
-    session_store.set_clock(clock)
-    reset_sessions()
-    yield clock
-    reset_sessions()
-    session_store.set_clock(SystemClock())
-
-
-@pytest.fixture()
-def fake_clock(_deterministic_clock: FakeClock) -> FakeClock:
-    """Expose the FakeClock for tests that need to manipulate time."""
-    return _deterministic_clock
-
 
 # ── create_session ───────────────────────────────────────────────────────────
 

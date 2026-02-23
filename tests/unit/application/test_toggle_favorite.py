@@ -26,25 +26,7 @@ from domain.errors import ValidationError
 from domain.maps.map_spec import MapSpec
 from domain.maps.table_size import TableSize
 from domain.security.authz import Visibility
-
-
-# =============================================================================
-# FIXTURES - Valid domain objects
-# =============================================================================
-@pytest.fixture
-def table() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def valid_shapes() -> list[dict]:
-    """Shapes valid for standard table (1200x1200 mm)."""
-    return [{"type": "rect", "x": 100, "y": 100, "width": 200, "height": 200}]
-
-
-@pytest.fixture
-def map_spec(table: TableSize, valid_shapes: list[dict]) -> MapSpec:
-    return MapSpec(table=table, shapes=valid_shapes)
+from tests.unit.application.conftest import FakeFavoritesRepository
 
 
 # =============================================================================
@@ -100,39 +82,6 @@ class FakeCardRepository:
 
     def list_for_owner(self, owner_id: str) -> list[Card]:
         return [c for c in self.cards.values() if c.owner_id == owner_id]
-
-
-class FakeFavoritesRepository:
-    """In-memory fake favorites repository for testing."""
-
-    def __init__(self) -> None:
-        self._favorites: set[tuple[str, str]] = set()
-
-    def is_favorite(self, actor_id: str, card_id: str) -> bool:
-        return (actor_id, card_id) in self._favorites
-
-    def set_favorite(self, actor_id: str, card_id: str, value: bool) -> None:
-        key = (actor_id, card_id)
-        if value:
-            self._favorites.add(key)
-        else:
-            self._favorites.discard(key)
-
-    def list_favorites(self, actor_id: str) -> list[str]:
-        return sorted(
-            [card_id for (uid, card_id) in self._favorites if uid == actor_id]
-        )
-
-    def remove_all_for_card(self, card_id: str) -> None:
-        self._favorites = {k for k in self._favorites if k[1] != card_id}
-
-
-# =============================================================================
-# FIXTURES - Repositories
-# =============================================================================
-@pytest.fixture
-def favorites_repo() -> FakeFavoritesRepository:
-    return FakeFavoritesRepository()
 
 
 # =============================================================================
@@ -411,11 +360,3 @@ class TestToggleFavoriteShared:
         # Assert: forbidden
         with pytest.raises(Exception, match="(?i)forbidden|permission|access"):
             use_case.execute(request)
-
-
-# =============================================================================
-# TODO(future): Additional tests for hardening phase:
-# - Test owner can always favorite their own card
-# - Test concurrent toggle operations
-# - Test favorites limit per user
-# =============================================================================

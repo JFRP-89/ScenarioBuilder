@@ -9,8 +9,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Callable
 
-from infrastructure.db.models import FavoritesModel
 from sqlalchemy.orm import Session
+
+from infrastructure.db.models import FavoritesModel
 
 
 class PostgresFavoritesRepository:

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.auth import (
     check_auth,
     get_profile,
@@ -135,6 +136,18 @@ def wire_auth_events(*, ctx: AuthEventsCtx) -> None:
             *no_change,
         )
 
+    # JS to promote panel to fixed modal + show backdrop
+    _MODAL_OPEN_JS = """() => {
+        var p = document.getElementById('profile-panel');
+        var bd = document.getElementById('profile-backdrop');
+        if (p) {
+            p.style.opacity = '1';
+            p.style.pointerEvents = '';
+            p.classList.add('sb-modal-open');
+        }
+        if (bd) bd.style.display = 'block';
+    }"""
+
     _event(c.profile_btn, "click")(
         fn=_open_profile,
         inputs=[c.actor_id_state, c.session_id_state],
@@ -153,7 +166,7 @@ def wire_auth_events(*, ctx: AuthEventsCtx) -> None:
             c.auth_message,
             *c.page_containers,
         ],
-    )
+    ).then(fn=None, js=_MODAL_OPEN_JS)
 
     # ── Profile save ──────────────────────────────────────────────
     def _save_profile(
@@ -228,10 +241,18 @@ def wire_auth_events(*, ctx: AuthEventsCtx) -> None:
     )
 
     # ── Profile close ─────────────────────────────────────────────
+    _MODAL_CLOSE_JS = """() => {
+        var p = document.getElementById('profile-panel');
+        var bd = document.getElementById('profile-backdrop');
+        if (p) { p.style.opacity = '0'; p.style.pointerEvents = 'none'; }
+        if (bd) bd.style.display = 'none';
+    }"""
+
     _event(c.profile_close_btn, "click")(
         fn=lambda: gr.update(visible=False),
         inputs=[],
         outputs=[c.profile_panel],
+        js=_MODAL_CLOSE_JS,
     )
 
     # ── Auth check on page load (F5 / refresh) ───────────────────

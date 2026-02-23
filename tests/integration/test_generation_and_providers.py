@@ -10,6 +10,7 @@ from __future__ import annotations
 import random
 
 import pytest
+
 from application.use_cases._generate._card_mapping import (
     _card_to_full_data,
     _card_to_preview,

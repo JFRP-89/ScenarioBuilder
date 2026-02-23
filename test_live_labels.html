@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html><head><title>Label Test</title></head>
+<body style="background:#111;padding:20px;">
+<h1 style="color:#fff;">SVG Label Test - Full Mode</h1>
+<div style="display:flex;justify-content:center;padding:16px;background:#111315;
+border:1px solid #2a3545;border-radius:14px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700"><defs><style type="text/css">
+  /* === base resets === */
+  text {
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  }
+
+  /* --- zones (deployment) --- */
+  .sb-zone-defender {
+    fill: rgba(46,129,255,0.12);
+    stroke: rgba(46,129,255,0.45);
+    stroke-width: 1.4;
+    stroke-dasharray: 8 4;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+  }
+  .sb-zone-attacker {
+    fill: rgba(255,76,76,0.12);
+    stroke: rgba(255,76,76,0.45);
+    stroke-width: 1.4;
+    stroke-dasharray: 8 4;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+  }
+
+  /* --- terrain (scenography) --- */
+  .sb-terrain {
+    fill: rgba(200,220,255,0.08);
+    stroke: rgba(146,169,193,0.45);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+  }
+  .sb-terrain-passable {
+    fill: rgba(200,220,255,0.03);
+    stroke: rgba(146,169,193,0.30);
+    stroke-width: 0.8;
+    stroke-dasharray: 6 3 2 3;
+    opacity: 0.75;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+  }
+
+  /* --- objectives --- */
+  .sb-objective-ring {
+    fill: #101820;
+    stroke: #f6d41c;
+    stroke-width: 2.4;
+    vector-effect: non-scaling-stroke;
+  }
+  .sb-objective-num {
+    fill: #f6d41c;
+    font-size: 22px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  /* --- labels --- */
+  .sb-label {
+    fill: #92a9c1;
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    paint-order: stroke fill;
+    stroke: #101820;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .sb-label-strong {
+    fill: #e9eef6;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .sb-label-zone {
+    fill: #92a9c1;
+    font-size: 11px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    paint-order: stroke fill;
+    stroke: #101820;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .sb-label-obj {
+    fill: #e9eef6;
+    font-size: 13px;
+    font-weight: 600;
+    paint-order: stroke fill;
+    stroke: #101820;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  /* --- frame --- */
+  .sb-frame {
+    fill: none;
+    stroke: rgba(246,212,28,0.35);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .sb-corner-bracket {
+    fill: none;
+    stroke: #f6d41c;
+    stroke-width: 2;
+    stroke-linecap: square;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* --- grid --- */
+  .sb-grid-overlay {
+    pointer-events: none;
+  }
+</style>
+<pattern id="sb-grid-minor" width="50" height="50" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="50" y2="0" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" /><line x1="0" y1="0" x2="0" y2="50" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" /></pattern><pattern id="sb-grid-major" width="250" height="250" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="250" y2="0" stroke="rgba(246,212,28,0.08)" stroke-width="0.8" /><line x1="0" y1="0" x2="0" y2="250" stroke="rgba(246,212,28,0.08)" stroke-width="0.8" /></pattern><filter id="sb-glow-accent" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" /><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.96  0 1 0 0 0.83  0 0 1 0 0.11  0 0 0 0.55 0" result="glow" /><feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge></filter><pattern id="sb-hatch-defender" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="rgba(46,129,255,0.18)" stroke-width="1.5" /></pattern><pattern id="sb-hatch-attacker" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,76,76,0.18)" stroke-width="1.5" /></pattern></defs><g id="layer-bg"><rect class="sb-map-bg" x="0" y="0" width="1100" height="700" fill="#0b0f14" /><rect class="sb-table" x="0" y="0" width="1100" height="700" fill="#101820" /></g><g id="layer-grid" class="sb-grid-overlay"><rect class="sb-grid-minor" x="0" y="0" width="1100" height="700" fill="url(#sb-grid-minor)" /><rect class="sb-grid-major" x="0" y="0" width="1100" height="700" fill="url(#sb-grid-major)" /></g><g id="layer-zones"><rect x="50" y="50" width="400" height="150" fill="rgba(200,220,255,0.08)" stroke="rgba(146,169,193,0.45)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" class="sb-zone-defender" /><rect x="50" y="500" width="400" height="150" fill="rgba(200,220,255,0.08)" stroke="rgba(146,169,193,0.45)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" class="sb-zone-defender" /><rect x="50" y="50" width="400" height="150" fill="url(#sb-hatch-defender)" stroke="none" /><rect x="50" y="500" width="400" height="150" fill="url(#sb-hatch-defender)" stroke="none" /></g><g id="layer-terrain"><circle cx="300" cy="200" r="60" fill="rgba(200,220,255,0.08)" stroke="rgba(146,169,193,0.45)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" class="sb-terrain" /><rect x="600" y="250" width="120" height="80" fill="rgba(200,220,255,0.08)" stroke="rgba(146,169,193,0.45)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" class="sb-terrain" /></g><g id="layer-markers"><circle cx="550" cy="350" r="25" class="sb-objective-ring" fill="#101820" stroke="#f6d41c" stroke-width="2.4" vector-effect="non-scaling-stroke" filter="url(#sb-glow-accent)" /><text x="550" y="350" class="sb-objective-num" fill="#f6d41c" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="central" font-family="'JetBrains Mono', monospace">1</text><circle cx="200" cy="400" r="25" class="sb-objective-ring" fill="#101820" stroke="#f6d41c" stroke-width="2.4" vector-effect="non-scaling-stroke" filter="url(#sb-glow-accent)" /><text x="200" y="400" class="sb-objective-num" fill="#f6d41c" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="central" font-family="'JetBrains Mono', monospace">2</text></g><g id="layer-labels"><text x="250" y="125" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#92a9c1" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label-zone">VANGUARD DEPLOYMENT</text><text x="250" y="575" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#92a9c1" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label-zone">REARGUARD DEPLOYMENT</text><text x="300" y="200" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#92a9c1" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label">Dense woodland</text><text x="660" y="290" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#92a9c1" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label">Sacred ground</text><text x="550" y="300" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#e9eef6" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label-obj">Control the river crossing</text><text x="200" y="350" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="'JetBrains Mono', monospace" fill="#e9eef6" font-weight="bold" paint-order="stroke fill" stroke="#101820" stroke-width="3" stroke-linejoin="round" class="sb-label-obj">Defend the shrine</text></g><g id="layer-frame"><rect class="sb-frame" x="0" y="0" width="1100" height="700" fill="none" stroke="rgba(246,212,28,0.35)" stroke-width="1.5" vector-effect="non-scaling-stroke" /><line x1="0" y1="30" x2="0" y2="0" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="0" y1="0" x2="30" y2="0" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="1070" y1="0" x2="1100" y2="0" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="1100" y1="0" x2="1100" y2="30" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="1100" y1="670" x2="1100" y2="700" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="1100" y1="700" x2="1070" y2="700" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="30" y1="700" x2="0" y2="700" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /><line x1="0" y1="700" x2="0" y2="670" class="sb-corner-bracket" stroke="#f6d41c" stroke-width="2" /></g></svg>
+</div>
+</body></html>

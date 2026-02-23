@@ -3,6 +3,8 @@
 Tests pure functions that construct HTTP payloads from UI state.
 """
 
+import pytest
+
 from adapters.ui_gradio import payload_builders
 
 
@@ -59,12 +61,12 @@ class TestApplyTableConfig:
     def test_custom_valid_inches_converts_to_cm(self):
         payload = {}
         custom_table, error = payload_builders.apply_table_config(
-            payload, "custom", 48, 48, "inches"
+            payload, "custom", 48, 48, "in"
         )
-        # 48 inches * 2.54 = 121.92 cm
-        assert custom_table == {"width_cm": 121.92, "height_cm": 121.92}
+        # 48 inches * 2.5 = 120 cm (wargame convention)
+        assert custom_table == pytest.approx({"width_cm": 120.0, "height_cm": 120.0})
         assert error is None
-        assert payload["table_cm"]["width_cm"] == 121.92
+        assert payload["table_cm"]["width_cm"] == pytest.approx(120.0)
 
     def test_custom_below_min_returns_error(self):
         payload = {}
@@ -72,10 +74,9 @@ class TestApplyTableConfig:
             payload, "custom", 50, 50, "cm"
         )
         assert custom_table is None
-        assert error == {
-            "status": "error",
-            "message": "Invalid table dimensions. Check limits (60-300 cm).",
-        }
+        assert error is not None
+        assert error["status"] == "error"
+        assert "60" in error["message"] and "300" in error["message"]
         assert "table_cm" not in payload
 
     def test_custom_above_max_returns_error(self):
@@ -84,10 +85,9 @@ class TestApplyTableConfig:
             payload, "custom", 350, 350, "cm"
         )
         assert custom_table is None
-        assert error == {
-            "status": "error",
-            "message": "Invalid table dimensions. Check limits (60-300 cm).",
-        }
+        assert error is not None
+        assert error["status"] == "error"
+        assert "60" in error["message"] and "300" in error["message"]
 
     def test_custom_width_valid_height_invalid_returns_error(self):
         payload = {}

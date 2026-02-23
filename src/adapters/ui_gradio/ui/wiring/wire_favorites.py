@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.auth import is_session_valid
 from adapters.ui_gradio.services import navigation as nav_svc
 from adapters.ui_gradio.state_helpers import get_default_actor_id
@@ -28,7 +29,7 @@ def _build_error_html(message: str) -> str:
 
 
 _EMPTY_FAVORITES_HTML = (
-    '<div style="text-align:center;color:#999;padding:40px 0;">'
+    '<div style="text-align:center;color:#5a7090;padding:40px 0;">'
     "No favorites yet. Browse scenarios and ⭐ your favorites!"
     "</div>"
 )
@@ -83,6 +84,7 @@ def _refresh_cache(
         search_raw,
         per_page_raw,
         count_label="favorites",
+        actor_id=actor_id,
     )
     return html, page_info, new_page, cards, fav_ids, True
 
@@ -94,6 +96,7 @@ def _render_from_cache(
     fav_ids_cache: list[str],
     search_raw: str = "",
     per_page_raw: str = "10",
+    actor_id: str = "",
 ) -> tuple[str, str, int]:
     """Render a page from the cached cards/fav_ids."""
     return render_filtered_page(
@@ -104,6 +107,7 @@ def _render_from_cache(
         search_raw,
         per_page_raw,
         count_label="favorites",
+        actor_id=actor_id,
     )
 
 
@@ -147,6 +151,8 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         c.favorites_search_box,
         c.favorites_per_page_dropdown,
     ]
+    if c.actor_id_state is not None:
+        _cache_inputs.append(c.actor_id_state)
     _page_outputs = [
         c.favorites_cards_html,
         c.favorites_page_info,
@@ -161,9 +167,10 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
-            unit, 1, cards_cache, fav_ids_cache, search_raw, per_page_raw
+            unit, 1, cards_cache, fav_ids_cache, search_raw, per_page_raw, actor_id
         )
 
     for widget in (c.favorites_search_box, c.favorites_per_page_dropdown):
@@ -210,6 +217,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
             unit,
@@ -218,6 +226,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
             fav_ids_cache,
             search_raw,
             per_page_raw,
+            actor_id,
         )
 
     def _go_next(
@@ -227,6 +236,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
         fav_ids_cache: list[str],
         search_raw: str,
         per_page_raw: str,
+        actor_id: str = "",
     ) -> tuple[str, str, int]:
         return _render_from_cache(
             unit,
@@ -235,6 +245,7 @@ def wire_favorites_page(*, ctx: FavoritesPageCtx) -> Any:  # noqa: C901
             fav_ids_cache,
             search_raw,
             per_page_raw,
+            actor_id,
         )
 
     c.favorites_prev_btn.click(fn=_go_prev, inputs=_cache_inputs, outputs=_page_outputs)

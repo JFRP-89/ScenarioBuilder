@@ -29,6 +29,8 @@ class RenderMapSvgRequest:
 
     actor_id: Optional[str]
     card_id: Optional[str]
+    render_mode: str = "full"
+    display_units: str = "cm"
 
 
 @dataclass(frozen=True)
@@ -88,7 +90,20 @@ class RenderMapSvg:
             all_shapes.extend(card.map_spec.objective_shapes)
 
         # 5) Delegate rendering to renderer port
-        svg = self._renderer.render(table_mm=table_mm, shapes=all_shapes)
+        mode = (
+            request.render_mode if request.render_mode in ("full", "thumb") else "full"
+        )
+        units = (
+            request.display_units
+            if request.display_units in ("cm", "in", "ft")
+            else "cm"
+        )
+        svg = self._renderer.render(
+            table_mm=table_mm,
+            shapes=all_shapes,
+            render_mode=mode,
+            display_units=units,
+        )
 
         # 6) Return response
         return RenderMapSvgResponse(svg=svg)

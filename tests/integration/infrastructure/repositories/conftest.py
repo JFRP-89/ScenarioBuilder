@@ -92,36 +92,32 @@ def _run_alembic(test_db_url: str) -> None:
     # Fallback to SQLAlchemy metadata if alembic fails or produces no output
     if result.returncode != 0 or not result.stdout.strip():
         # Import here to avoid circular imports
-        from infrastructure.db.models import Base
         from sqlalchemy import create_engine
+
+        from infrastructure.db.models import Base
 
         engine = create_engine(test_db_url)
         Base.metadata.create_all(engine)
         engine.dispose()
-    elif result.returncode != 0:
-        raise AssertionError(
-            f"alembic upgrade head failed:\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}\n"
-        )
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture()
-def repo_db_url():
-    """Create an isolated test database, run migrations, yield URL, drop DB."""
+def session_factory():
+    """Create an isolated test DB, run migrations, yield sessionmaker, drop DB."""
     _load_db_env()
     create_engine, text = _import_sqlalchemy()
-    test_db_url, admin_url, test_db_name = _get_urls()
+    db_url, admin_url, test_db_name = _get_urls()
 
     safe = test_db_name.replace('"', '""')
     quoted_db = f'"{safe}"'
 
-    engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     try:
-        with engine.connect() as conn:
-            # Terminate stale connections (e.g. from auth session-scoped fixtures)
+        with admin_engine.connect() as conn:
+            # Terminate stale connections
             conn.execute(
                 text(
                     "SELECT pg_terminate_backend(pid) "
@@ -133,10 +129,16 @@ def repo_db_url():
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
             conn.execute(text(f"CREATE DATABASE {quoted_db}"))
 
-        _run_alembic(test_db_url)
-        yield test_db_url
+        _run_alembic(db_url)
+
+        from sqlalchemy.orm import sessionmaker
+
+        engine = create_engine(db_url)
+        factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        yield factory
+        engine.dispose()
     finally:
-        with engine.connect() as conn:
+        with admin_engine.connect() as conn:
             conn.execute(
                 text(
                     "SELECT pg_terminate_backend(pid) "
@@ -146,19 +148,5 @@ def repo_db_url():
                 {"db": test_db_name},
             )
             conn.execute(text(f"DROP DATABASE IF EXISTS {quoted_db}"))
-        engine.dispose()
+        admin_engine.dispose()
         os.environ.pop("DATABASE_URL", None)
-        # Keep DATABASE_URL_TEST — it must survive across fixtures in CI
-        # (where .env doesn't exist to reload it).
-
-
-@pytest.fixture()
-def session_factory(repo_db_url):
-    """Return a sessionmaker bound to the test database."""
-    create_engine, _ = _import_sqlalchemy()
-    from sqlalchemy.orm import sessionmaker
-
-    engine = create_engine(repo_db_url)
-    factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    yield factory
-    engine.dispose()

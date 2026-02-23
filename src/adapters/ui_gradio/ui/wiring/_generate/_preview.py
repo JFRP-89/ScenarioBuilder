@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio._state._deployment_zones import get_deployment_zones_choices
 from adapters.ui_gradio._state._objective_points import get_objective_points_choices
 from adapters.ui_gradio._state._scenography import get_scenography_choices
@@ -31,7 +32,8 @@ def _filter_internal_fields(preview_data: dict[str, Any]) -> dict[str, Any]:
     return {
         k: v
         for k, v in preview_data.items()
-        if not k.startswith("_") and k not in ("is_replicable", "generate_from_seed")
+        if not k.startswith("_")
+        and k not in ("is_replicable", "generate_from_seed", "display_units")
     }
 
 
@@ -85,24 +87,26 @@ def preview_and_render(*args: Any) -> _PreviewResult:
     """
     preview_data = handle_preview(FormState(*args))
 
-    # On error, return empty shapes + no-op dropdowns
+    # On error, preserve existing shape states (gr.update() = no change)
     if preview_data.get("status") == "error":
         svg_html = ""
         display_data = preview_data
-        empty: list[dict[str, Any]] = []
         return (
             display_data,
             svg_html,
             preview_data,
-            empty,
             gr.update(),
-            empty,
             gr.update(),
-            empty,
+            gr.update(),
+            gr.update(),
+            gr.update(),
             gr.update(),
         )
 
-    svg_html = render_svg_from_card(preview_data)
+    svg_html = render_svg_from_card(
+        preview_data,
+        display_units=preview_data.get("display_units", "cm"),
+    )
     display_data = _filter_internal_fields(preview_data)
 
     # Convert API shapes → UI state format
@@ -119,3 +123,21 @@ def preview_and_render(*args: Any) -> _PreviewResult:
         scen_state,
         gr.update(choices=get_scenography_choices(scen_state), value=None),
     )
+
+
+def rerender_svg_with_units(
+    preview_data: dict[str, Any] | None,
+    display_units: str,
+) -> str:
+    """Re-render the SVG preview using different display units.
+
+    Called when the user switches the map-display-units radio
+    *without* re-generating the card.  Only the overlay labels
+    change; no data is modified.
+    """
+    if not preview_data or not isinstance(preview_data, dict):
+        return ""
+    if preview_data.get("status") == "error":
+        return ""
+    units = display_units if display_units in ("cm", "in", "ft") else "cm"
+    return render_svg_from_card(preview_data, display_units=units)

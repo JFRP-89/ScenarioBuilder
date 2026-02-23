@@ -34,18 +34,14 @@ class _SeedToggle:
 
 
 # =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def toggle() -> _SeedToggle:
-    return _SeedToggle()
-
-
-# =============================================================================
 # TESTS
 # =============================================================================
 class TestToggleSeedFieldRestore:
     """Toggling OFF then ON restores the previous seed."""
+
+    @pytest.fixture()
+    def toggle(self) -> _SeedToggle:
+        return _SeedToggle()
 
     def test_off_clears_seed(self, toggle: _SeedToggle) -> None:
         seed_val, interactive = toggle.toggle(False, 548270841)

@@ -12,6 +12,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import gradio as gr
+
 from adapters.ui_gradio.ui.components import build_svg_preview
 from adapters.ui_gradio.ui.sections import (
     actor_section,
@@ -291,6 +292,13 @@ def build_create_page(
             cancel_edit_scenography_btn,
         ) = scenography_section.build_scenography_section()
 
+        map_units_radio = gr.Radio(
+            choices=["cm", "in", "ft"],
+            value="cm",
+            label="Map display units",
+            elem_id="map-display-units",
+        )
+
         svg_preview = build_svg_preview(
             elem_id_prefix="card-svg-preview",
             label="Map Preview",
@@ -454,6 +462,7 @@ def build_create_page(
         cancel_edit_scenography_btn=cancel_edit_scenography_btn,
         # Bottom controls
         svg_preview=svg_preview,
+        map_units_radio=map_units_radio,
         generate_btn=generate_btn,
         output=output,
         preview_full_state=preview_full_state,

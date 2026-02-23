@@ -1,297 +1,495 @@
 # MESBG Scenario Card Generator
 
-Generador de cartas de escenario para Middle-earth Strategy Battle Game (MESBG) con modos `casual`, `narrative` y `matched`.
-Incluye generación determinista por `seed`, renderizado de **board layouts en SVG** con seguridad XSS/XXE, y gestión de favoritos.
+Scenario Builder es un gestor de escenarios para wargames (Juego de estrategia de guerra en miniatura) con el fin de que un usuario puede crear, ver y editar escenarios. En él, el usuario despliega los datos del escenario a realizar con el fin de que luego se visualice físicamente mediante SVG. A través de ahí, el usuario puede decidir si se lo queda para sí mismo, decide ponerlo en público o querer compartirlo con unos usuarios específicos. A pesar de que ahora mismo está pensado exclusivamente para MESBG (Middle Earth Strategy Battle Game), El objetivo de Scenario Builder está en permitir que un usuario pueda jugar una partida de su wargame con las reglas y datos que serán fiscalizados en la aplicación en cuestión.
 
 > **Arquitectura limpia** con TDD + Security by Design. Ver [`AGENTS.md`](AGENTS.md) y [`context/`](context/) para reglas de desarrollo.
 
+---
+
+## 📋 Tabla de contenidos
+
+- [Resumen rápido](#resumen-rápido)
+- [Funcionalidades clave](#funcionalidades-clave)
+- [Estado del proyecto](#estado-del-proyecto)
+- [Stack técnico](#stack-técnico)
+- [Instalación y configuración](#instalación-y-configuración)
+- [Testing](#testing)
+- [Arquitectura](#arquitectura)
+- [API REST](#api-rest)
+- [Seguridad](#seguridad)
+- [Desarrollo local](#desarrollo-local)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Roadmap](#roadmap)
+
+---
+
+## Resumen rápido
+
+Scenario Builder genera escenarios reproducibles para wargames con salida en SVG, ajustados al tamaño real de mesa del jugador. El flujo base es: eliges parámetros (tamaño de mesa, modo de juego, restricciones), la aplicación valida reglas de dominio (points, deployment zones, constraints) y genera un mapa vectorial listo para visualizar o imprimir a escala real.
+
+**¿Por qué SVG?** Permite renderizar elementos vectoriales escalables para imprimir a tamaño real sin pérdida de calidad. Cada escenario incluye:
+- **Dimensiones exactas** con cotas (acotaciones) en cm/in/ft
+- **Layout de despliegue** con zonas de entrada para cada ejército
+- **Elementos de escenografía** (terreno, fortificaciones, obstáculos)
+- **Orientación cardinal** con brújula para determinar direcciones
+
+El sistema incluye control de visibilidad granular (privado/compartido/público), gestión de favoritos, autenticación completa con perfiles editables, y una arquitectura preparada para escalar a múltiples sistemas de wargames.
+
+## Funcionalidades clave
+
+### 🎲 Gestión de escenarios
+
+- **Creación determinista**: Cada escenario tiene un `seed` numérico que garantiza reproducibilidad. Dos usuarios con el mismo seed obtienen el mismo mapa.
+- **Edición flexible**: Modifica deployment zones, objetivos, twists y constraints sin perder el seed original.
+- **Clonación**: Duplica escenarios existentes con nuevo seed o manteniendo el original.
+
+### 🗺️ Renderizado SVG avanzado
+
+- **Escala ajustable**: Convierte dimensiones de mesa entre cm, inches y feet con precisión de wargamer (1in=2.5cm, 1ft=30cm).
+- **Elementos tácticos**: Cotas en bordes del mapa, brújula cardinal, leyenda de zonas.
+- **Seguridad**: Hardening contra XSS/XXE con `defusedxml` y allowlist de tags.
+
+### 🔒 Control de visibilidad
+
+- **Privado**: Solo el creador puede ver y editar.
+- **Compartido**: Lista allowlist de usuarios específicos.
+- **Público**: Visible para todos los usuarios autenticados.
+
+### ⭐ Sistema de favoritos
+
+- Guarda escenarios de otros usuarios para acceso rápido.
+- Toggle instantáneo con `POST /favorites/<card_id>/toggle`.
+
+### 👤 Autenticación completa
+
+- Registro con validación de username único y email único.
+- Login con lockout automático (3 intentos fallidos → 1 hora bloqueado).
+- Perfil editable (nombre, email, contraseña).
+- Sesiones seguras con CSRF tokens.
+
 ## Estado del proyecto
 
-✅ **Funcional** — 2984 tests pasando (1887 unit + 1097 integration)  
+✅ **Funcional** — 3064+ tests pasando con DB, 1972 unit tests, 11 Gradio smoke tests  
+✅ **Quality gates** — ruff, black, mypy, bandit: **all passing** en src/ y tests/  
 🏗️ **Adaptadores**: Flask API + Gradio UI con composition root  
-🔒 **Seguridad**: XSS/XXE mitigation en SVG, anti-IDOR en AuthZ, autenticación con cambio de contraseña  
+🔒 **Seguridad**: XSS/XXE en SVG, anti-IDOR en AuthZ, password policy fuerte, session lockout  
 📐 **Arquitectura**: Clean Architecture (domain → application → infrastructure → adapters)  
-🔐 **Autenticación**: Login, registro, perfil con cambio de contraseña (PBKDF2-HMAC-SHA256, política fuerte)  
-🗄️ **Persistencia**: PostgreSQL con Alembic migrations (cards, favorites, users, sessions)
+🗄️ **Persistencia**: PostgreSQL con Alembic migrations + in-memory stores para desarrollo
+
+**Cobertura de tests**: Domain **100%**, Application **99%** (exceeds 80% target), estrategia 60/30/10 (unit/integration/e2e)
+
+**Code quality**: `ruff` 0 errors, `black` compliant, `mypy` strict (205 src/ + 160 test/ files, 0 issues), `bandit` SAST clean
 
 ## Stack técnico
 
-- **Python 3.11+** (type hints con `|`, dataclasses)
-- **Flask 2.x+** (API REST con Blueprints)
-- **Gradio 4.x** (UI interactiva)
-- **PostgreSQL** (persistencia con Alembic migrations)
-- **Docker Compose** (orquestación)
-- **pytest** (TDD: 60% unit, 30% integration, 10% e2e)
-- **ruff** (lint), **defusedxml** (XXE prevention)
+### Backend
 
-## Instalación y ejecución
+- **Python 3.11+**: Type hints y pattern matching
+- **Flask 2.x+**: API REST con blueprints modulares
+- **PostgreSQL 14+**: Base de datos relacional con schemas de usuarios, cards, favoritos, sesiones
+- **Alembic**: Migrations versionadas con rollback
 
-### Desarrollo local
+### Frontend / UI
+
+- **Gradio 4.x**: Interfaz web declarativa para formularios de creación/edición, galería de escenarios, perfil de usuario y preview SVG en tiempo real
+
+### Testing & Seguridad
+
+- **pytest**: Framework de testing con fixtures y parametrización
+- **pytest-cov**: Reportes de cobertura HTML
+- **defusedxml**: Parsing seguro XML/SVG para prevenir XXE
+- **PBKDF2-HMAC-SHA256**: Hashing de contraseñas (600k iteraciones)
+- **secrets**: Generación de tokens CSRF y session IDs
+
+### DevOps
+
+- **Docker + Docker Compose**: Contenedorización multi-stage
+- **ruff**: Linting ultrarápido
+- **GitHub Actions** (planeado): CI/CD con tests automáticos
+
+## Instalación y configuración
+
+### Requisitos previos
+
+- Python 3.11+ (tested: 3.11.9)
+- PostgreSQL 14+ (opcional para dev, requerido en producción)
+- Git
+
+### Instalación
 
 ```bash
-# Crear venv e instalar dependencias
-python -m venv venv
+# Clonar y activar entorno
+git clone https://github.com/JFRP-89/ScenarioBuilder.git
+cd ScenarioBuilder
+python -3.11 -m venv venv
 venv\Scripts\activate  # Windows
 source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
-
-# Ejecutar tests
-pytest -q                     # Todos (2984 tests)
-pytest tests/unit -q          # Solo unitarios (1887 tests)
-pytest -q --cov=src --cov-report=term-missing  # Con coverage
-
-# Linting
-ruff check .
 ```
 
-### Test profiles
-
-The test suite supports two execution profiles:
-
-**Profile A — local-dev (default)**
-No PostgreSQL required. Tests marked `@pytest.mark.db` are auto-skipped.
+### Variables de entorno (.env)
 
 ```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/scenariobuilder
+DATABASE_URL_TEST=postgresql://user:password@localhost:5432/test_scenariobuilder
+```
+
+### Validar instalación
+
+```bash
+# Tests
 pytest tests/unit tests/integration -q
-# → 1887 passed (unit), ~61 skipped (DB integration)
+
+# Code quality gates (all must pass)
+ruff check src tests                    # PEP8 + security
+black --check src tests                # Code formatting
+mypy src --ignore-missing-imports      # Type safety
+bandit -r src/domain -q                # Security (domain: 0 issues required)
 ```
 
-**Profile B — with-db**
-Requires a running PostgreSQL instance. Runs *all* tests including DB integration.
+### Ejecutar la aplicación
 
-```bash
-# 1. Start PostgreSQL (local or Docker)
-# 2. Set env vars and run:
-RUN_DB_TESTS=1 DATABASE_URL_TEST=postgresql://user:pass@localhost:5432/test_db \
-  pytest tests/unit tests/integration -q
-# → 2984 passed (1887 unit + 1097 integration con DB)
+#### Opción 1: App combinada con Uvicorn (desarrollo local)
+
+Ejecuta Flask API + Gradio UI en un solo proceso:
+
+```powershell
+# Windows (PowerShell)
+$env:PYTHONPATH = "src"; python -c "import uvicorn; from adapters.combined_app import create_combined_app; uvicorn.run(create_combined_app(), host='127.0.0.1', port=8000)"
+
+# Linux/Mac (bash)
+PYTHONPATH=src python -c "import uvicorn; from adapters.combined_app import create_combined_app; uvicorn.run(create_combined_app(), host='127.0.0.1', port=8000)"
 ```
 
-| Variable | Purpose |
-|---|---|
-| `RUN_DB_TESTS` | Set to `1` to enable DB tests |
-| `DATABASE_URL_TEST` | PostgreSQL URL for test database |
+Accesos:
+- `http://localhost:8000/sb/` → Gradio UI
+- `http://localhost:8000/auth/*` → Autenticación
+- `http://localhost:8000/cards` → API Cards
+- `http://localhost:8000/health` → Health check
 
-> **Tip (Windows PowerShell):**
-> ```powershell
-> $env:RUN_DB_TESTS="1"
-> $env:DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5434/scenario_test?client_encoding=utf8"
-> pytest tests/unit tests/integration -q
-> ```
+#### Opción 2: Docker Compose (stack completo con PostgreSQL)
 
-### Docker
+Configura primero el archivo `.env` con las variables necesarias (ver sección anterior), luego:
 
 ```bash
-# Desplegar stack completo (PostgreSQL + app combinada)
 docker compose up
-
-# La aplicación combinada está disponible en:
-# - http://localhost:8000          ← FastAPI + Flask/Gradio (unified)
-# - http://localhost:8000/sb/      ← Gradio UI (con login y panel de perfil)
-# - http://localhost:8000/auth/*   ← Flask auth endpoints
-# - http://localhost:8000/health   ← Health check
 ```
 
-## Interfaz Gradio — Funcionalidades
+Esto levanta:
+- **Web**: App combinada (Flask + Gradio) en puerto 8000
+- **PostgreSQL**: Base de datos en puerto 5432
+- **Migraciones**: Se ejecutan automáticamente al iniciar
+
+Accesos:
+- `http://localhost:8000/sb/` → Gradio UI
+- `http://localhost:8000/auth/*` → Autenticación
+- `http://localhost:8000/cards` → API Cards
+- `http://localhost:8000/health` → Health check
+
+### Migraciones
+
+```bash
+alembic revision --autogenerate -m "Descripción"
+alembic upgrade head
+alembic downgrade -1
+```
+
+## Testing
+
+Estrategia **60/30/10** (60% unit, 30% integration, 10% e2e) con cobertura verificada: **Domain 100%**, **Application 99%**.
+
+**Validación actual**: 3064+ tests passing, 1972 unit tests passing, 11 Gradio smoke tests passing.
+
+### Perfiles
+
+#### Profile A — local-unit (sin DB)
+
+```bash
+pytest tests/unit -q                   # 1972 unit tests
+pytest --cov=src --cov-report=html    # Reporte en htmlcov/index.html
+```
+
+#### Profile B — with-db (con PostgreSQL)
+
+```bash
+# Set environment variables
+export DATABASE_URL_TEST=postgresql://user:pass@localhost:5432/test_scenariobuilder
+export RUN_DB_TESTS=1
+
+# Run full suite with DB
+pytest tests/unit tests/integration -q  # 3064+ tests with database
+```
+
+### Comandos útiles
+
+```bash
+pytest -x                              # Detener en primer fallo
+pytest -k "create"                     # Tests que matchean patrón
+pytest --lf                            # Re-ejecutar solo tests fallidos
+pytest tests/unit/domain/ -v           # Tests de carpeta específica
+pytest tests/unit/test_collision.py    # Single file
+pytest --cov=src/domain --cov-report=html  # Coverage for specific module
+```
+
+## Arquitectura
+
+Clean Architecture (Uncle Bob) con separación estricta de capas y dependency inversion. Flujo: `Adapters → Application → Domain`.
+
+### Capas
+
+```
+┌─────────────────────────────────────────┐
+│  Adapters (HTTP/UI)                     │  ← Frameworks
+│  Flask blueprints, Gradio handlers      │
+├─────────────────────────────────────────┤
+│  Application (Use Cases)                │  ← Orquestación
+│  CreateCard, UpdateCard, GetCardDetail  │
+├─────────────────────────────────────────┤
+│  Infrastructure (Implementación)        │  ← Tecnología
+│  Repos, Auth service, SVG renderer      │
+├─────────────────────────────────────────┤
+│  Domain (Reglas puras)                  │  ← Negocio
+│  Card, Constraints, Scoring, AuthZ      │
+└─────────────────────────────────────────┘
+```
+
+### 1. Domain (Reglas de negocio)
+
+- Zero dependencias externas (solo stdlib)
+- 100% cobertura de tests
+- Validación inline (`ValidationError`)
+- Módulos: `card/`, `scoring/`, `authz/`, `errors.py`
+
+### 2. Application (Casos de uso)
+
+- Orquesta domain + ports (interfaces)
+- DTOs para input/output
+- `.execute()` methods
+- Importa `domain/`, NO `infrastructure/`
+- Módulos: `use_cases/`, `ports/`, `dtos/`
+
+### 3. Infrastructure (Implementaciones)
+
+- Implementa ports con tecnología específica
+- PostgreSQL repos, in-memory stores, auth, rendering
+- Composition root (`bootstrap.py`)
+- Módulos: `persistence/`, `auth/`, `rendering/`, `bootstrap.py`
+
+### 4. Adapters (Frameworks)
+
+- Expone use cases vía HTTP (Flask) o UI (Gradio)
+- Solo mapeo, cero lógica de negocio
+- CSRF tokens, headers, status codes
+- Módulos: `http_flask/`, `ui_gradio/`
+
+### Política de imports
+
+```python
+# ✅ Permitido
+# domain/ → (nada)
+# application/ → domain/
+# infrastructure/ → domain/, application/
+# adapters/ → domain/, application/, infrastructure/
+
+# ❌ Prohibido
+# domain/ → application/
+# application/ → infrastructure/
+```
+
+Ver [`context/architecture/layers.md`](context/architecture/layers.md) para detalles.
+
+## API REST
+
+**Base URL**: `http://localhost:5000` (dev) o `http://localhost:8000` (Docker)
 
 ### Autenticación
-- **Login**: Usuario y contraseña con validación
-- **Registro**: Crear nueva cuenta con confirmación de contraseña
-- **Check Username**: Verificación en tiempo real de disponibilidad  
 
-### Perfil de Usuario
-- **Mostrar**: Username, nombre, email
-- **Editar**: Actualizar nombre y email
-- **Cambiar Contraseña**: 
-  - Campos "New Password" y "Confirm New Password" (opcionales)
-  - Si ambos vacíos → guardar sin cambiar contraseña
-  - Si alguno lleno → validar coincidencia + política fuerte
-  - Campos se limpian automáticamente después de guardar o al abrir el panel
-- **Logout**: Cerrar sesión desde el panel superior
+- `POST /auth/register` — Registra usuario nuevo (username/email únicos)
+  - Request: `{"username", "email", "password", "full_name"}`
+  - Response 201: `{"message", "username"}`
+  - Validaciones: username 3-30 chars, email válido, password 8+ chars con mayúscula/número/especial
+
+- `POST /auth/login` — Inicia sesión (lockout tras 3 fallos → 1h)
+  - Request: `{"username", "password"}`
+  - Response 200: `{"message", "session_id", "csrf_token"}`
+
+- `GET /auth/me` — Perfil del usuario autenticado
+  - Headers: `X-Session-Id`, `X-Actor-Id`
+  - Response 200: `{"username", "email", "full_name", "created_at"}`
+
+- `PUT /auth/profile` — Actualiza perfil
+  - Headers: `X-Session-Id`, `X-Actor-Id`, `X-CSRF-Token`
+  - Request: `{"full_name"?, "email"?, "password"?}` (campos opcionales)
+
+### Escenarios (Cards)
+
+- `POST /cards` — Crea nuevo escenario
+  - Headers: `X-Actor-Id`, `X-CSRF-Token`
+  - Request: `{"seed", "table_width_cm", "table_depth_cm", "game_mode", "constraints", "visibility"}`
+  - Response 201: `{"card_id", "seed", "map_url"}`
+
+- `GET /cards/<card_id>` — Detalle de escenario (requiere permisos de lectura)
+  - Headers: `X-Actor-Id`
+  - Response 200: `{"card_id", "seed", "spec", "layout", "visibility", "owner_id", "created_at"}`
+  - Errores: 404 (no existe), 403 (sin permisos)
+
+- `PUT /cards/<card_id>` — Actualiza escenario (solo owner)
+  - Headers: `X-Actor-Id`, `X-CSRF-Token`
+  - Request: `{"visibility"?, "constraints"?}`
+
+- `GET /cards/<card_id>/map.svg` — Descarga SVG
+  - Query: `display_units=cm|in|ft` (default: cm)
+  - Response 200: `image/svg+xml`
+
+### Favoritos
+
+- `POST /favorites/<card_id>/toggle` — Añade/quita favorito
+  - Headers: `X-Actor-Id`, `X-CSRF-Token`
+  - Response 200: `{"favorited": bool, "favorites_count": int}`
+
+- `GET /favorites` — Lista favoritos del usuario
+  - Headers: `X-Actor-Id`
+  - Response 200: `{"favorites": [{"card_id", "seed", "owner_id", "created_at"}]}`
+
+### Health
+
+- `GET /health` — Verifica que API está viva (sin auth)
+  - Response 200: `{"status": "healthy", "timestamp"}`
+
+## Seguridad
+
+### Autenticación
+
+- **Password hashing**: PBKDF2-HMAC-SHA256 (600k iteraciones) + salt 16 bytes
+- **Password policy**: 8+ chars, mayúscula, número, especial
+- **Lockout**: 3 intentos → 1 hora bloqueado
+
+### Autorización (AuthZ)
+
+- **Modelo deny-by-default**: Negar todo, permitir explícitamente
+- **Permisos**: read, update, delete, share
+- **Visibilidad**: private (solo owner), shared (owner + allowlist), public (owner + todos)
+- **Anti-IDOR**: Verificación de permisos antes de retornar datos
+
+### Protección contra ataques
+
+- **CSRF**: Todos los POST/PUT/DELETE requieren `X-CSRF-Token`
+- **XSS en SVG**: Allowlist de tags, escape de atributos, CSP header, Content-Type forzado
+- **XXE**: `defusedxml` en lugar de stdlib (DTD deshabilitados)
+- **SQL Injection**: Parametrización en todas las queries
+
+### SAST
+
+```bash
+bandit -r src/ -f json -o reports/bandit_all.json
+bandit -r src/domain/ -f json -o reports/bandit_domain.json  # Debe ser 0 issues
+```
+
+### Gestión de secretos
+
+Variables sensibles (NUNCA commitear):
+- `DATABASE_URL`
+
+Usar `.env` local (excluido en `.gitignore`) o variables de entorno en producción. Rotar credenciales cada 90 días.
+
+Ver [`context/security/`](context/security/) para documentación completa.
+
+## Desarrollo local
+
+### Workflow TDD (RED → GREEN → REFACTOR)
+
+```bash
+# RED: Test que falla
+pytest tests/unit/domain/test_nueva_regla.py -v
+
+# GREEN: Implementar mínimo código
+pytest tests/unit/domain/test_nueva_regla.py -v
+
+# REFACTOR: Mejorar sin romper
+pytest tests/unit tests/integration -q
+```
+
+### Convenciones
+
+- **Estilo**: PEP 8 (ruff), type hints, docstrings (Google format)
+- **Naming**: PascalCase (clases), snake_case (funciones), UPPER_SNAKE_CASE (constantes)
+- **Imports**: stdlib → third-party → project (absolutos)
+
+### Debugging
+
+```json
+// .vscode/launch.json
+{
+  "configurations": [
+    {
+      "name": "Flask API",
+      "type": "python",
+      "module": "flask",
+      "args": ["--app", "src.adapters.http_flask.app", "run", "--debug"]
+    },
+    {
+      "name": "Pytest current file",
+      "type": "python",
+      "module": "pytest",
+      "args": ["${file}", "-v"]
+    }
+  ]
+}
+```
 
 ## Estructura del proyecto
 
 ```
 ScenarioBuilder/
 ├── src/
-│   ├── domain/              # Reglas de negocio puras (no depende de nada)
-│   │   ├── cards/           # Card, Visibility, GameMode
-│   │   ├── maps/            # TableSize, MapSpec
-│   │   └── security/        # Authorization (anti-IDOR)
-│   ├── application/         # Casos de uso + ports (depende de domain)
-│   │   ├── use_cases/       # CreateCard, GetCard, ToggleFavorite, etc.
-│   │   └── ports/           # Interfaces (repos, generators)
-│   ├── infrastructure/      # Implementaciones (depende de application)
-│   │   ├── bootstrap.py     # Composition root (build_services)
-│   │   ├── auth/            # Autenticación (user_store, auth_service, session_store, validators)
-│   │   ├── repositories/    # In-memory repos (CardRepo, FavoritesRepo)
-│   │   ├── generators/      # ID/Seed generators
-│   │   └── maps/            # SVG renderers (con XSS/XXE mitigation)
-│   └── adapters/            # HTTP/UI (depende de infrastructure)
-│       ├── http_flask/      # Flask API (cards, favorites, maps, auth)
-│       └── ui_gradio/       # Gradio UI (login, register, profile, cards)
-├── content/                 # JSON editable (constraints, objectives, etc.)
-├── tests/                   # TDD: 60% unit, 30% integration, 10% e2e
-│   ├── unit/                # Tests de dominio y lógica pura (1500+)
-│   ├── integration/         # Tests de adapters + repos (1300+)
-│   └── e2e/                 # Tests end-to-end (11 smoke tests)
-├── context/                 # Conocimiento para IA (arquitectura, calidad, security)
-│   ├── agents/              # Guías para agentes especializados
-│   ├── architecture/        # Layers, import policy, error model, facades
-│   ├── quality/             # TDD, coverage, SOLID, definition-of-done
-│   ├── security/            # Security by design, anti-IDOR, input validation, auth
-│   └── workflow/            # Centaur mode, prompting
-├── docs/                    # Documentación de evaluación
-└── AGENTS.md                # Índice de reglas globales + punteros a context/
+│   ├── domain/              # Reglas puras (Card, Scoring, AuthZ)
+│   ├── application/         # Use cases + ports + DTOs
+│   ├── infrastructure/      # Repos, auth, rendering, bootstrap
+│   └── adapters/            # Flask (HTTP) + Gradio (UI)
+├── tests/
+│   ├── unit/                # 60% (domain 100%, application 80%)
+│   ├── integration/         # 30% (HTTP e2e, DB real)
+│   └── e2e/                 # 10% (smoke tests)
+├── content/mesbg/           # Datos de dominio (constraints, deployments, objectives)
+├── context/                 # Documentación para agentes (arquitectura, calidad, seguridad)
+├── docs/                    # Documentación técnica
+├── docker-compose.yml       # Stack completo (web + db)
+├── Dockerfile               # Imagen de producción
+├── requirements.txt         # Dependencias producción
+├── requirements-dev.txt     # Dependencias desarrollo
+├── pyproject.toml           # Configuración (ruff, pytest)
+├── AGENTS.md                # Reglas para agentes IA
+└── README.md                # Este archivo
 ```
-
-## API Flask — Endpoints
-
-### Authentication
-
-- `POST /auth/login` — Autenticar usuario (body: `{"username": "...", "password": "..."}`)
-- `POST /auth/register` — Registrar nuevo usuario (body: `{"username": "...", "password": "...", "confirm_password": "...", "name": "...", "email": "..."}`)
-- `GET /auth/check-username` — Verificar disponibilidad de username (query: `?username=...`)
-- `POST /auth/logout` — Cerrar sesión
-- `POST /auth/profile` — Actualizar perfil incluyendo cambio de contraseña (body: `{"name": "...", "email": "...", "new_password": "...", "confirm_new_password": "..."}`)
-- `GET /auth/me` — Obtener perfil del usuario actual
-
-**Headers**: 
-- Obligatorio `X-CSRF-Token` en POST (incluido en cookies de sesión)
-- Sesión almacenada en cookie `sb_session_id`
-
-### Cards
-
-- `POST /cards` — Crear card (body: `{"mode": "casual", "seed": 123}`)
-- `GET /cards/<card_id>` — Obtener card
-- `PUT /cards/<card_id>` — Actualizar card
-- `DELETE /cards/<card_id>` — Eliminar card
-- `GET /cards` — Listar cards del actor
-
-**Header obligatorio**: `X-Actor-Id: <user_id>`
-
-### Maps (SVG)
-
-- `GET /cards/<card_id>/map.svg` — Renderizar mapa en SVG
-  - **Seguridad**: defusedxml + allowlist + namespace stripping + CSP headers
-
-### Favorites
-
-- `POST /favorites/<card_id>/toggle` — Toggle favorite
-- `GET /favorites` — Listar IDs de favoritos
-
-### Health
-
-- `GET /health` — Health check (no requiere auth)
-
-## Modelos de dominio
-
-### `TableSize`
-- Dimensiones en mm (int)
-- Presets: `standard()` 120×120 cm, `massive()` 180×120 cm
-- Conversiones: `from_cm()`, `from_in()`, `from_ft()` con redondeo HALF_UP
-- Límites: 60–300 cm por dimensión
-
-### `MapSpec`
-- Valida shapes: `circle`, `rect`, `polygon`
-- Límites anti-abuso: ≤100 shapes, ≤200 puntos/polígono
-- Coordenadas int dentro del tablero
-
-### `Card`
-- Identidad (ID, actor_id)
-- Ownership/visibility (`Visibility`: private/shared/public)
-- Modo de juego (`GameMode`: casual/narrative/matched)
-- Seed determinista
-- `TableSize` + `MapSpec`
-- AuthZ: `can_user_read()`, `can_user_write()`
-
-## Seguridad
-
-### Principios (Security by Design)
-
-- **Deny by default**: AuthZ explícita en cada operación
-- **Anti-IDOR**: Validación de ownership en domain
-- **Autenticación**:
-  - Hash PBKDF2-HMAC-SHA256 (100k iteraciones, 32-byte salt)
-  - Política de contraseña fuerte: 8+ chars, mayúscula, minúscula, número, carácter especial
-  - Lockout: 3 intentos fallidos → bloqueado por 1 hora
-  - Sesiones con timeout (24 horas activas, idle timeout)
-- **XSS prevention**: 
-  - int casting en SVG renderers
-  - defusedxml para parsing seguro
-  - Allowlist (bloquea `script`, `foreignObject`, `on*`, `javascript:`, `data:`)
-  - CSP headers en respuestas
-- **Input validation**: DTO validation en application, errores en domain
-
-Ver [`context/security/`](context/security/) para detalles.
-
-## Desarrollo — Reglas TDD
-
-1. **RED**: Escribir tests que fallen (contrato)
-2. **GREEN**: Implementar código mínimo para pasar
-3. **REFACTOR**: Mejorar sin romper tests
-
-**Coverage policy**: 100% domain, 80% application, 0% (opcional) adapters
-
-Ver [`AGENTS.md`](AGENTS.md) y [`context/quality/tdd.md`](context/quality/tdd.md).
-
-## Comandos útiles
-
-```bash
-# Tests
-pytest -q                              # Suite completa
-pytest tests/unit -q                   # Solo unitarios
-pytest -k "test_card" -v               # Tests que matchean pattern
-pytest --lf                            # Solo tests que fallaron antes
-
-# Coverage
-pytest --cov=src --cov-report=html     # Reporte HTML en htmlcov/
-
-# Lint
-ruff check .                           # Check
-ruff check . --fix                     # Auto-fix
-
-# Run
-python -m flask --app src.adapters.http_flask.app run
-python src/adapters/ui_gradio/app.py
-```
-
-## Migraciones (PostgreSQL)
-
-La vía oficial para persistencia es **Alembic**. Para uso rápido en dev/demo
-existe `scripts/init_db.py`, pero las migraciones son la fuente de verdad.
-
-```bash
-# Ejecutar migraciones (usa DATABASE_URL)
-alembic upgrade head
-
-# Crear nueva migración desde modelos
-alembic revision --autogenerate -m "describe change"
-```
-
-## Documentación adicional
-
-- **Arquitectura**: [`context/architecture/layers.md`](context/architecture/layers.md)
-- **Threat model**: [`docs/security/threat-model.md`](docs/security/threat-model.md)
-- **Runbook**: [`docs/deploy/runbook.md`](docs/deploy/runbook.md)
-- **Agentes IA**: [`AGENTS.md`](AGENTS.md)
-- **Slides**: [`slides/README.md`](slides/README.md)
 
 ## Roadmap
 
-- [x] Dominio: Card, TableSize, MapSpec, AuthZ
-- [x] Use cases: CreateCard, GetCard, UpdateCard, DeleteCard, ListCards
-- [x] Use cases: ToggleFavorite, ListFavorites
-- [x] Adapters: Flask API (cards, favorites, maps)
-- [x] Adapters: Gradio UI (completa con autenticación)
-- [x] Seguridad: XSS/XXE mitigation en SVG
-- [x] Persistencia: PostgreSQL repos con Alembic migrations
-- [x] Autenticación: Login/Logout con sesiones PostgreSQL
-- [x] Registro: Nueva creación de cuenta con política fuerte de contraseña
-- [x] Perfil: Edición de nombre/email + cambio de contraseña
-- [ ] Deploy: Cloud (Render/Railway)
-- [ ] E2E: Tests completos Flask ↔ Gradio
+### 🚀 Próximos releases
 
-## Licencia
+**v0.2.0 — Mejoras de experiencia y expansión**
 
-Pendiente de definir.
+- **Mejoras de UX (wizard, presets de mesa)**: Con el objetivo de que un usuario normal no tenga que estar escribiendo constantemente las coordenadas, se implementará tanto una mejora en el UX como en el hecho de introducir la característica de crear figuras.
+
+- **Export (PDF/imagen) y assets imprimibles**: Se implementará esta característica para que puedan guardarlo en la máquina sin necesidad de estar conectado a Scenario Builder.
+
+- **Expandirse a más allá de la Tierra Media**: Por mucho que MESBG (Middle Earth Strategy Battle Game) sea un muy buen juego como un wargame, como se comentó antes, más adelante se tiene pensado escalarlo a otros juegos, añadiendo más filtros relacionados con el wargame que jugar para que un usuario no se vea forzado a ver escenarios de juegos a los que realmente no les interesa ver.
+
+---
+
+## 📄 Licencia
+
+Pendiente de definir. Todos los derechos reservados (por ahora).
+
+---
+
+## 📞 Contacto
+
+- **Autor**: Juan Francisco (JFRP-89)
+- **Repositorio**: [github.com/JFRP-89/ScenarioBuilder](https://github.com/JFRP-89/ScenarioBuilder)
+- **Issues**: [github.com/JFRP-89/ScenarioBuilder/issues](https://github.com/JFRP-89/ScenarioBuilder/issues)
+
+**¿Bugs de seguridad?** NO abrir issue público. Contactar directamente al mantenedor.
+
+---
+
+Consulta documentación adicional en [`context/`](context/) y [`docs/`](docs/).

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import gradio as gr
+
 from adapters.ui_gradio.state_helpers import (
     get_deployment_zones_choices,
     get_objective_points_choices,

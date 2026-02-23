@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._generate._create_logic import validate_preview_data
 
 

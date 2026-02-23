@@ -7,6 +7,7 @@ and real domain validation end-to-end.
 from __future__ import annotations
 
 import pytest
+
 from application.use_cases.create_variant import (
     CreateVariant,
     CreateVariantRequest,

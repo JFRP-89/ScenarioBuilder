@@ -7,9 +7,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from adapters.ui_gradio.ui.wiring._scenography._polygon import (
+    convert_polygon_points,
+)
 from adapters.ui_gradio.units import convert_unit_to_unit
-
-from ._polygon import convert_polygon_points
 
 
 def scenography_type_visibility(elem_type: str) -> dict[str, bool]:

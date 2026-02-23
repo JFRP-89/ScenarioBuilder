@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from flask import Flask, g, jsonify, redirect, render_template, request
+from werkzeug.wrappers import Response as WerkzeugResponse
+
 from adapters.http_flask.error_contract import (
     ERROR_FORBIDDEN,
     ERROR_INTERNAL,
@@ -22,9 +27,7 @@ from adapters.http_flask.routes.health import health_bp
 from adapters.http_flask.routes.maps import maps_bp
 from adapters.http_flask.routes.presets import presets_bp
 from domain.errors import ForbiddenError, NotFoundError, ValidationError
-from flask import Flask, g, jsonify, redirect, render_template, request
 from infrastructure.bootstrap import build_services
-from werkzeug.wrappers import Response as WerkzeugResponse
 
 
 def _get_actor_id() -> str:
@@ -69,7 +72,15 @@ def _classify_exception(exc: Exception) -> tuple[str, str, int] | None:
 
 
 def create_app() -> Flask:
-    app = Flask(__name__)
+    # Resolve static directory relative to this file
+    _this_dir = Path(__file__).resolve().parent
+    _static_dir = str(_this_dir / "static")
+
+    app = Flask(
+        __name__,
+        static_folder=_static_dir,
+        static_url_path="/static",
+    )
 
     # Build services once and store in config
     services = build_services()

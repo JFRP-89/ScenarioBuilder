@@ -16,7 +16,6 @@ from decimal import Decimal
 
 import pytest
 
-# TODO: Update import once TableSize is implemented
 from domain.errors import ValidationError
 from domain.maps.table_size import TableSize
 
@@ -250,7 +249,7 @@ class TestLimits:
         ],
     )
     def test_rejects_below_minimum_post_rounding(self, width_cm, height_cm):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="(?i)must be at least"):
             TableSize.from_cm(width_cm, height_cm)
 
     # --- Maximum limit (300 cm = 3000 mm) ---
@@ -282,7 +281,7 @@ class TestLimits:
         ],
     )
     def test_rejects_above_maximum_post_rounding(self, width_cm, height_cm):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="(?i)must be at most"):
             TableSize.from_cm(width_cm, height_cm)
 
 
@@ -333,7 +332,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_none_values(self, invalid_width, invalid_height):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="(?i)cannot be none"):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -349,7 +348,9 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_non_numeric_strings(self, invalid_width, invalid_height):
-        with pytest.raises(ValidationError):
+        with pytest.raises(
+            ValidationError, match="(?i)not a valid number|cannot be empty"
+        ):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -362,7 +363,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_negative_values(self, invalid_width, invalid_height):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="(?i)must be positive.*got.*-"):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -375,7 +376,7 @@ class TestInvalidInputs:
         ],
     )
     def test_rejects_zero_values(self, invalid_width, invalid_height):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="(?i)must be positive.*got.*0"):
             TableSize.from_cm(invalid_width, invalid_height)
 
     @pytest.mark.parametrize(
@@ -398,6 +399,49 @@ class TestInvalidInputs:
     def test_rejects_none_in_from_ft(self):
         with pytest.raises(ValidationError):
             TableSize.from_ft(None, "4")  # type: ignore[arg-type]
+
+    def test_rejects_float_type(self):
+        """Float type should be rejected for precision reasons."""
+        with pytest.raises(ValidationError):
+            TableSize.from_cm(100.5, "100")  # type: ignore[arg-type]
+        with pytest.raises(ValidationError):
+            TableSize.from_cm("100", 100.5)  # type: ignore[arg-type]
+
+    def test_accepts_decimal_type_directly(self):
+        """Decimal type should be accepted directly."""
+        ts = TableSize.from_cm(Decimal("120"), Decimal("120"))
+        assert ts.width_mm == 1200
+        assert ts.height_mm == 1200
+
+    def test_accepts_int_type_directly(self):
+        """Int type should be accepted directly."""
+        ts = TableSize.from_cm(120, 120)
+        assert ts.width_mm == 1200
+        assert ts.height_mm == 1200
+
+    def test_rejects_list_type(self):
+        """List type should be rejected."""
+        with pytest.raises(ValidationError):
+            TableSize.from_cm([100], "100")  # type: ignore[arg-type]
+
+    def test_accepts_scientific_notation_lowercase_e(self):
+        """Scientific notation with lowercase 'e' should work."""
+        ts = TableSize.from_cm("1e2", "1.2e2")
+        assert ts.width_mm == 1000
+        assert ts.height_mm == 1200
+
+    def test_rejects_decimal_with_exponent_less_than_minus_2(self):
+        """Decimal with exponent < -2 should be rejected."""
+        # Decimal('100.001') has exponent -3
+        with pytest.raises(ValidationError):
+            TableSize.from_cm(Decimal("100.001"), "100")
+
+
+# =============================================================================
+# 8) INVALID INPUTS — ALTERNATE UNITS (from_in / from_ft)
+# =============================================================================
+class TestInvalidInputsAlternateUnits:
+    """Reject invalid inputs for from_in and from_ft constructors."""
 
     def test_rejects_negative_in_from_in(self):
         with pytest.raises(ValidationError):
@@ -426,46 +470,6 @@ class TestInvalidInputs:
         """Negative height should be rejected for int inputs in from_ft."""
         with pytest.raises(ValidationError):
             TableSize.from_ft(4, -1)
-
-    def test_rejects_float_type(self):
-        """Float type should be rejected for precision reasons."""
-        with pytest.raises(ValidationError):
-            TableSize.from_cm(100.5, "100")  # type: ignore[arg-type]
-        with pytest.raises(ValidationError):
-            TableSize.from_cm("100", 100.5)  # type: ignore[arg-type]
-
-    def test_accepts_decimal_type_directly(self):
-        """Decimal type should be accepted directly."""
-        from decimal import Decimal
-
-        ts = TableSize.from_cm(Decimal("120"), Decimal("120"))
-        assert ts.width_mm == 1200
-        assert ts.height_mm == 1200
-
-    def test_accepts_int_type_directly(self):
-        """Int type should be accepted directly."""
-        ts = TableSize.from_cm(120, 120)
-        assert ts.width_mm == 1200
-        assert ts.height_mm == 1200
-
-    def test_rejects_list_type(self):
-        """List type should be rejected."""
-        with pytest.raises(ValidationError):
-            TableSize.from_cm([100], "100")  # type: ignore[arg-type]
-
-    def test_accepts_scientific_notation_lowercase_e(self):
-        """Scientific notation with lowercase 'e' should work."""
-        ts = TableSize.from_cm("1e2", "1.2e2")
-        assert ts.width_mm == 1000
-        assert ts.height_mm == 1200
-
-    def test_rejects_decimal_with_exponent_less_than_minus_2(self):
-        """Decimal with exponent < -2 should be rejected."""
-        from decimal import Decimal
-
-        # Decimal('100.001') has exponent -3
-        with pytest.raises(ValidationError):
-            TableSize.from_cm(Decimal("100.001"), "100")
 
     def test_rejects_below_minimum_in_from_in(self):
         """from_in should reject dimensions below minimum after conversion."""

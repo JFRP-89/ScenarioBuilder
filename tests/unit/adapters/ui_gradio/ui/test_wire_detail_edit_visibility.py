@@ -60,7 +60,7 @@ class TestEditButtonVisibilityByOwnership:
         )
 
         # Simulate what _load_card_detail does internally
-        card_data, svg_wrapped = _fetch_card_and_svg("card-abc-123")
+        card_data, _ = _fetch_card_and_svg("card-abc-123")
         actor_id = mock_actor()
         is_owner = card_data.get("owner_id", "") == actor_id
 
@@ -145,6 +145,7 @@ class TestDetailPageEditButtonDefaultState:
     def test_edit_button_starts_hidden(self):
         """build_detail_page() should create edit_btn with visible=False."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
 
         with gr.Blocks():
@@ -158,6 +159,7 @@ class TestDetailPageEditButtonDefaultState:
     def test_delete_button_starts_hidden(self):
         """build_detail_page() should create delete_btn with visible=False."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.pages.scenario_detail import build_detail_page
 
         with gr.Blocks():
@@ -179,6 +181,7 @@ class TestResetDetailForLoading:
     def test_reset_hides_edit_button(self):
         """Reset step must return visible=False for edit button."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.wiring.wire_detail import (
             _get_reset_detail_for_loading,
         )
@@ -194,6 +197,7 @@ class TestResetDetailForLoading:
     def test_reset_hides_delete_button(self):
         """Reset step must return visible=False for delete button."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.wiring.wire_detail import (
             _get_reset_detail_for_loading,
         )
@@ -209,6 +213,7 @@ class TestResetDetailForLoading:
     def test_reset_hides_confirm_row(self):
         """Reset step must return visible=False for the confirm row."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.wiring.wire_detail import (
             _get_reset_detail_for_loading,
         )
@@ -224,6 +229,7 @@ class TestResetDetailForLoading:
     def test_reset_shows_loading_state(self):
         """Reset step must show a 'Loading...' placeholder."""
         import gradio as gr
+
         from adapters.ui_gradio.ui.wiring.wire_detail import (
             _get_reset_detail_for_loading,
         )

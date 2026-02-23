@@ -1,24 +1,28 @@
-"""RED tests for Flask cards routes contract.
+"""Integration tests for Flask cards routes contract.
 
-These tests define the expected contract for cards API endpoints:
-- POST /cards - create a new card
-- GET /cards/<card_id> - retrieve a card by ID
-- GET /cards?filter=... - list cards by filter
+Tests cover:
+- POST /cards — create a new card
+- GET /cards/<card_id> — retrieve a card by ID
+- GET /cards?filter=... — list cards by filter
 
-All endpoints require X-Actor-Id header and use services from app.config["services"].
+All endpoints require a valid session.  Services come from app.config["services"].
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Optional, Union
 
 import pytest
+
 from adapters.http_flask.app import create_app
+from helpers.fakes import FakeUseCase
+from helpers.flask_helpers import assert_auth_required, csrf_token_of, store_csrf_token
 
 
 # =============================================================================
-# FAKE USE CASES (SPY PATTERN)
+# RESPONSE DTOs
 # =============================================================================
 @dataclass
 class FakeGenerateResponse:
@@ -56,7 +60,6 @@ class FakeGenerateResponse:
     def __post_init__(self):
         """Create fake Card if not provided."""
         if self.card is None:
-            # Create a minimal fake Card object
             self.card = type(
                 "FakeCard",
                 (),
@@ -68,33 +71,6 @@ class FakeGenerateResponse:
                     "visibility": self.visibility,
                 },
             )()
-
-
-class FakeGenerateScenarioCard:
-    """Fake GenerateScenarioCard use case."""
-
-    def __init__(self, response: Optional[FakeGenerateResponse] = None):
-        self.last_request = None
-        self.call_count = 0
-        self._response = response or FakeGenerateResponse()
-
-    def execute(self, request):
-        self.last_request = request
-        self.call_count += 1
-        return self._response
-
-
-class FakeSaveCard:
-    """Fake SaveCard use case."""
-
-    def __init__(self):
-        self.last_request = None
-        self.call_count = 0
-
-    def execute(self, request):
-        self.last_request = request
-        self.call_count += 1
-        return type("SaveCardResponse", (), {"card_id": "card-001"})()
 
 
 @dataclass
@@ -125,27 +101,6 @@ class FakeGetCardResponse:
             self.shared_with = []
 
 
-class FakeGetCard:
-    """Fake GetCard use case."""
-
-    def __init__(
-        self,
-        response: Optional[FakeGetCardResponse] = None,
-        raise_not_found: bool = False,
-    ):
-        self.last_request = None
-        self.call_count = 0
-        self._response = response or FakeGetCardResponse()
-        self._raise_not_found = raise_not_found
-
-    def execute(self, request):
-        self.last_request = request
-        self.call_count += 1
-        if self._raise_not_found:
-            raise Exception(f"Card not found: {request.card_id}")
-        return self._response
-
-
 @dataclass
 class FakeCardSnapshot:
     """Fake card snapshot for list results."""
@@ -171,75 +126,72 @@ class FakeListCardsResponse:
     cards: list = field(default_factory=list)
 
 
-class FakeListCards:
-    """Fake ListCards use case."""
-
-    def __init__(self, cards: Optional[list] = None):
-        self.last_request = None
-        self.call_count = 0
-        self._cards = cards or [
-            FakeCardSnapshot(
-                card_id="card-001",
-                owner_id="u1",
-                seed=123,
-                mode="matched",
-                visibility="private",
-            ),
-            FakeCardSnapshot(
-                card_id="card-002",
-                owner_id="u1",
-                seed=456,
-                mode="casual",
-                visibility="public",
-            ),
-        ]
-
-    def execute(self, request):
-        self.last_request = request
-        self.call_count += 1
-        return FakeListCardsResponse(cards=self._cards)
-
-
 @dataclass
 class FakeServices:
     """Fake Services container for testing."""
 
-    generate_scenario_card: Optional[FakeGenerateScenarioCard] = None
-    save_card: Optional[FakeSaveCard] = None
-    get_card: Optional[FakeGetCard] = None
-    list_cards: Optional[FakeListCards] = None
-    # Other use cases not needed for these tests
+    generate_scenario_card: object = None
+    save_card: object = None
+    get_card: object = None
+    list_cards: object = None
     toggle_favorite: object = None
     list_favorites: object = None
     create_variant: object = None
     render_map_svg: object = None
 
 
+def _default_card_snapshots() -> list[FakeCardSnapshot]:
+    """Build default card snapshots for list responses."""
+    return [
+        FakeCardSnapshot(
+            card_id="card-001",
+            owner_id="u1",
+            seed=123,
+            mode="matched",
+            visibility="private",
+        ),
+        FakeCardSnapshot(
+            card_id="card-002",
+            owner_id="u1",
+            seed=456,
+            mode="casual",
+            visibility="public",
+        ),
+    ]
+
+
 # =============================================================================
 # FIXTURES
 # =============================================================================
-@pytest.fixture
-def fake_generate():
-    return FakeGenerateScenarioCard()
+@pytest.fixture(name="fake_generate")
+def _provide_fake_generate():
+    """Fake GenerateScenarioCard use case."""
+    return FakeUseCase(response=FakeGenerateResponse())
 
 
-@pytest.fixture
-def fake_save():
-    return FakeSaveCard()
+@pytest.fixture(name="fake_save")
+def _provide_fake_save():
+    """Fake SaveCard use case."""
+    return FakeUseCase(response=SimpleNamespace(card_id="card-001"))
 
 
-@pytest.fixture
-def fake_get():
-    return FakeGetCard()
+@pytest.fixture(name="fake_get")
+def _provide_fake_get():
+    """Fake GetCard use case."""
+    return FakeUseCase(response=FakeGetCardResponse())
 
 
-@pytest.fixture
-def fake_list():
-    return FakeListCards()
+@pytest.fixture(name="fake_list")
+def _provide_fake_list():
+    """Fake ListCards use case."""
+    return FakeUseCase(
+        response=FakeListCardsResponse(cards=_default_card_snapshots()),
+    )
 
 
-@pytest.fixture
-def fake_services(fake_generate, fake_save, fake_get, fake_list):
+@pytest.fixture(name="fake_services")
+def _provide_fake_services(fake_generate, fake_save, fake_get, fake_list):
+    """Assemble all fakes into a FakeServices container."""
     return FakeServices(
         generate_scenario_card=fake_generate,
         save_card=fake_save,
@@ -248,60 +200,51 @@ def fake_services(fake_generate, fake_save, fake_get, fake_list):
     )
 
 
-@pytest.fixture
-def client(fake_services, monkeypatch, session_factory):
+@pytest.fixture(name="client")
+def _make_cards_client(fake_services, monkeypatch, session_factory):
     """Create test client with fake services injected."""
-    # Patch build_services to avoid real infra during app creation
-    monkeypatch.setattr("adapters.http_flask.app.build_services", lambda: fake_services)
+    monkeypatch.setattr(
+        "adapters.http_flask.app.build_services",
+        lambda: fake_services,
+    )
     app = create_app()
-    # Override with our fake services (belt and suspenders)
     app.config["services"] = fake_services
     c = app.test_client()
     auth = session_factory(c, "u1")
-    c._test_csrf = auth["csrf_token"]  # type: ignore[attr-defined]
+    store_csrf_token(c, auth["csrf_token"])
     return c
 
 
 # =============================================================================
-# TEST: POST /cards - missing actor ID
+# TEST: POST /cards
 # =============================================================================
-class TestPostCardsMissingActorId:
-    """Test POST /cards without valid session (auth middleware)."""
+class TestPostCards:
+    """Tests for POST /cards endpoint."""
 
-    def test_post_cards_missing_auth_returns_401(self, fake_services, monkeypatch):
+    def test_missing_auth_returns_401(self, fake_services, monkeypatch):
         """POST /cards without session cookie should return 401."""
         monkeypatch.setattr(
-            "adapters.http_flask.app.build_services", lambda: fake_services
+            "adapters.http_flask.app.build_services",
+            lambda: fake_services,
         )
         app = create_app()
         app.config["services"] = fake_services
         unauth_client = app.test_client()
 
-        # Act
         response = unauth_client.post(
             "/cards",
             json={"mode": "matched", "seed": 123, "table_preset": "standard"},
         )
 
-        # Assert
-        assert response.status_code == 401, "Missing auth should return 401"
-        json_data = response.get_json()
-        assert json_data is not None, "Response should be JSON"
-        assert json_data.get("ok") is False
-        assert json_data.get("message") == "Authentication required."
+        assert_auth_required(response)
 
-
-# =============================================================================
-# TEST: POST /cards - happy path
-# =============================================================================
-class TestPostCardsHappyPath:
-    """Test POST /cards with valid request."""
-
-    def test_post_cards_calls_generate_and_returns_201(
-        self, client, fake_generate, fake_save
+    def test_calls_generate_and_returns_201(
+        self,
+        client,
+        fake_generate,
+        fake_save,
     ):
         """POST /cards should call generate use case and return 201."""
-        # Act
         response = client.post(
             "/cards",
             json={
@@ -310,13 +253,11 @@ class TestPostCardsHappyPath:
                 "table_preset": "standard",
                 "visibility": "private",
             },
-            headers={"X-CSRF-Token": client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(client)},
         )
 
-        # Assert: status code
         assert response.status_code == 201, "Valid POST should return 201"
 
-        # Assert: JSON structure
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
         assert "card_id" in json_data, "Response should contain card_id"
@@ -325,7 +266,6 @@ class TestPostCardsHappyPath:
         assert "mode" in json_data, "Response should contain mode"
         assert "visibility" in json_data, "Response should contain visibility"
 
-        # Assert: use case was called
         assert (
             fake_generate.call_count == 1
         ), "generate_scenario_card.execute() should be called once"
@@ -339,13 +279,12 @@ class TestPostCardsHappyPath:
         assert fake_save.last_request.card is not None
         assert fake_save.last_request.card.card_id == json_data["card_id"]
 
-    def test_post_cards_passes_request_fields_to_use_case(self, client, fake_generate):
+    def test_passes_request_fields_to_use_case(self, client, fake_generate):
         """POST /cards should pass all fields to the use case.
 
         Note: seed is NOT passed from the client payload.
         It's calculated internally based on is_replicable flag.
         """
-        # Act
         response = client.post(
             "/cards",
             json={
@@ -354,10 +293,9 @@ class TestPostCardsHappyPath:
                 "table_preset": "massive",
                 "visibility": "public",
             },
-            headers={"X-CSRF-Token": client._test_csrf},
+            headers={"X-CSRF-Token": csrf_token_of(client)},
         )
 
-        # Assert
         assert response.status_code == 201
         req = fake_generate.last_request
         assert req.mode == "narrative", "mode should be passed"
@@ -370,20 +308,17 @@ class TestPostCardsHappyPath:
 
 
 # =============================================================================
-# TEST: GET /cards/<card_id> - happy path
+# TEST: GET /cards/<card_id>
 # =============================================================================
-class TestGetCardHappyPath:
-    """Test GET /cards/<card_id> with valid request."""
+class TestGetCard:
+    """Tests for GET /cards/<card_id> endpoint."""
 
-    def test_get_card_happy_path_200(self, client, fake_get):
+    def test_happy_path_returns_200(self, client, fake_get):
         """GET /cards/<card_id> should return 200 with card data."""
-        # Act
         response = client.get("/cards/card-001")
 
-        # Assert: status code
         assert response.status_code == 200, "Valid GET should return 200"
 
-        # Assert: JSON structure
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
         assert json_data.get("card_id") == "card-001", "card_id should match"
@@ -392,137 +327,103 @@ class TestGetCardHappyPath:
         assert "mode" in json_data, "Response should contain mode"
         assert "visibility" in json_data, "Response should contain visibility"
 
-        # Assert: use case was called with correct args
         assert fake_get.call_count == 1, "get_card.execute() should be called once"
-        assert fake_get.last_request.card_id == "card-001", "card_id should be passed"
-        assert fake_get.last_request.actor_id == "u1", "actor_id should be passed"
+        assert fake_get.last_request.card_id == "card-001"
+        assert fake_get.last_request.actor_id == "u1"
 
-
-# =============================================================================
-# TEST: GET /cards/<card_id> - not found
-# =============================================================================
-class TestGetCardNotFound:
-    """Test GET /cards/<card_id> when card doesn't exist."""
-
-    def test_get_card_not_found_returns_404(self, monkeypatch, session_factory):
+    def test_not_found_returns_404(self, monkeypatch, session_factory):
         """GET /cards/<card_id> should return 404 if card not found."""
-        # Arrange: create fake that raises not found
-        fake_get_not_found = FakeGetCard(raise_not_found=True)
-        fake_services = FakeServices(
-            generate_scenario_card=FakeGenerateScenarioCard(),
-            save_card=FakeSaveCard(),
+        fake_get_not_found = FakeUseCase(
+            error=RuntimeError("Card not found"),
+        )
+        services = FakeServices(
+            generate_scenario_card=FakeUseCase(response=FakeGenerateResponse()),
+            save_card=FakeUseCase(
+                response=SimpleNamespace(card_id="card-001"),
+            ),
             get_card=fake_get_not_found,
-            list_cards=FakeListCards(),
+            list_cards=FakeUseCase(
+                response=FakeListCardsResponse(
+                    cards=_default_card_snapshots(),
+                ),
+            ),
         )
         monkeypatch.setattr(
-            "adapters.http_flask.app.build_services", lambda: fake_services
+            "adapters.http_flask.app.build_services",
+            lambda: services,
         )
         app = create_app()
-        app.config["services"] = fake_services
-        client = app.test_client()
-        session_factory(client, "u1")
+        app.config["services"] = services
+        test_client = app.test_client()
+        session_factory(test_client, "u1")
 
-        # Act
-        response = client.get("/cards/card-404")
+        response = test_client.get("/cards/card-404")
 
-        # Assert
         assert response.status_code == 404, "Card not found should return 404"
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
 
-
-# =============================================================================
-# TEST: GET /cards/<card_id> - missing actor ID
-# =============================================================================
-class TestGetCardMissingActorId:
-    """Test GET /cards/<card_id> without valid session (auth middleware)."""
-
-    def test_get_card_missing_auth_returns_401(self, fake_services, monkeypatch):
+    def test_missing_auth_returns_401(self, fake_services, monkeypatch):
         """GET /cards/<card_id> without session cookie should return 401."""
         monkeypatch.setattr(
-            "adapters.http_flask.app.build_services", lambda: fake_services
+            "adapters.http_flask.app.build_services",
+            lambda: fake_services,
         )
         app = create_app()
         app.config["services"] = fake_services
         unauth_client = app.test_client()
 
-        # Act
         response = unauth_client.get("/cards/card-001")
 
-        # Assert
-        assert response.status_code == 401, "Missing auth should return 401"
-        json_data = response.get_json()
-        assert json_data is not None, "Response should be JSON"
-        assert json_data.get("ok") is False
-        assert json_data.get("message") == "Authentication required."
+        assert_auth_required(response)
 
 
 # =============================================================================
-# TEST: GET /cards?filter=... - happy path
+# TEST: GET /cards?filter=...
 # =============================================================================
-class TestListCardsHappyPath:
-    """Test GET /cards?filter=... with valid request."""
+class TestListCards:
+    """Tests for GET /cards?filter=... endpoint."""
 
-    def test_list_cards_returns_cards_array_200(self, client, fake_list):
+    def test_returns_cards_array_200(self, client, fake_list):
         """GET /cards?filter=mine should return 200 with cards array."""
-        # Act
         response = client.get("/cards?filter=mine")
 
-        # Assert: status code
         assert response.status_code == 200, "Valid GET should return 200"
 
-        # Assert: JSON structure
         json_data = response.get_json()
         assert json_data is not None, "Response should be JSON"
         assert "cards" in json_data, "Response should contain 'cards' key"
         assert isinstance(json_data["cards"], list), "cards should be a list"
         assert len(json_data["cards"]) == 2, "Should return 2 cards from fake"
 
-        # Assert: use case was called
-        assert fake_list.call_count == 1, "list_cards.execute() should be called once"
-        assert fake_list.last_request.actor_id == "u1", "actor_id should be passed"
-        assert fake_list.last_request.filter == "mine", "filter should be passed"
+        assert fake_list.call_count == 1
+        assert fake_list.last_request.actor_id == "u1"
+        assert fake_list.last_request.filter == "mine"
 
-    def test_list_cards_public_filter(self, client, fake_list):
+    def test_public_filter(self, client, fake_list):
         """GET /cards?filter=public should pass correct filter to use case."""
-        # Act
         response = client.get("/cards?filter=public")
 
-        # Assert
         assert response.status_code == 200
         assert fake_list.last_request.filter == "public"
 
-    def test_list_cards_shared_with_me_filter(self, client, fake_list):
+    def test_shared_with_me_filter(self, client, fake_list):
         """GET /cards?filter=shared_with_me should pass correct filter."""
-        # Act
         response = client.get("/cards?filter=shared_with_me")
 
-        # Assert
         assert response.status_code == 200
         assert fake_list.last_request.filter == "shared_with_me"
 
-
-# =============================================================================
-# TEST: GET /cards?filter=... - missing actor ID
-# =============================================================================
-class TestListCardsMissingActorId:
-    """Test GET /cards without valid session (auth middleware)."""
-
-    def test_list_cards_missing_auth_returns_401(self, fake_services, monkeypatch):
+    def test_missing_auth_returns_401(self, fake_services, monkeypatch):
         """GET /cards without session cookie should return 401."""
         monkeypatch.setattr(
-            "adapters.http_flask.app.build_services", lambda: fake_services
+            "adapters.http_flask.app.build_services",
+            lambda: fake_services,
         )
         app = create_app()
         app.config["services"] = fake_services
         unauth_client = app.test_client()
 
-        # Act
         response = unauth_client.get("/cards?filter=mine")
 
-        # Assert
-        assert response.status_code == 401, "Missing auth should return 401"
-        json_data = response.get_json()
-        assert json_data is not None, "Response should be JSON"
-        assert json_data.get("ok") is False
-        assert json_data.get("message") == "Authentication required."
+        assert_auth_required(response)

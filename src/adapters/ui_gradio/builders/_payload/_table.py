@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from adapters.ui_gradio.units import convert_to_cm
+
 # Table size limits (from domain)
 TABLE_MIN_CM = 60
 TABLE_MAX_CM = 300
@@ -33,7 +35,7 @@ def apply_table_config(
         preset: Table preset ("standard", "massive", or "custom")
         width: Table width value
         height: Table height value
-        unit: Unit of measurement ("cm" or "inches")
+        unit: Unit of measurement ("cm", "in", or "ft")
 
     Returns:
         Tuple of (custom_table_dict, error_dict)
@@ -41,13 +43,8 @@ def apply_table_config(
         - error_dict: Non-None if validation error occurred
     """
     if preset == "custom":
-        # Convert to cm
-        if unit == "inches":
-            width_cm = width * 2.54
-            height_cm = height * 2.54
-        else:
-            width_cm = width
-            height_cm = height
+        width_cm = convert_to_cm(width, unit)
+        height_cm = convert_to_cm(height, unit)
 
         if (
             width_cm < TABLE_MIN_CM
@@ -55,9 +52,13 @@ def apply_table_config(
             or height_cm < TABLE_MIN_CM
             or height_cm > TABLE_MAX_CM
         ):
+            limits = UNIT_LIMITS.get(unit, UNIT_LIMITS["cm"])
             return None, {
                 "status": "error",
-                "message": "Invalid table dimensions. Check limits (60-300 cm).",
+                "message": (
+                    f"Invalid table dimensions. "
+                    f"Check limits ({limits['min']}-{limits['max']} {unit})."
+                ),
             }
 
         custom_table = {"width_cm": width_cm, "height_cm": height_cm}

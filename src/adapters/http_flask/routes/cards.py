@@ -14,6 +14,8 @@ if TYPE_CHECKING:
         GenerateScenarioCardResponse,
     )
 
+from flask import Blueprint, jsonify, request, send_file
+
 from adapters.http_flask.constants import (
     DEFAULT_FILTER,
     DEFAULT_MODE,
@@ -49,7 +51,6 @@ from application.use_cases.get_card import GetCardRequest
 from application.use_cases.list_cards import ListCardsRequest
 from application.use_cases.render_map_svg import RenderMapSvgRequest
 from application.use_cases.save_card import SaveCardRequest
-from flask import Blueprint, jsonify, request, send_file
 
 cards_bp = Blueprint("cards", __name__)
 

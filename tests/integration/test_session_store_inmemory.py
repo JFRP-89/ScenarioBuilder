@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
 from infrastructure.auth import session_store
 
 
@@ -36,7 +37,7 @@ def _isolate_session_module(monkeypatch: pytest.MonkeyPatch, tmp_path):
     # Redirect store to None (use in-memory fallback)
     monkeypatch.setattr(session_store, "_store_holder", [None])
     # Clear sessions dict
-    session_store._SESSIONS.clear()
+    session_store.reset_sessions()
     # Point disk path to temp so writes don't touch real file
     monkeypatch.setattr(session_store, "_STORE_PATH", tmp_path / "sess.json")
     # Install a known clock
@@ -120,9 +121,9 @@ class TestSessionExpiry:
         assert fetched["last_seen_at"] == clock.now_utc()
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Reauth + rotation
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 class TestReauthAndRotation:
     def test_mark_reauth_sets_timestamp(self, _isolate_session_module) -> None:
         rec = session_store.create_session("hank")

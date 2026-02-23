@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import pytest
+
 from application.use_cases._validation import (
     load_card_for_read,
     load_card_for_write,

@@ -2,4 +2,4 @@
 
 from __future__ import annotations
 
-from .create_scenario import build_create_page  # noqa: F401
+from adapters.ui_gradio.ui.pages.create_scenario import build_create_page  # noqa: F401

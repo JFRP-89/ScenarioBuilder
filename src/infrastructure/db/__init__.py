@@ -7,11 +7,18 @@ from infrastructure.db.models import (
     SessionModel,
     UserModel,
 )
-from infrastructure.db.session import SessionLocal, engine, get_session, init_db
+from infrastructure.db.session import (
+    SessionLocal,
+    engine,
+    escape_password_in_url,
+    get_session,
+    init_db,
+)
 
 __all__ = [
     "Base",
     "CardModel",
+    "escape_password_in_url",
     "FavoritesModel",
     "SessionModel",
     "UserModel",

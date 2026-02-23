@@ -16,9 +16,8 @@ from urllib.parse import urlparse
 
 import pytest
 import requests
+from e2e._support.port_checks import check_port_clean
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
-
-from tests.e2e._support.port_checks import check_port_clean
 
 # ============================================================================
 # CONFIG
@@ -32,8 +31,8 @@ def _get_e2e_mode() -> str:
     return os.environ.get("E2E_MODE", "docker").strip().lower()
 
 
-@pytest.fixture(scope="session")
-def e2e_mode() -> str:
+@pytest.fixture(scope="session", name="e2e_mode")
+def _provide_e2e_mode() -> str:
     """Modo E2E: docker (default) o local."""
     mode = _get_e2e_mode()
     if mode not in {"docker", "local"}:
@@ -41,8 +40,8 @@ def e2e_mode() -> str:
     return mode
 
 
-@pytest.fixture(scope="session")
-def e2e_base_urls() -> dict[str, str]:
+@pytest.fixture(scope="session", name="e2e_base_urls")
+def _provide_base_urls() -> dict[str, str]:
     """URLs base para la aplicación unificada (FastAPI + Flask/Gradio)."""
     app_base = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
     return {
@@ -57,8 +56,8 @@ def _set_e2e_env_vars(e2e_base_urls: dict[str, str]) -> Generator[None, None, No
     yield
 
 
-@pytest.fixture(scope="session")
-def base_url(e2e_base_urls: dict[str, str]) -> str:
+@pytest.fixture(scope="session", name="base_url")
+def _provide_base_url(e2e_base_urls: dict[str, str]) -> str:
     """Base URL para la aplicación unificada."""
     return e2e_base_urls["app"]
 
@@ -68,9 +67,8 @@ def base_url(e2e_base_urls: dict[str, str]) -> str:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
-def e2e_services(
-    request: pytest.FixtureRequest,
+@pytest.fixture(scope="session", name="e2e_services")
+def _provide_e2e_services(
     e2e_mode: str,
     e2e_base_urls: dict[str, str],
 ) -> Generator[None, None, None]:
@@ -148,9 +146,10 @@ def e2e_services(
     _terminate_process(process)
 
 
-@pytest.fixture(scope="session")
-def docker_compose_up(e2e_services: None) -> Generator[None, None, None]:
+@pytest.fixture(scope="session", name="docker_compose_up")
+def _provide_docker_compose(e2e_services: None) -> Generator[None, None, None]:
     """Compatibilidad con tests legacy: asegura servicios E2E arriba."""
+    del e2e_services  # ensures services are up; value unused
     yield
 
 
@@ -180,8 +179,8 @@ def _wait_for_health(
     raise TimeoutError(f"Health check timeout después de {timeout_s}s en {health_url}")
 
 
-@pytest.fixture
-def wait_for_health(
+@pytest.fixture(name="wait_for_health")
+def _provide_wait_for_health(
     e2e_base_urls: dict[str, str],
 ) -> Generator[Callable[[], None], None, None]:
     """Fixture callable para esperar health check del app."""
@@ -248,8 +247,8 @@ def _docker_available() -> bool:
         return False
 
 
-def _start_local_api(base_url: str) -> subprocess.Popen[bytes]:
-    parsed = urlparse(base_url)
+def _start_local_api(app_base_url: str) -> subprocess.Popen[bytes]:
+    parsed = urlparse(app_base_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 8000
 
@@ -298,27 +297,27 @@ def _is_ui_test(request: pytest.FixtureRequest) -> bool:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
-def playwright_instance() -> Generator[Playwright, None, None]:
+@pytest.fixture(scope="session", name="playwright_instance")
+def _make_playwright() -> Generator[Playwright, None, None]:
     """Playwright instance (sync API) con scope=session."""
-    with sync_playwright() as p:
-        yield p
+    with sync_playwright() as pw:
+        yield pw
 
 
-@pytest.fixture(scope="session")
-def browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
+@pytest.fixture(scope="session", name="browser")
+def _make_browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
     """Browser Chromium con scope=session (reutilizado por todos los tests)."""
-    browser = playwright_instance.chromium.launch(headless=True)
-    yield browser
-    browser.close()
+    chrome = playwright_instance.chromium.launch(headless=True)
+    yield chrome
+    chrome.close()
 
 
-@pytest.fixture
-def page(browser: Browser) -> Generator[Page, None, None]:
+@pytest.fixture(name="page")
+def _make_page(browser: Browser) -> Generator[Page, None, None]:
     """Page (scope=function, nueva por cada test)."""
-    page = browser.new_page()
-    yield page
-    page.close()
+    new_page = browser.new_page()
+    yield new_page
+    new_page.close()
 
 
 # ============================================================================
@@ -326,8 +325,8 @@ def page(browser: Browser) -> Generator[Page, None, None]:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
-def generated_card_id():
+@pytest.fixture(scope="session", name="generated_card_id")
+def _provide_generated_card_id():
     """
     Fixture compartida para almacenar card_id generado entre tests API.
 

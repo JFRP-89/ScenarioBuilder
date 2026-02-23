@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 import pytest
+
 from domain.cards.card import GameMode
 from domain.maps.collision import MIN_CLEARANCE_MM, has_no_collisions
 from domain.maps.map_spec import MapSpec
@@ -21,35 +22,6 @@ from infrastructure.scenario_generation.basic_scenario_generator import (
     GENERATOR_VERSION,
     BasicScenarioGenerator,
 )
-
-
-# =============================================================================
-# FIXTURES
-# =============================================================================
-@pytest.fixture
-def table_standard() -> TableSize:
-    return TableSize.standard()
-
-
-@pytest.fixture
-def table_massive() -> TableSize:
-    return TableSize.massive()
-
-
-@pytest.fixture
-def table_small() -> TableSize:
-    """Smallest valid table: 600x600mm."""
-    return TableSize(width_mm=600, height_mm=600)
-
-
-@pytest.fixture
-def mode() -> GameMode:
-    return GameMode.MATCHED
-
-
-@pytest.fixture
-def gen() -> BasicScenarioGenerator:
-    return BasicScenarioGenerator()
 
 
 # =============================================================================

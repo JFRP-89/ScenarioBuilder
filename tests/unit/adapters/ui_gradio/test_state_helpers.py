@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from adapters.ui_gradio.state_helpers import validate_separation_coords
 
 

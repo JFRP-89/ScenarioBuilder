@@ -12,9 +12,6 @@ rather than via signature introspection.
 
 from __future__ import annotations
 
-import gradio as gr
-import pytest
-from adapters.ui_gradio.ui.pages.create_scenario import build_create_page
 from adapters.ui_gradio.ui.wiring import (
     _ACCEPTED_KEYS,
     _REQUIRED_KEYS,
@@ -38,13 +35,6 @@ EXPLICIT_OVERRIDES: frozenset[str] = frozenset(
 #: Keys present in the namespace that are consumed by ``app.py``
 #: directly (navigation, layout) — never forwarded to ``wire_events``.
 NAMESPACE_ONLY: frozenset[str] = frozenset({"container", "back_btn"})
-
-
-@pytest.fixture(scope="module")
-def create_ns():
-    """Build the create-page namespace once for the whole module."""
-    with gr.Blocks():
-        return build_create_page()
 
 
 # ── Test 1: no missing required (always active) ──────────────────────

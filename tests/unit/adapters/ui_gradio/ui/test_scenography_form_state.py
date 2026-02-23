@@ -1,6 +1,7 @@
 """Tests for _scenography form state management."""
 
 import pytest
+
 from adapters.ui_gradio.ui.wiring._scenography._form_state import (
     CIRCLE_DEFAULTS,
     RECT_DEFAULTS,

@@ -17,6 +17,10 @@ from application.use_cases._generate._themes import (
 from application.use_cases._generate._themes import (
     SCENOGRAPHY_DESCRIPTIONS_SOLID as _SCENOGRAPHY_DESCRIPTIONS_SOLID,
 )
+from domain.maps.collision import shapes_overlap
+
+# Max placement attempts per solid scenography shape
+_MAX_PLACEMENT_TRIES: int = 50
 
 
 def _generate_random_scenography(
@@ -164,6 +168,53 @@ def _build_non_overlapping_deployments(
     return result
 
 
+def _place_solid_scenography(
+    rng: random.Random,
+    count: int,
+    table_width: int,
+    table_height: int,
+) -> list[dict[str, Any]]:
+    """Place *count* solid (non-overlapping) scenography shapes.
+
+    Uses collision avoidance: each candidate is tested against already
+    placed shapes.  If placement fails after ``_MAX_PLACEMENT_TRIES``
+    attempts the shape is silently skipped (fewer shapes is preferable
+    to overlapping ones).
+    """
+    placed: list[dict[str, Any]] = []
+    for _ in range(count):
+        for _attempt in range(_MAX_PLACEMENT_TRIES):
+            candidate = _generate_random_scenography(
+                rng,
+                table_width,
+                table_height,
+                allow_overlap=False,
+            )
+            if not any(shapes_overlap(candidate, e) for e in placed):
+                placed.append(candidate)
+                break
+    return placed
+
+
+def _place_passable_scenography(
+    rng: random.Random,
+    count: int,
+    table_width: int,
+    table_height: int,
+    target: list[dict[str, Any]],
+) -> None:
+    """Append *count* passable (allow_overlap=True) scenography shapes."""
+    for _ in range(count):
+        target.append(
+            _generate_random_scenography(
+                rng,
+                table_width,
+                table_height,
+                allow_overlap=True,
+            )
+        )
+
+
 def _generate_seeded_shapes(
     seed: int,
     table_width: int,
@@ -211,25 +262,19 @@ def _generate_seeded_shapes(
     # ── Scenography (0-3 solid + 0-3 passable) ──────────────────────────
     n_solid = rng.randint(0, 3)
     n_passable = rng.randint(0, 3)
-    scenography_specs: list[dict[str, Any]] = []
-    for _ in range(n_solid):
-        scenography_specs.append(
-            _generate_random_scenography(
-                rng,
-                table_width,
-                table_height,
-                allow_overlap=False,
-            )
-        )
-    for _ in range(n_passable):
-        scenography_specs.append(
-            _generate_random_scenography(
-                rng,
-                table_width,
-                table_height,
-                allow_overlap=True,
-            )
-        )
+    scenography_specs = _place_solid_scenography(
+        rng,
+        n_solid,
+        table_width,
+        table_height,
+    )
+    _place_passable_scenography(
+        rng,
+        n_passable,
+        table_width,
+        table_height,
+        scenography_specs,
+    )
 
     return {
         "deployment_shapes": deployment_shapes,

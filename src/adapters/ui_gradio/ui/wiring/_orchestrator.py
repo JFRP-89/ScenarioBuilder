@@ -14,9 +14,21 @@ concentrating orchestration complexity in a single private place.
 
 from __future__ import annotations
 
+import random as _rng
 from dataclasses import dataclass
 
 import gradio as gr
+
+from adapters.ui_gradio._state._deployment_zones import get_deployment_zones_choices
+from adapters.ui_gradio._state._objective_points import (
+    get_objective_points_choices,
+)
+from adapters.ui_gradio._state._scenography import get_scenography_choices
+from adapters.ui_gradio._state._seed_sync import (
+    api_deployment_to_ui_state,
+    api_objectives_to_ui_state,
+    api_scenography_to_ui_state,
+)
 from adapters.ui_gradio.ui.wiring._deployment._context import DeploymentZonesCtx
 from adapters.ui_gradio.ui.wiring._scenography._context import ScenographyCtx
 from adapters.ui_gradio.ui.wiring.wire_deployment_zones import wire_deployment_zones
@@ -27,6 +39,9 @@ from adapters.ui_gradio.ui.wiring.wire_special_rules import wire_special_rules
 from adapters.ui_gradio.ui.wiring.wire_table import wire_table
 from adapters.ui_gradio.ui.wiring.wire_victory_points import wire_victory_points
 from adapters.ui_gradio.ui.wiring.wire_visibility import wire_visibility
+from application.use_cases._generate._themes import _resolve_full_seed_defaults
+from domain.seed import MAX_SEED
+from infrastructure.bootstrap import get_services
 
 # ── DTO for seed-based field updates ────────────────────────────────
 
@@ -195,6 +210,7 @@ class _GenerateBundle:
     home_fav_ids_cache_state: gr.State | None = None
     editing_card_id: gr.Textbox | None = None
     create_heading_md: gr.Markdown | None = None
+    map_units_radio: gr.Radio | None = None
 
 
 # ── Helper functions for seed-based scenarios ──────────────────────
@@ -214,15 +230,7 @@ def _normalize_objectives_text(obj: str | dict | None) -> str:
     return str(obj) if obj else ""
 
 
-def _build_seed_outputs(
-    card,
-    api_deployment_to_ui_state,
-    api_objectives_to_ui_state,
-    api_scenography_to_ui_state,
-    get_deployment_zones_choices,
-    get_objective_points_choices,
-    get_scenography_choices,
-) -> tuple:
+def _build_seed_outputs(card) -> tuple:
     """Build output updates for a successfully loaded seed card."""
     obj_text = _normalize_objectives_text(card.objectives)
     dep_state = api_deployment_to_ui_state(card.map_spec.deployment_shapes or [])
@@ -246,29 +254,19 @@ def _build_seed_outputs(
         gr.update(choices=get_scenography_choices(scen_state), value=None),
         gr.update(value=card.mode.value),
         gr.update(value=preset),
-        gr.update(visible=(preset == "custom")),
+        gr.update(visible=preset == "custom"),
         gr.update(value=tw_cm),
         gr.update(value=th_cm),
         card.special_rules or [],
     )
 
 
-def _build_refill_outputs(
-    new_seed: int,
-    resolve_full_seed_defaults,
-    get_services,
-    api_deployment_to_ui_state,
-    api_objectives_to_ui_state,
-    api_scenography_to_ui_state,
-    get_deployment_zones_choices,
-    get_objective_points_choices,
-    get_scenography_choices,
-) -> tuple:
+def _build_refill_outputs(new_seed: int) -> tuple:
     """Build output updates for a newly generated random seed."""
-    expected = resolve_full_seed_defaults(new_seed)
-    svc = get_services()
-    content = svc.generate_scenario_card.resolve_seed_preview(new_seed)
-    full = svc.generate_scenario_card.resolve_full_seed_scenario(
+    expected = _resolve_full_seed_defaults(new_seed)
+    card_svc = get_services().generate_scenario_card
+    content = card_svc.resolve_seed_preview(new_seed)
+    full = card_svc.resolve_full_seed_scenario(
         new_seed,
         expected["table_width_mm"],
         expected["table_height_mm"],
@@ -277,13 +275,12 @@ def _build_refill_outputs(
     obj_state = api_objectives_to_ui_state(full.get("objective_shapes", []))
     scen_state = api_scenography_to_ui_state(full.get("scenography_specs", []))
     return (
-        gr.update(value=new_seed),
         gr.update(value=content["armies"]),
         gr.update(value=content["deployment"]),
         gr.update(value=content["layout"]),
         gr.update(value=content["objectives"]),
         gr.update(value=content["initial_priority"]),
-        gr.update(value=content.get("name", "")),
+        gr.update(),  # scenario_name — NOT overwritten
         dep_state,
         gr.update(choices=get_deployment_zones_choices(dep_state), value=None),
         obj_state,
@@ -292,7 +289,7 @@ def _build_refill_outputs(
         gr.update(choices=get_scenography_choices(scen_state), value=None),
         gr.update(value=expected["mode"]),
         gr.update(value=expected["table_preset"]),
-        gr.update(visible=False),
+        gr.update(visible=expected["table_preset"] == "custom"),
         gr.update(value=expected["table_width_mm"] / 10),
         gr.update(value=expected["table_height_mm"] / 10),
         [],  # special_rules_state cleared
@@ -344,39 +341,16 @@ def _wire_apply_seed(
     """Wire the Apply Seed button to look up a card by seed and fill the form."""
 
     def _apply_seed(seed_value: float | None) -> tuple:
-        from adapters.ui_gradio._state._deployment_zones import (
-            get_deployment_zones_choices,
-        )
-        from adapters.ui_gradio._state._objective_points import (
-            get_objective_points_choices,
-        )
-        from adapters.ui_gradio._state._scenography import get_scenography_choices
-        from adapters.ui_gradio._state._seed_sync import (
-            api_deployment_to_ui_state,
-            api_objectives_to_ui_state,
-            api_scenography_to_ui_state,
-        )
-        from infrastructure.bootstrap import get_services
-
-        _NO_CHANGE: tuple = tuple(gr.update() for _ in range(18))
+        no_change: tuple = tuple(gr.update() for _ in range(18))
         seed_int = _normalize_seed_value(seed_value)
         if seed_int <= 0:
-            return _NO_CHANGE
+            return no_change
 
-        svc = get_services()
-        card = svc.generate_scenario_card.find_card_by_seed(seed_int)
+        card = get_services().generate_scenario_card.find_card_by_seed(seed_int)
         if card is None:
-            return _NO_CHANGE
+            return no_change
 
-        return _build_seed_outputs(
-            card,
-            api_deployment_to_ui_state,
-            api_objectives_to_ui_state,
-            api_scenography_to_ui_state,
-            get_deployment_zones_choices,
-            get_objective_points_choices,
-            get_scenography_choices,
-        )
+        return _build_seed_outputs(card)
 
     apply_seed_btn.click(
         fn=_apply_seed,
@@ -388,49 +362,18 @@ def _wire_apply_seed(
 def _wire_refill_scenario(
     *,
     refill_scenario_btn: gr.Button,
-    generate_from_seed: gr.Number,
     fields: _SeedFieldsBundle,
 ) -> None:
     """Wire the Refill Scenario button to generate a random seed + fill form."""
 
     def _refill_scenario() -> tuple:
-        import random as _rng
-
-        from adapters.ui_gradio._state._deployment_zones import (
-            get_deployment_zones_choices,
-        )
-        from adapters.ui_gradio._state._objective_points import (
-            get_objective_points_choices,
-        )
-        from adapters.ui_gradio._state._scenography import get_scenography_choices
-        from adapters.ui_gradio._state._seed_sync import (
-            api_deployment_to_ui_state,
-            api_objectives_to_ui_state,
-            api_scenography_to_ui_state,
-        )
-        from application.use_cases._generate._themes import (
-            _resolve_full_seed_defaults,
-        )
-        from domain.seed import MAX_SEED
-        from infrastructure.bootstrap import get_services
-
         new_seed = _rng.randint(1, MAX_SEED)  # nosec B311 — not security-sensitive
-        return _build_refill_outputs(
-            new_seed,
-            _resolve_full_seed_defaults,
-            get_services,
-            api_deployment_to_ui_state,
-            api_objectives_to_ui_state,
-            api_scenography_to_ui_state,
-            get_deployment_zones_choices,
-            get_objective_points_choices,
-            get_scenography_choices,
-        )
+        return _build_refill_outputs(new_seed)
 
     refill_scenario_btn.click(
         fn=_refill_scenario,
         inputs=[],
-        outputs=[generate_from_seed, *fields.outputs_for_click],
+        outputs=fields.outputs_for_click,
     )
 
 
@@ -466,6 +409,10 @@ def _wire_all(
         table_unit=table.table_unit,
         objective_cx_input=obj.objective_cx_input,
         objective_cy_input=obj.objective_cy_input,
+        deployment_zones_state=deployment_ctx.deployment_zones_state,
+        objective_points_state=obj.objective_points_state,
+        scenography_state=scenography_ctx.scenography_state,
+        output=gen.output,
     )
 
     _wire_replicable_toggle(
@@ -504,7 +451,6 @@ def _wire_all(
 
     _wire_refill_scenario(
         refill_scenario_btn=meta.refill_scenario_btn,
-        generate_from_seed=meta.generate_from_seed,
         fields=seed_fields_bundle,
     )
 
@@ -614,5 +560,6 @@ def _wire_all(
             objective_points_list=obj.objective_points_list,
             editing_card_id=gen.editing_card_id,
             create_heading_md=gen.create_heading_md,
+            map_units_radio=gen.map_units_radio,
         )
     )
